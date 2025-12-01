@@ -20,7 +20,7 @@ const Header = () => {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
-              <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline">
+              <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-amber-400 hover:text-amber-300 underline">
                 rpicamalert.xyz
               </a>
             </p>
