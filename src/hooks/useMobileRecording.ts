@@ -2,14 +2,11 @@ import { useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { getRecordingPath } from '@/utils/folderStructure';
 
 export const useMobileRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const isNativePlatform = Capacitor.isNativePlatform();
@@ -44,23 +41,19 @@ export const useMobileRecording = () => {
         encoding: Encoding.UTF8
       });
 
-      // Save metadata to database
-      const { error: dbError } = await supabase
-        .from('recordings')
-        .insert({
-          user_id: user!.id,
-          filename,
-          file_type: 'video',
-          storage_type: 'local',
-          file_path: result.uri,
-          file_size: blob.size,
-          motion_detected: motionDetected
-        });
-
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw dbError;
-      }
+      // Save metadata to localStorage
+      const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+      recordings.unshift({
+        id: crypto.randomUUID(),
+        filename,
+        file_type: 'video',
+        storage_type: 'local',
+        file_path: result.uri,
+        file_size: blob.size,
+        motion_detected: motionDetected,
+        recorded_at: new Date().toISOString()
+      });
+      localStorage.setItem('recordings', JSON.stringify(recordings));
 
       toast({
         title: "Saved to device",
@@ -72,7 +65,7 @@ export const useMobileRecording = () => {
       console.error('Error saving to device storage:', error);
       throw error;
     }
-  }, [isNativePlatform, user, toast]);
+  }, [isNativePlatform, toast]);
 
   const createVideoFolder = useCallback(async () => {
     if (!isNativePlatform) return;

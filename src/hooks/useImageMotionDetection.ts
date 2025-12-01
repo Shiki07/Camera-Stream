@@ -1,7 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 export interface ImageMotionDetectionConfig {
   sensitivity: number;
@@ -24,7 +22,6 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const [lastMotionTime, setLastMotionTime] = useState<Date | null>(null);
   const [currentMotionLevel, setCurrentMotionLevel] = useState(0);
   const [motionEventsToday, setMotionEventsToday] = useState(0);
-  const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [lastAlertTime, setLastAlertTime] = useState<Date | null>(null);
   
   const previousFrameRef = useRef<ImageData | null>(null);
@@ -36,7 +33,6 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const imageRef = useRef<HTMLImageElement | null>(null);
   
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const isWithinSchedule = useCallback(() => {
     if (!config.scheduleEnabled) return true;
@@ -100,40 +96,28 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     return changedPixels;
   }, [config.sensitivity, config.noiseReduction]);
 
-  const saveMotionEvent = useCallback(async (motionLevel: number, detected: boolean) => {
-    if (!user) return;
-
+  const saveMotionEvent = useCallback((motionLevel: number, detected: boolean) => {
     try {
-      if (detected && !currentEventId) {
-        // Start new motion event
-        const { data, error } = await supabase
-          .from('motion_events')
-          .insert({
-            user_id: user.id,
-            motion_level: motionLevel,
-            detected_at: new Date().toISOString(),
-            recording_triggered: true
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error saving motion event:', error);
-          return;
-        }
-
-        setCurrentEventId(data.id);
-      } else if (!detected && currentEventId) {
-        // End motion event
-        await supabase.rpc('update_motion_event_cleared', {
-          event_id: currentEventId
-        });
-        setCurrentEventId(null);
+      const events = JSON.parse(localStorage.getItem('motionEvents') || '[]');
+      
+      if (detected) {
+        const newEvent = {
+          id: crypto.randomUUID(),
+          motion_level: motionLevel,
+          detected_at: new Date().toISOString(),
+          recording_triggered: true,
+          email_sent: false,
+          detection_zone: null,
+          duration_ms: null,
+          cleared_at: null
+        };
+        events.unshift(newEvent);
+        localStorage.setItem('motionEvents', JSON.stringify(events.slice(0, 100)));
       }
     } catch (error) {
-      console.error('Error in motion event logging:', error);
+      console.error('Error saving motion event:', error);
     }
-  }, [user, currentEventId]);
+  }, []);
 
   const processFrame = useCallback(() => {
     if (!config.enabled || !imageRef.current) return;
@@ -178,7 +162,7 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
             setLastAlertTime(new Date());
             setMotionEventsToday(prev => prev + 1);
             
-            // Save motion event to database
+            // Save motion event to localStorage
             saveMotionEvent(motionLevel, true);
             
             config.onMotionDetected?.(motionLevel);
@@ -199,9 +183,6 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
             setMotionDetected(false);
             setCurrentMotionLevel(0);
             motionStartTimeRef.current = null;
-            
-            // End motion event in database
-            saveMotionEvent(0, false);
             
             config.onMotionCleared?.();
           }, 3000);
