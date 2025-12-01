@@ -1,39 +1,49 @@
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, Camera, Cloud, HardDrive, Download, Trash2, Eye, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface Recording {
+  id: string;
+  filename: string;
+  file_type: string;
+  storage_type: string;
+  file_path: string;
+  file_size: number;
+  motion_detected: boolean;
+  recorded_at: string;
+  duration_seconds?: number;
+}
+
 export const RecordingHistory = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: recordings, isLoading, refetch } = useQuery({
-    queryKey: ['recordings', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      const { data, error } = await supabase
-        .from('recordings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('recorded_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user
-  });
+  useEffect(() => {
+    loadRecordings();
+  }, []);
 
-  const downloadFromCloud = async (recording: any) => {
+  const loadRecordings = () => {
+    try {
+      setIsLoading(true);
+      const savedRecordings = localStorage.getItem('recordings');
+      if (savedRecordings) {
+        setRecordings(JSON.parse(savedRecordings));
+      }
+    } catch (error) {
+      console.error('Error loading recordings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const downloadFromCloud = async (recording: Recording) => {
     try {
       console.log('Downloading from cloud:', recording.file_path);
       
-      // Try to use cloud provider if configured
       const configStr = localStorage.getItem('cloudStorageConfig');
       if (configStr) {
         const { CloudStorageFactory } = await import('@/services/cloudStorage/CloudStorageFactory');
@@ -78,7 +88,7 @@ export const RecordingHistory = () => {
     }
   };
 
-  const viewInBrowser = async (recording: any) => {
+  const viewInBrowser = async (recording: Recording) => {
     try {
       if (recording.storage_type !== 'cloud') {
         toast({
@@ -89,21 +99,7 @@ export const RecordingHistory = () => {
         return;
       }
 
-      // Try to get public URL from cloud provider if available
-      const configStr = localStorage.getItem('cloudStorageConfig');
-      if (configStr) {
-        const config = JSON.parse(configStr);
-        
-        // For now, we'll download and open in new tab
-        const downloadResult = await downloadFromCloud(recording);
-        return;
-      }
-
-      toast({
-        title: "View not available",
-        description: "Cloud storage provider not configured",
-        variant: "destructive"
-      });
+      await downloadFromCloud(recording);
     } catch (error) {
       console.error('View error:', error);
       toast({
@@ -114,12 +110,11 @@ export const RecordingHistory = () => {
     }
   };
 
-  const deleteRecording = async (recording: any) => {
+  const deleteRecording = async (recording: Recording) => {
     try {
       if (recording.storage_type === 'cloud') {
         console.log('Deleting from cloud storage:', recording.file_path);
         
-        // Try to delete using cloud provider
         const configStr = localStorage.getItem('cloudStorageConfig');
         if (configStr) {
           const { CloudStorageFactory } = await import('@/services/cloudStorage/CloudStorageFactory');
@@ -135,17 +130,11 @@ export const RecordingHistory = () => {
         }
       }
       
-      const { error: dbError } = await supabase
-        .from('recordings')
-        .delete()
-        .eq('id', recording.id);
+      // Remove from localStorage
+      const updatedRecordings = recordings.filter(r => r.id !== recording.id);
+      setRecordings(updatedRecordings);
+      localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
       
-      if (dbError) {
-        console.error('Database deletion error:', dbError);
-        throw dbError;
-      }
-      
-      refetch();
       toast({
         title: "Recording deleted",
         description: "Recording removed successfully"
@@ -169,8 +158,6 @@ export const RecordingHistory = () => {
   };
 
   const getStorageStats = () => {
-    if (!recordings) return { totalFiles: 0, totalSize: 0, cloudFiles: 0, localFiles: 0 };
-    
     return recordings.reduce((stats, recording) => {
       stats.totalFiles++;
       stats.totalSize += recording.file_size || 0;
@@ -222,7 +209,7 @@ export const RecordingHistory = () => {
       </CardHeader>
       
       <CardContent className="space-y-3">
-        {recordings?.length === 0 ? (
+        {recordings.length === 0 ? (
           <div className="text-center py-8">
             <Camera className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <div className="text-gray-400 mb-2">No recordings yet</div>
@@ -231,7 +218,7 @@ export const RecordingHistory = () => {
             </div>
           </div>
         ) : (
-          recordings?.map((recording) => (
+          recordings.map((recording) => (
             <div
               key={recording.id}
               className="bg-gray-700 rounded-lg p-4 flex items-center justify-between hover:bg-gray-650 transition-colors"

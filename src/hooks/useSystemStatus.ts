@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, useCallback } from 'react';
 
 interface SystemStatusData {
   isConnected: boolean;
@@ -13,7 +11,6 @@ interface SystemStatusData {
 }
 
 export const useSystemStatus = () => {
-  const { user } = useAuth();
   const [status, setStatus] = useState<SystemStatusData>({
     isConnected: true, // We'll track this based on camera connectivity
     motionEventsToday: 0,
@@ -34,62 +31,45 @@ export const useSystemStatus = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch system status from database
-  const fetchSystemStatus = async () => {
-    if (!user) return;
-
+  // Fetch system status from localStorage
+  const fetchSystemStatus = useCallback(() => {
     try {
       setLoading(true);
       
-      // Add timeout and retry logic for network stability
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const { data, error } = await supabase
-        .from('recordings')
-        .select('file_size, recorded_at, motion_detected')
-        .eq('user_id', user.id)
-        .abortSignal(controller.signal);
-
-      clearTimeout(timeoutId);
-
-      if (error) {
-        console.error('Error fetching system status:', error);
-        // Don't return early on error, use cached data
-        return;
-      }
+      const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+      const motionEvents = JSON.parse(localStorage.getItem('motionEvents') || '[]');
 
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
       let storageUsed = 0;
-      let motionEventsToday = 0;
       let lastEventTime: Date | null = null;
 
-      data?.forEach(record => {
+      recordings.forEach((record: any) => {
         // Calculate storage used (convert bytes to MB)
         if (record.file_size) {
           storageUsed += record.file_size / (1024 * 1024);
         }
 
-        // Count motion events today
-        const recordDate = new Date(record.recorded_at);
-        if (record.motion_detected && recordDate >= todayStart) {
-          motionEventsToday++;
-        }
-
         // Track latest event
+        const recordDate = new Date(record.recorded_at);
         if (!lastEventTime || recordDate > lastEventTime) {
           lastEventTime = recordDate;
         }
       });
+
+      // Count motion events today
+      const motionEventsToday = motionEvents.filter((event: any) => {
+        const eventDate = new Date(event.detected_at);
+        return eventDate >= todayStart;
+      }).length;
 
       setStatus(prev => ({
         ...prev,
         storageUsed: Math.round(storageUsed),
         motionEventsToday,
         lastEventTime,
-        totalRecordings: data?.length || 0,
+        totalRecordings: recordings.length,
       }));
 
     } catch (error) {
@@ -97,18 +77,16 @@ export const useSystemStatus = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Initial fetch and periodic updates
   useEffect(() => {
-    if (user) {
-      fetchSystemStatus();
-      
-      // Refresh data every 30 seconds
-      const interval = setInterval(fetchSystemStatus, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
+    fetchSystemStatus();
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(fetchSystemStatus, 30000);
+    return () => clearInterval(interval);
+  }, [fetchSystemStatus]);
 
   // Update connection status based on external factors
   const updateConnectionStatus = (connected: boolean) => {
