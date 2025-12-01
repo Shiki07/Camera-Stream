@@ -46,22 +46,28 @@ const Auth = () => {
     setError('');
 
     try {
+      console.log('Attempting signup with:', { email, fullName });
       const { error } = await signUp(email, password, fullName);
       
+      console.log('Signup result:', { error: error?.message });
+      
       if (error) {
+        console.error('Signup error details:', error);
         if (error.message.includes('User already registered')) {
           setError('An account with this email already exists. Please sign in instead.');
         } else {
           setError(error.message);
         }
       } else {
-        setShowEmailSent(true);
+        console.log('Signup successful, checking if email confirmation is disabled...');
+        // If email confirmation is disabled, user should be logged in automatically
         toast({
-          title: "Check your email",
-          description: "We've sent you a verification link to confirm your account.",
+          title: "Account created!",
+          description: "You should be redirected to the dashboard shortly.",
         });
       }
     } catch (err: any) {
+      console.error('Signup exception:', err);
       setError('An unexpected error occurred. Please try again.');
     }
 
@@ -74,9 +80,13 @@ const Auth = () => {
     setError('');
 
     try {
+      console.log('Attempting signin with:', { email });
       const { error } = await signIn(email, password);
       
+      console.log('Signin result:', { error: error?.message });
+      
       if (error) {
+        console.error('Signin error details:', error);
         if (error.message.includes('Email not confirmed')) {
           setError('Please check your email and click the verification link before signing in.');
         } else if (error.message.includes('Invalid login credentials')) {
@@ -85,12 +95,14 @@ const Auth = () => {
           setError(error.message);
         }
       } else {
+        console.log('Signin successful');
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in to your camera control system.",
         });
       }
     } catch (err: any) {
+      console.error('Signin exception:', err);
       setError('An unexpected error occurred. Please try again.');
     }
 
