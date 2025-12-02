@@ -18,7 +18,7 @@ const Header = () => {
                 <span className="text-red-200 text-sm font-medium">⚠️ VPN Not Supported for Raspberry Pi</span>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
               <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-amber-400 hover:text-amber-300 underline">
                 rpicamalert.xyz
