@@ -48,22 +48,21 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
     }
   }, [config.scheduleEnabled, config.startHour, config.endHour]);
 
-  const initializeCanvas = useCallback((video: HTMLVideoElement) => {
+  // Use fixed small resolution for motion detection to reduce CPU usage
+  const DETECTION_WIDTH = 160;
+  const DETECTION_HEIGHT = 120;
+
+  const initializeCanvas = useCallback(() => {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
+      canvasRef.current.width = DETECTION_WIDTH;
+      canvasRef.current.height = DETECTION_HEIGHT;
       contextRef.current = canvasRef.current.getContext('2d');
     }
     
-    const canvas = canvasRef.current;
-    const context = contextRef.current;
-    
-    if (canvas && context) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      return { canvas, context };
-    }
-    
-    return null;
+    return canvasRef.current && contextRef.current 
+      ? { canvas: canvasRef.current, context: contextRef.current }
+      : null;
   }, []);
 
   const isInCooldownPeriod = useCallback(() => {
@@ -122,6 +121,9 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
   const processFrame = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || !video.videoWidth || !video.videoHeight) return;
     
+    // Skip if tab is not visible
+    if (document.hidden) return;
+    
     // Check schedule
     if (!isWithinSchedule()) {
       return;
@@ -132,17 +134,18 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
       return;
     }
     
-    const canvasData = initializeCanvas(video);
+    const canvasData = initializeCanvas();
     if (!canvasData) return;
     
     const { canvas, context } = canvasData;
     
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+    // Draw downsampled frame
+    context.drawImage(video, 0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
+    const currentFrame = context.getImageData(0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
     
     if (previousFrameRef.current) {
       const changedPixels = calculateMotion(currentFrame, previousFrameRef.current);
-      const motionLevel = (changedPixels / (canvas.width * canvas.height)) * 100;
+      const motionLevel = (changedPixels / (DETECTION_WIDTH * DETECTION_HEIGHT)) * 100;
       
       setCurrentMotionLevel(motionLevel);
       
@@ -155,7 +158,6 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
           // Check minimum motion duration
           const motionDuration = new Date().getTime() - motionStartTimeRef.current.getTime();
           if (motionDuration >= config.minMotionDuration) {
-            console.log('Motion detected!', motionLevel.toFixed(2) + '%');
             setMotionDetected(true);
             setLastMotionTime(new Date());
             setLastAlertTime(new Date());
@@ -179,7 +181,6 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
         }
         
         motionTimeoutRef.current = setTimeout(() => {
-          console.log('Motion cleared');
           setMotionDetected(false);
           setCurrentMotionLevel(0);
           motionStartTimeRef.current = null;
@@ -198,16 +199,15 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
   const startDetection = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || isDetecting) return;
     
-    console.log('Starting enhanced motion detection');
     setIsDetecting(true);
     
+    // Process frames every 500ms to reduce CPU usage
     detectionIntervalRef.current = setInterval(() => {
       processFrame(video);
-    }, 200);
+    }, 500);
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
-    console.log('Stopping enhanced motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);

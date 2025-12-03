@@ -24,22 +24,21 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
   
   const { toast } = useToast();
 
-  const initializeCanvas = useCallback((video: HTMLVideoElement) => {
+  // Use fixed small resolution for motion detection to reduce CPU usage
+  const DETECTION_WIDTH = 160;
+  const DETECTION_HEIGHT = 120;
+
+  const initializeCanvas = useCallback(() => {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
+      canvasRef.current.width = DETECTION_WIDTH;
+      canvasRef.current.height = DETECTION_HEIGHT;
       contextRef.current = canvasRef.current.getContext('2d');
     }
     
-    const canvas = canvasRef.current;
-    const context = contextRef.current;
-    
-    if (canvas && context) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      return { canvas, context };
-    }
-    
-    return null;
+    return canvasRef.current && contextRef.current 
+      ? { canvas: canvasRef.current, context: contextRef.current }
+      : null;
   }, []);
 
   const calculateMotion = useCallback((currentFrame: ImageData, previousFrame: ImageData): number => {
@@ -68,26 +67,26 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
   const processFrame = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || !video.videoWidth || !video.videoHeight) return;
     
-    const canvasData = initializeCanvas(video);
+    // Skip if tab is not visible
+    if (document.hidden) return;
+    
+    const canvasData = initializeCanvas();
     if (!canvasData) return;
     
     const { canvas, context } = canvasData;
     
-    // Draw current frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+    // Draw downsampled frame to canvas
+    context.drawImage(video, 0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
+    const currentFrame = context.getImageData(0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
     
     if (previousFrameRef.current) {
       const changedPixels = calculateMotion(currentFrame, previousFrameRef.current);
-      const motionLevel = (changedPixels / (canvas.width * canvas.height)) * 100;
+      const motionLevel = (changedPixels / (DETECTION_WIDTH * DETECTION_HEIGHT)) * 100;
       
       setCurrentMotionLevel(motionLevel);
       
-      console.log('Motion level:', motionLevel.toFixed(2) + '%', 'Threshold:', config.threshold);
-      
       if (motionLevel > config.threshold) {
         if (!motionDetected) {
-          console.log('Motion detected!');
           setMotionDetected(true);
           setLastMotionTime(new Date());
           config.onMotionDetected?.(motionLevel);
@@ -106,7 +105,6 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
         
         // Clear motion after 3 seconds of no movement
         motionTimeoutRef.current = setTimeout(() => {
-          console.log('Motion cleared');
           setMotionDetected(false);
           setCurrentMotionLevel(0);
           config.onMotionCleared?.();
@@ -120,17 +118,15 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
   const startDetection = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || isDetecting) return;
     
-    console.log('Starting motion detection');
     setIsDetecting(true);
     
-    // Process frames every 200ms (5 FPS for motion detection)
+    // Process frames every 500ms to reduce CPU usage
     detectionIntervalRef.current = setInterval(() => {
       processFrame(video);
-    }, 200);
+    }, 500);
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
-    console.log('Stopping motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);

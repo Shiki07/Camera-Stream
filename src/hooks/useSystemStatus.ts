@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface SystemStatusData {
   isConnected: boolean;
@@ -22,13 +22,11 @@ export const useSystemStatus = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Track uptime
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStatus(prev => ({ ...prev, uptime: prev.uptime + 1 }));
-    }, 1000);
-
-    return () => clearInterval(interval);
+  // Track uptime - use start time instead of 1-second interval to reduce CPU usage
+  const startTimeRef = useRef(Date.now());
+  
+  const getUptime = useCallback(() => {
+    return Math.floor((Date.now() - startTimeRef.current) / 1000);
   }, []);
 
   // Fetch system status from localStorage
@@ -89,19 +87,23 @@ export const useSystemStatus = () => {
   }, [fetchSystemStatus]);
 
   // Update connection status based on external factors
-  const updateConnectionStatus = (connected: boolean) => {
-    setStatus(prev => ({ ...prev, isConnected: connected }));
-  };
+  const updateConnectionStatus = useCallback((connected: boolean) => {
+    setStatus(prev => {
+      if (prev.isConnected === connected) return prev;
+      return { ...prev, isConnected: connected };
+    });
+  }, []);
 
   // Manually refresh status
-  const refreshStatus = () => {
+  const refreshStatus = useCallback(() => {
     fetchSystemStatus();
-  };
+  }, [fetchSystemStatus]);
 
   return {
     status,
     loading,
     updateConnectionStatus,
     refreshStatus,
+    getUptime,
   };
 };
