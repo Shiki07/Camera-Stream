@@ -128,9 +128,8 @@ async function startRecording(
       id: recordingId,
       user_id: userId,
       filename: result.filename,
-      file_type: 'video',
       storage_type: 'local',
-      file_path: `/pi/${result.filename}`,
+      storage_path: `/pi/${result.filename}`,
       motion_detected: motionTriggered,
       pi_sync_status: 'recording'
     });
