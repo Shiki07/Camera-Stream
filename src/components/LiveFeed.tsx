@@ -6,6 +6,7 @@ import { useImageMotionDetection } from "@/hooks/useImageMotionDetection";
 import { useMotionNotification } from "@/hooks/useMotionNotification";
 import { useNetworkCamera, NetworkCameraConfig } from "@/hooks/useNetworkCamera";
 import { useConnectionMonitor } from "@/hooks/useConnectionMonitor";
+import { useEncryptedCameras } from "@/hooks/useEncryptedCameras";
 import { CameraSourceSelector, CameraSource } from "@/components/CameraSourceSelector";
 import { VideoDisplay } from "@/components/VideoDisplay";
 import { CameraStatus } from "@/components/CameraStatus";
@@ -73,14 +74,8 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraSource, setCameraSource] = useState<CameraSource>('webcam');
-  const [networkCameras, setNetworkCameras] = useState<NetworkCameraConfig[]>(() => {
-    try {
-      const saved = localStorage.getItem('networkCameras');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Use encrypted camera storage
+  const { cameras: networkCameras, addCamera, removeCamera, isLoading: camerasLoading } = useEncryptedCameras();
   const [piServiceConnected, setPiServiceConnected] = useState<boolean | null>(null);
   const [detectedPiIp, setDetectedPiIp] = useState<string | null>(null);
   
@@ -564,10 +559,7 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
     };
   }, []);
 
-  // Save network cameras to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('networkCameras', JSON.stringify(networkCameras));
-  }, [networkCameras]);
+  // Camera saving is now handled by useEncryptedCameras hook
 
   // Restart camera when quality changes to apply new settings
   useEffect(() => {
@@ -743,9 +735,9 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
         networkCameras={networkCameras}
         onAddNetworkCamera={(config) => {
           console.log('LiveFeed: Adding network camera:', config);
-          setNetworkCameras(prev => [...prev, config]);
+          addCamera(config);
         }}
-        onRemoveNetworkCamera={(index) => setNetworkCameras(prev => prev.filter((_, i) => i !== index))}
+        onRemoveNetworkCamera={(index) => removeCamera(index)}
         onConnectNetworkCamera={handleConnectNetworkCamera}
         onTestConnection={networkCamera.testConnection}
         selectedNetworkCamera={networkCamera.currentConfig}
