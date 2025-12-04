@@ -1,14 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Clock, Mail, RefreshCw, Camera, Calendar, Filter, Image as ImageIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Activity, Clock, Mail, RefreshCw, Camera, Calendar, Filter, Image as ImageIcon, Wifi } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, isToday, isYesterday, startOfDay, subDays } from 'date-fns';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface MotionEvent {
   id: string;
@@ -30,11 +31,32 @@ interface GroupedEvents {
 export const MotionEventDashboard = () => {
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedCamera, setSelectedCamera] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('week');
   const [stats, setStats] = useState({ total: 0, today: 0, alerts: 0 });
   const { user } = useAuth();
   const { toast } = useToast();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // Add event with thumbnail
+  const addEventWithThumbnail = useCallback((event: MotionEvent) => {
+    const thumbnail = localStorage.getItem(`motion_thumbnail_${event.id}`);
+    return { ...event, thumbnail: thumbnail || undefined };
+  }, []);
+
+  // Update stats when events change
+  const updateStats = useCallback((events: MotionEvent[]) => {
+    const today = startOfDay(new Date());
+    const todayEvents = events.filter(e => new Date(e.detected_at) >= today);
+    const alertsSent = events.filter(e => e.email_sent).length;
+    
+    setStats({
+      total: events.length,
+      today: todayEvents.length,
+      alerts: alertsSent
+    });
+  }, []);
 
   const loadMotionEvents = useCallback(async () => {
     if (!user) return;
@@ -69,31 +91,87 @@ export const MotionEventDashboard = () => {
       }
 
       // Load thumbnails from localStorage if available
-      const eventsWithThumbnails = (data || []).map(event => {
-        const thumbnail = localStorage.getItem(`motion_thumbnail_${event.id}`);
-        return { ...event, thumbnail: thumbnail || undefined };
-      });
-
+      const eventsWithThumbnails = (data || []).map(addEventWithThumbnail);
       setMotionEvents(eventsWithThumbnails);
-      
-      // Calculate stats
-      const today = startOfDay(new Date());
-      const todayEvents = eventsWithThumbnails.filter(e => new Date(e.detected_at) >= today);
-      const alertsSent = eventsWithThumbnails.filter(e => e.email_sent).length;
-      
-      setStats({
-        total: eventsWithThumbnails.length,
-        today: todayEvents.length,
-        alerts: alertsSent
-      });
+      updateStats(eventsWithThumbnails);
 
     } catch {
       // Silent failure
     } finally {
       setIsLoading(false);
     }
-  }, [user, selectedCamera, timeRange, toast]);
+  }, [user, selectedCamera, timeRange, toast, addEventWithThumbnail, updateStats]);
 
+  // Set up realtime subscription
+  useEffect(() => {
+    if (!user) return;
+
+    // Clean up previous channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    const channel = supabase
+      .channel('motion-events-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'motion_events',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New motion event received:', payload);
+          const newEvent = addEventWithThumbnail(payload.new as MotionEvent);
+          
+          // Add to the beginning of the list
+          setMotionEvents(prev => {
+            const updated = [newEvent, ...prev].slice(0, 100);
+            updateStats(updated);
+            return updated;
+          });
+
+          // Show toast notification
+          toast({
+            title: "Motion Detected",
+            description: `New motion event at ${format(new Date(newEvent.detected_at), 'HH:mm:ss')}`,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'motion_events',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const updatedEvent = addEventWithThumbnail(payload.new as MotionEvent);
+          setMotionEvents(prev => 
+            prev.map(e => e.id === updatedEvent.id ? updatedEvent : e)
+          );
+        }
+      )
+      .subscribe((status) => {
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime subscription active for motion events');
+        }
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [user, addEventWithThumbnail, updateStats, toast]);
+
+  // Load initial events
   useEffect(() => {
     loadMotionEvents();
   }, [loadMotionEvents]);
@@ -151,15 +229,21 @@ export const MotionEventDashboard = () => {
               View all detected motion events across your cameras
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadMotionEvents}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant={isRealtimeConnected ? "default" : "secondary"} className="text-xs gap-1">
+              <Wifi className={`w-3 h-3 ${isRealtimeConnected ? 'text-green-400' : ''}`} />
+              {isRealtimeConnected ? 'Live' : 'Connecting...'}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadMotionEvents}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats Row */}
