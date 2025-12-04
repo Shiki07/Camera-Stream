@@ -110,7 +110,6 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
 
     try {
       if (detected && !currentEventId) {
-        // Start new motion event
         const { data, error } = await supabase
           .from('motion_events')
           .insert({
@@ -122,21 +121,16 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
           .select()
           .single();
 
-        if (error) {
-          console.error('Error saving motion event:', error);
-          return;
-        }
-
+        if (error || !data) return;
         setCurrentEventId(data.id);
       } else if (!detected && currentEventId) {
-        // End motion event
         await supabase.rpc('update_motion_event_cleared', {
           event_id: currentEventId
         });
         setCurrentEventId(null);
       }
-    } catch (error) {
-      console.error('Error in motion event logging:', error);
+    } catch {
+      // Silent failure
     }
   }, [user, currentEventId]);
 

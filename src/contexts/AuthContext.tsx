@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ]) as any;
         
         if (error) {
-          console.error('Error getting session:', error);
+          // Silent failure - continue with null session
         }
         
         if (mounted) {
@@ -65,13 +65,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Set up auth state listener with error handling
         const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
           (event, session) => {
-            console.log('Auth state changed:', event, session?.user?.email);
-            
             // SECURITY: Validate session before setting state
             if (session) {
               const now = Math.floor(Date.now() / 1000);
               if (session.expires_at && session.expires_at < now) {
-                console.warn('Received expired session, ignoring');
                 return;
               }
             }
@@ -84,8 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         );
         subscription = authSubscription;
 
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+      } catch {
         // In case of any errors, set secure defaults
         if (mounted) {
           setSession(null);
@@ -105,8 +101,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (subscription) {
         try {
           subscription.unsubscribe();
-        } catch (error) {
-          console.error('Error unsubscribing:', error);
+        } catch {
+          // Silent failure
         }
       }
     };
@@ -149,8 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
       return { error };
-    } catch (error) {
-      console.error('Error in signUp:', error);
+    } catch {
       return { error: { message: 'An unexpected error occurred during sign up' } };
     }
   };
@@ -167,8 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         password,
       });
       return { error };
-    } catch (error) {
-      console.error('Error in signIn:', error);
+    } catch {
       return { error: { message: 'An unexpected error occurred during sign in' } };
     }
   };
@@ -180,8 +174,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       
       await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error in signOut:', error);
+    } catch {
+      // Silent failure
     }
   };
 

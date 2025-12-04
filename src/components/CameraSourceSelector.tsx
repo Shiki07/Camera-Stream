@@ -56,20 +56,17 @@ export const CameraSourceSelector = ({
       });
       
       if (error) {
-        console.error('Diagnostics error:', error);
         setDiagnosticsResults(prev => ({
           ...prev,
           [index]: { error: error.message }
         }));
       } else {
-        console.log('Diagnostics results:', data);
         setDiagnosticsResults(prev => ({
           ...prev,
           [index]: data
         }));
       }
     } catch (err) {
-      console.error('Diagnostics failed:', err);
       setDiagnosticsResults(prev => ({
         ...prev,
         [index]: { error: 'Diagnostics failed to run' }
@@ -101,9 +98,7 @@ export const CameraSourceSelector = ({
     });
     
     try {
-      console.log('Starting connection test for:', config.name, config.url);
       const success = await onTestConnection(config);
-      console.log(`Connection test ${success ? 'passed' : 'failed'} for ${config.name}`);
       
       toast({
         title: success ? '✅ Connection successful!' : '❌ Connection failed',
@@ -114,7 +109,6 @@ export const CameraSourceSelector = ({
         duration: 5000,
       });
     } catch (error) {
-      console.error('Test connection error:', error);
       toast({
         title: '❌ Test failed',
         description: `Error testing ${config.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -131,14 +125,12 @@ export const CameraSourceSelector = ({
   };
 
   const handleConnectCamera = async (config: NetworkCameraConfig, index: number) => {
-    console.log('Connect button clicked for camera:', config.name, config.url);
     setConnectingCameras(prev => new Set(prev).add(index));
     
     try {
       await onConnectNetworkCamera(config);
-      console.log('Connection attempt completed for:', config.name);
-    } catch (error) {
-      console.error('Connection failed:', error);
+    } catch {
+      // Silent failure - UI handles error state
     } finally {
       setConnectingCameras(prev => {
         const newSet = new Set(prev);

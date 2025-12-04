@@ -37,8 +37,8 @@ export const useCameraSettings = () => {
       if (savedEmail) {
         setNotificationEmail(savedEmail);
       }
-    } catch (error) {
-      console.error('Failed to load settings from localStorage:', error);
+    } catch {
+      // Silent failure for localStorage access
     }
   }, []);
   const [storageType, setStorageType] = useState<'cloud' | 'local'>('local');
@@ -88,21 +88,19 @@ export const useCameraSettings = () => {
   const toggleEmailNotifications = () => {
     const newValue = !emailEnabled;
     setEmailEnabled(newValue);
-    // Save email enabled state to localStorage
     try {
       localStorage.setItem('cameraEmailEnabled', JSON.stringify(newValue));
-    } catch (error) {
-      console.error('Failed to save email enabled state to localStorage:', error);
+    } catch {
+      // Silent failure
     }
   };
 
   const handleEmailChange = (email: string) => {
     setNotificationEmail(email);
-    // Save to localStorage when email changes
     try {
       localStorage.setItem('cameraNotificationEmail', email);
-    } catch (error) {
-      console.error('Failed to save email to localStorage:', error);
+    } catch {
+      // Silent failure
     }
   };
 
@@ -131,8 +129,8 @@ export const useCameraSettings = () => {
     setDateOrganizedFolders(enabled);
     try {
       localStorage.setItem('dateOrganizedFolders', JSON.stringify(enabled));
-    } catch (error) {
-      console.error('Failed to save date organized folders setting:', error);
+    } catch {
+      // Silent failure
     }
   };
 
@@ -140,8 +138,8 @@ export const useCameraSettings = () => {
     setPiVideoPath(path);
     try {
       localStorage.setItem('piVideoPath', path);
-    } catch (error) {
-      console.error('Failed to save Pi video path:', error);
+    } catch {
+      // Silent failure
     }
   };
 
@@ -149,8 +147,8 @@ export const useCameraSettings = () => {
     setDateOrganizedFoldersPi(enabled);
     try {
       localStorage.setItem('dateOrganizedFoldersPi', JSON.stringify(enabled));
-    } catch (error) {
-      console.error('Failed to save Pi date organized folders setting:', error);
+    } catch {
+      // Silent failure
     }
   };
 

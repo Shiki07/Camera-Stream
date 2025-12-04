@@ -286,8 +286,6 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
         };
       }
     } catch (err: any) {
-      console.error('Error accessing webcam:', err);
-      
       let errorMessage = 'Failed to access webcam';
       
       if (err.name === 'NotFoundError' || err.message?.includes('object can not be found')) {
@@ -468,7 +466,6 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
           setError(errorMsg);
           setIsConnected(false);
           onConnectionChange?.(false);
-          console.error('LiveFeed: Failed to connect:', networkCamera.connectionError);
           toast({
             title: "Connection failed",
             description: errorMsg,
@@ -484,7 +481,6 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
       setTimeout(checkConnection, 2000);
       
     } catch (error) {
-      console.error('LiveFeed: Connection error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Connection failed';
       setError(errorMsg);
       setIsConnected(false);
@@ -680,10 +676,7 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
         currentSource={cameraSource}
         onSourceChange={handleSourceChange}
         networkCameras={networkCameras}
-        onAddNetworkCamera={(config) => {
-          console.log('LiveFeed: Adding network camera:', config);
-          addCamera(config);
-        }}
+        onAddNetworkCamera={addCamera}
         onRemoveNetworkCamera={(index) => removeCamera(index)}
         onConnectNetworkCamera={handleConnectNetworkCamera}
         onTestConnection={networkCamera.testConnection}

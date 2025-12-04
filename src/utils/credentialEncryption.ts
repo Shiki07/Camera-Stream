@@ -37,8 +37,8 @@ async function getEncryptionKey(): Promise<CryptoKey> {
         false,
         ['encrypt', 'decrypt']
       );
-    } catch (error) {
-      console.warn('Failed to import stored key, generating new one:', error);
+    } catch {
+      // Key import failed, generate new one
     }
   }
   
@@ -67,8 +67,7 @@ export async function encryptValue(value: string): Promise<string> {
     
     // Return as base64
     return btoa(String.fromCharCode(...combined));
-  } catch (error) {
-    console.error('Encryption failed:', error);
+  } catch {
     throw new Error('Failed to encrypt credential');
   }
 }
@@ -92,8 +91,7 @@ export async function decryptValue(encryptedValue: string): Promise<string> {
     );
     
     return new TextDecoder().decode(decryptedBuffer);
-  } catch (error) {
-    console.error('Decryption failed:', error);
+  } catch {
     // Return empty string on decryption failure (corrupted data or key mismatch)
     return '';
   }

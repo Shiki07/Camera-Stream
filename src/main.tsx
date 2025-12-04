@@ -3,7 +3,7 @@ import App from './App.tsx'
 import './index.css'
 import { initializeHttpsOnlyModePrevention } from "./utils/preventHttpsOnlyMode.ts";
 
-// Prevent extension interference
+// Prevent extension interference (silent)
 window.addEventListener('error', (e) => {
   if (e.filename?.includes('moz-extension://')) {
     e.preventDefault();

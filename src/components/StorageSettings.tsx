@@ -33,8 +33,8 @@ export const StorageSettings = ({
   useEffect(() => {
     try {
       localStorage.setItem('piEndpoint', piEndpoint);
-    } catch (error) {
-      console.error('Failed to save Pi endpoint:', error);
+    } catch {
+      // Silent failure
     }
   }, [piEndpoint]);
 
