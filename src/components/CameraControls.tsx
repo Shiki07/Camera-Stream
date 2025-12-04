@@ -51,7 +51,6 @@ export const CameraControls = ({
       try {
         await liveFeedRef.current.toggleRecording();
       } catch (error) {
-        console.error('Recording toggle failed:', error);
         toast({
           title: "Recording failed",
           description: error instanceof Error ? error.message : "Failed to toggle recording",

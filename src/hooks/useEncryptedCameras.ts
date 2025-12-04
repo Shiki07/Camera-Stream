@@ -39,20 +39,15 @@ export function useEncryptedCameras() {
         const needsMigration = parsed.some(isLegacyFormat);
         
         if (needsMigration) {
-          console.log('Migrating legacy camera credentials to encrypted format...');
           const migrated = await migrateLegacyCameras(parsed);
-          // Save migrated cameras immediately
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-          // Decrypt for use
           const decrypted = await Promise.all(migrated.map(decryptCameraCredentials));
           setCameras(decrypted as NetworkCameraConfig[]);
         } else {
-          // Decrypt existing encrypted cameras
           const decrypted = await Promise.all(parsed.map(decryptCameraCredentials));
           setCameras(decrypted as NetworkCameraConfig[]);
         }
-      } catch (error) {
-        console.error('Failed to load cameras:', error);
+      } catch {
         setCameras([]);
       } finally {
         setIsLoading(false);
@@ -73,8 +68,8 @@ export function useEncryptedCameras() {
           cameras.map(encryptCameraCredentials)
         );
         localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted));
-      } catch (error) {
-        console.error('Failed to save cameras:', error);
+      } catch {
+        // Silent failure
       }
     };
 

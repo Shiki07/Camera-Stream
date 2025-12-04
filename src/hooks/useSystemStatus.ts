@@ -52,8 +52,7 @@ export const useSystemStatus = () => {
       clearTimeout(timeoutId);
 
       if (error) {
-        console.error('Error fetching system status:', error);
-        // Don't return early on error, use cached data
+        // Silent failure - use cached data
         return;
       }
 
@@ -90,8 +89,8 @@ export const useSystemStatus = () => {
         totalRecordings: data?.length || 0,
       }));
 
-    } catch (error) {
-      console.error('Error in fetchSystemStatus:', error);
+    } catch {
+      // Silent failure
     } finally {
       setLoading(false);
     }

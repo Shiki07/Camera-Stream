@@ -46,7 +46,6 @@ export const MotionEventHistory = () => {
         .limit(50);
 
       if (error) {
-        console.error('Error loading motion events:', error);
         toast({
           title: "Error loading motion events",
           description: "Could not fetch motion detection history",
@@ -65,8 +64,8 @@ export const MotionEventHistory = () => {
       ).length || 0;
       setTotalEventsToday(todayEvents);
 
-    } catch (error) {
-      console.error('Error in loadMotionEvents:', error);
+    } catch {
+      // Silent failure
     } finally {
       setIsLoading(false);
     }

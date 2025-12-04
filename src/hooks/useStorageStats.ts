@@ -39,8 +39,8 @@ export const useStorageStats = () => {
     setStorageTier(tier);
     try {
       localStorage.setItem('storageTier', tier);
-    } catch (error) {
-      console.error('Failed to save storage tier:', error);
+    } catch {
+      // Silent failure
     }
   };
 
@@ -75,7 +75,6 @@ export const useStorageStats = () => {
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error fetching storage stats:', error);
         throw error;
       }
 
