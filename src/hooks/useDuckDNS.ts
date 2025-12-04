@@ -306,17 +306,18 @@ export const useDuckDNS = () => {
   useEffect(() => {
     if (!config.enabled) return;
 
-    // Initial check after 3 seconds  
+    // Delay initial check to 15 seconds to reduce initial CPU spike
     const initialTimeout = setTimeout(() => {
-      checkAndUpdateIP();
-    }, 3000);
+      if (!document.hidden) {
+        checkAndUpdateIP();
+      }
+    }, 15000);
 
     // Regular checks every 5 minutes
     const interval = setInterval(() => {
-      // Only run if not currently updating to prevent overlapping calls
-      if (!isUpdating && !updatePromise) {
-        checkAndUpdateIP();
-      }
+      // Skip when tab is hidden or already updating
+      if (document.hidden || isUpdating || updatePromise) return;
+      checkAndUpdateIP();
     }, 5 * 60 * 1000);
 
     return () => {

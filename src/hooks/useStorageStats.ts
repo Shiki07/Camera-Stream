@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useTabVisibility } from '@/hooks/useTabVisibility';
 
 export type StorageTier = '5GB' | '25GB' | '100GB';
 
@@ -24,6 +25,7 @@ const STORAGE_TIERS: Record<StorageTier, number> = {
 
 export const useStorageStats = () => {
   const { user } = useAuth();
+  const isTabVisible = useTabVisibility();
   const [storageTier, setStorageTier] = useState<StorageTier>(() => {
     try {
       const saved = localStorage.getItem('storageTier');
@@ -99,7 +101,8 @@ export const useStorageStats = () => {
       };
     },
     enabled: !!user,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: isTabVisible ? 60000 : false, // Only refetch when tab visible, every 60s
+    refetchOnWindowFocus: false, // Prevent refetch on every focus
   });
 
   const formatFileSize = (bytes: number): string => {
