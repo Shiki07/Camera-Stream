@@ -2,3 +2,9 @@ project_id = "mlrouwmtqdrlbwhacmic"
 
 [functions.pi-recording]
 verify_jwt = true
+
+[functions.duckdns-update]
+verify_jwt = false
+
+[functions.save-duckdns-token]
+verify_jwt = false
