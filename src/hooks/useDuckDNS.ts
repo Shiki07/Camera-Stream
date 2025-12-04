@@ -102,6 +102,14 @@ export const useDuckDNS = () => {
       return false;
     }
 
+    // Get token from localStorage
+    const token = localStorage.getItem('duckdns_token');
+    if (!token) {
+      console.error('DuckDNS: No token configured');
+      setError('DuckDNS token not configured. Please save your token first.');
+      return false;
+    }
+
     // Prevent multiple simultaneous updates
     if (updatePromise) {
       console.log('DuckDNS: Update already in progress, waiting...');
@@ -115,19 +123,12 @@ export const useDuckDNS = () => {
       try {
         console.log(`Updating DuckDNS via Edge Function for domain: ${config.domain} with IP: ${ip}`);
         
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Authentication required for DuckDNS update. Please log in.');
-        }
-
-        console.log('Calling DuckDNS update function...');
-        
         // Retry invoke to handle transient network/routing issues
         let data: any = null;
         let functionError: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           const resp = await supabase.functions.invoke('duckdns-update', {
-            body: { domain: config.domain, ip }
+            body: { domain: config.domain, ip, token }
           });
           data = resp.data;
           functionError = resp.error;
@@ -152,8 +153,6 @@ export const useDuckDNS = () => {
             throw new Error('Network connection failed. Please check your internet connection and try again.');
           } else if (functionError.message?.includes('timeout')) {
             throw new Error('Request timeout. The DuckDNS service may be temporarily unavailable.');
-          } else if (functionError.message?.includes('401') || functionError.message?.includes('Unauthorized')) {
-            throw new Error('Authentication failed. Please log in again.');
           } else if (functionError.message?.includes('non-2xx status code')) {
             throw new Error('DuckDNS API temporarily unavailable. DNS lookup may be failing. Will retry automatically.');
           } else {
@@ -187,9 +186,7 @@ export const useDuckDNS = () => {
         let errorMsg = error instanceof Error ? error.message : 'Update failed';
         
         // Provide more helpful error messages
-        if (errorMsg.includes('Authentication required')) {
-          errorMsg = 'Please log in to update DuckDNS';
-        } else if (errorMsg.includes('temporarily unavailable')) {
+        if (errorMsg.includes('temporarily unavailable')) {
           errorMsg = 'DuckDNS service temporarily unavailable. Will retry automatically.';
         }
         

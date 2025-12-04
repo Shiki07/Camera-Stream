@@ -119,8 +119,9 @@ const validateCameraURL = async (url: string): Promise<boolean> => {
     }
 
     return true;
-  } catch (e) {
-    console.log(`Camera proxy: URL parsing failed: ${e.message}`);
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.log(`Camera proxy: URL parsing failed: ${err.message}`);
     return false;
   }
 };
@@ -250,8 +251,9 @@ serve(async (req) => {
         console.log(`  - Protocol: ${urlObj.protocol}`);
         console.log(`  - Hostname: ${urlObj.hostname}`);
         console.log(`  - Port: ${urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80')}`);
-      } catch (e) {
-        console.log(`  - URL parsing failed: ${e.message}`);
+      } catch (e: unknown) {
+        const err = e as Error;
+        console.log(`  - URL parsing failed: ${err.message}`);
       }
       return new Response(
         JSON.stringify({ error: 'Invalid or blocked URL', code: 'validation_failed' }),
@@ -278,8 +280,9 @@ serve(async (req) => {
         if (dnsResult.Status !== 0) {
           console.warn(`Camera proxy: DNS resolution failed for ${urlObj.hostname}`);
         }
-      } catch (dnsError) {
-        console.log(`Camera proxy: DNS lookup failed:`, dnsError.message);
+      } catch (dnsError: unknown) {
+        const err = dnsError as Error;
+        console.log(`Camera proxy: DNS lookup failed:`, err.message);
       }
       
       // Try a simple connectivity test with very short timeout
@@ -296,17 +299,19 @@ serve(async (req) => {
         });
         clearTimeout(testTimeout);
         console.log(`Camera proxy: Connectivity test successful - Status: ${testResponse.status}`);
-      } catch (testError) {
+      } catch (testError: unknown) {
         clearTimeout(testTimeout);
-        console.log(`Camera proxy: Connectivity test failed for ${urlObj.hostname}:${urlObj.port || '8000'}:`, testError.message);
+        const err = testError as Error;
+        console.log(`Camera proxy: Connectivity test failed for ${urlObj.hostname}:${urlObj.port || '8000'}:`, err.message);
         
         // If connectivity test fails, provide detailed error message
-        if (testError.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           console.warn(`Camera proxy: Connection timeout - camera may be offline or network unreachable`);
         }
       }
-    } catch (e) {
-      console.log(`Camera proxy: Pre-test setup failed:`, e.message);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.log(`Camera proxy: Pre-test setup failed:`, err.message);
     }
 
     // Retry logic for unreliable connections
@@ -388,14 +393,14 @@ serve(async (req) => {
           });
         }
 
-      } catch (fetchError) {
+      } catch (fetchError: unknown) {
         clearTimeout(timeoutId);
         lastError = fetchError as Error;
         
-        if (fetchError.name === 'AbortError') {
+        if (lastError.name === 'AbortError') {
           console.warn(`Camera proxy: Request timeout on attempt ${attempt}`);
         } else {
-          console.error(`Camera proxy: Fetch error on attempt ${attempt}:`, fetchError.message);
+          console.error(`Camera proxy: Fetch error on attempt ${attempt}:`, lastError.message);
         }
         
         // If this is not the last attempt, wait before retrying

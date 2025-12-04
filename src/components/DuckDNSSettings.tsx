@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Globe, RefreshCw, CheckCircle, AlertCircle, Wifi, Save, Copy } from 'lucide-react';
 import { useDuckDNS } from '@/hooks/useDuckDNS';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const DUCKDNS_TOKEN_KEY = 'duckdns_token';
 
 export const DuckDNSSettings = () => {
   const {
@@ -24,10 +25,15 @@ export const DuckDNSSettings = () => {
   } = useDuckDNS();
 
   const [token, setToken] = useState('');
-  const [isSavingToken, setIsSavingToken] = useState(false);
+  const [hasStoredToken, setHasStoredToken] = useState(false);
   const { toast } = useToast();
 
-  const saveToken = async () => {
+  useEffect(() => {
+    const storedToken = localStorage.getItem(DUCKDNS_TOKEN_KEY);
+    setHasStoredToken(!!storedToken);
+  }, []);
+
+  const saveToken = () => {
     if (!token.trim()) {
       toast({
         title: "Error",
@@ -37,31 +43,13 @@ export const DuckDNSSettings = () => {
       return;
     }
 
-    setIsSavingToken(true);
-    try {
-      const { error } = await supabase.functions.invoke('save-duckdns-token', {
-        body: { token: token.trim() }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      toast({
-        title: "Success",
-        description: "DuckDNS token saved securely"
-      });
-      setToken('');
-    } catch (error) {
-      console.error('Error saving token:', error);
-      toast({
-        title: "Error", 
-        description: "Failed to save DuckDNS token",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSavingToken(false);
-    }
+    localStorage.setItem(DUCKDNS_TOKEN_KEY, token.trim());
+    setHasStoredToken(true);
+    toast({
+      title: "Success",
+      description: "DuckDNS token saved locally"
+    });
+    setToken('');
   };
 
   const copyCameraUrl = (port: number) => {
@@ -129,11 +117,11 @@ export const DuckDNSSettings = () => {
                 />
                 <Button
                   onClick={saveToken}
-                  disabled={isSavingToken || !token.trim()}
+                  disabled={!token.trim()}
                   className="bg-green-600 hover:bg-green-700"
                   title="Save DuckDNS token"
                 >
-                  <Save className={`w-4 h-4 ${isSavingToken ? 'animate-spin' : ''}`} />
+                  <Save className="w-4 h-4" />
                 </Button>
               </div>
               <p className="text-xs text-gray-400">

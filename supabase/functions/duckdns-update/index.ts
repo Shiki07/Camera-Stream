@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,16 +9,16 @@ const corsHeaders = {
 // Rate limiting store (in production, use Redis or similar)
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 
-const checkRateLimit = (userId: string): boolean => {
+const checkRateLimit = (identifier: string): boolean => {
   const now = Date.now();
-  const limit = rateLimits.get(userId);
+  const limit = rateLimits.get(identifier);
   
   if (!limit || now > limit.resetTime) {
-    rateLimits.set(userId, { count: 1, resetTime: now + 60000 }); // 1 minute window
+    rateLimits.set(identifier, { count: 1, resetTime: now + 60000 }); // 1 minute window
     return true;
   }
   
-  if (limit.count >= 5) { // Reduced from 10 to 5 for security
+  if (limit.count >= 10) {
     return false;
   }
   
@@ -68,6 +67,13 @@ const validateDomain = (domain: string): boolean => {
          !cleanDomain.endsWith('-');
 };
 
+// DuckDNS tokens are UUIDs
+const validateToken = (token: string): boolean => {
+  if (!token || typeof token !== 'string') return false;
+  const tokenRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return tokenRegex.test(token) && token.length === 36;
+};
+
 const sanitizeInput = (input: string): string => {
   return input.trim().replace(/[<>'"&]/g, '');
 };
@@ -78,63 +84,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.warn('Invalid authorization header format');
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase configuration');
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Verify the JWT token
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
-    if (authError || !user) {
-      console.warn('Invalid or expired token');
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Check rate limit
-    if (!checkRateLimit(user.id)) {
-      console.warn(`Rate limit exceeded for user: ${user.id}`);
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-        { 
-          status: 429, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
     // Parse and validate request body
     let requestBody;
     try {
@@ -150,7 +99,31 @@ serve(async (req) => {
       );
     }
 
-    const { domain, ip } = requestBody;
+    const { domain, ip, token } = requestBody;
+
+    // Validate token
+    if (!validateToken(token)) {
+      console.warn('Invalid DuckDNS token format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid DuckDNS token format' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Rate limit by domain to prevent abuse
+    if (!checkRateLimit(domain)) {
+      console.warn(`Rate limit exceeded for domain: ${domain}`);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     if (!validateIP(ip)) {
       console.warn('Invalid IP address format or private IP blocked');
@@ -177,23 +150,12 @@ serve(async (req) => {
     // Sanitize inputs
     const cleanDomain = sanitizeInput(domain.replace('.duckdns.org', '').replace(/^https?:\/\//, ''));
     const cleanIP = sanitizeInput(ip);
-
-    // Get the token from user metadata
-    const token = user.user_metadata?.duckdns_token;
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'DuckDNS token not configured. Please save your token first.' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    const cleanToken = sanitizeInput(token);
     
     // Make request to DuckDNS with retry logic for DNS failures
-    const duckdnsUrl = `https://www.duckdns.org/update?domains=${encodeURIComponent(cleanDomain)}&token=${encodeURIComponent(token)}&ip=${encodeURIComponent(cleanIP)}`;
+    const duckdnsUrl = `https://www.duckdns.org/update?domains=${encodeURIComponent(cleanDomain)}&token=${encodeURIComponent(cleanToken)}&ip=${encodeURIComponent(cleanIP)}`;
     
-    console.log(`Updating DuckDNS - Domain: ${cleanDomain}, IP: ${cleanIP}, User: ${user.id}`);
+    console.log(`Updating DuckDNS - Domain: ${cleanDomain}, IP: ${cleanIP}`);
     
     // Add retry logic for DNS failures
     let retryCount = 0;
@@ -231,17 +193,18 @@ serve(async (req) => {
           );
         } else {
           return new Response(
-            JSON.stringify({ error: 'DuckDNS update failed' }),
+            JSON.stringify({ error: 'DuckDNS update failed - check your token and domain' }),
             { 
               status: 400, 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
             }
           );
         }
-      } catch (fetchError) {
+      } catch (fetchError: unknown) {
         clearTimeout(timeoutId);
         
-        if (fetchError.name === 'AbortError') {
+        const err = fetchError as Error;
+        if (err.name === 'AbortError') {
           console.error('DuckDNS request timeout');
           if (retryCount < maxRetries) {
             retryCount++;
@@ -281,6 +244,15 @@ serve(async (req) => {
         );
       }
     }
+    
+    // Should not reach here, but TypeScript requires a return
+    return new Response(
+      JSON.stringify({ error: 'Unexpected error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   } catch (error) {
     console.error('DuckDNS update error:', error);
     return new Response(
