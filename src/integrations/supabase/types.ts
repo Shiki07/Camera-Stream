@@ -47,6 +47,80 @@ export type Database = {
         }
         Relationships: []
       }
+      camera_settings: {
+        Row: {
+          camera_id: string | null
+          cooldown_period: number | null
+          created_at: string | null
+          detection_zones_enabled: boolean | null
+          email_notifications: boolean | null
+          end_hour: number | null
+          id: string
+          min_motion_duration: number | null
+          motion_enabled: boolean | null
+          motion_sensitivity: number | null
+          motion_threshold: number | null
+          noise_reduction: boolean | null
+          notification_email: string | null
+          quality: string | null
+          recording_enabled: boolean | null
+          schedule_enabled: boolean | null
+          start_hour: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          camera_id?: string | null
+          cooldown_period?: number | null
+          created_at?: string | null
+          detection_zones_enabled?: boolean | null
+          email_notifications?: boolean | null
+          end_hour?: number | null
+          id?: string
+          min_motion_duration?: number | null
+          motion_enabled?: boolean | null
+          motion_sensitivity?: number | null
+          motion_threshold?: number | null
+          noise_reduction?: boolean | null
+          notification_email?: string | null
+          quality?: string | null
+          recording_enabled?: boolean | null
+          schedule_enabled?: boolean | null
+          start_hour?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          camera_id?: string | null
+          cooldown_period?: number | null
+          created_at?: string | null
+          detection_zones_enabled?: boolean | null
+          email_notifications?: boolean | null
+          end_hour?: number | null
+          id?: string
+          min_motion_duration?: number | null
+          motion_enabled?: boolean | null
+          motion_sensitivity?: number | null
+          motion_threshold?: number | null
+          noise_reduction?: boolean | null
+          notification_email?: string | null
+          quality?: string | null
+          recording_enabled?: boolean | null
+          schedule_enabled?: boolean | null
+          start_hour?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camera_settings_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "camera_credentials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motion_events: {
         Row: {
           camera_id: string | null
