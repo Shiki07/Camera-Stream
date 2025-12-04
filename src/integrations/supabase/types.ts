@@ -14,13 +14,159 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      camera_credentials: {
+        Row: {
+          camera_name: string
+          camera_url: string
+          created_at: string
+          id: string
+          password: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          camera_name: string
+          camera_url: string
+          created_at?: string
+          id?: string
+          password?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          camera_name?: string
+          camera_url?: string
+          created_at?: string
+          id?: string
+          password?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      motion_events: {
+        Row: {
+          camera_id: string | null
+          cleared_at: string | null
+          created_at: string
+          detected_at: string
+          duration_ms: number | null
+          email_sent: boolean | null
+          id: string
+          motion_level: number | null
+          user_id: string
+        }
+        Insert: {
+          camera_id?: string | null
+          cleared_at?: string | null
+          created_at?: string
+          detected_at?: string
+          duration_ms?: number | null
+          email_sent?: boolean | null
+          id?: string
+          motion_level?: number | null
+          user_id: string
+        }
+        Update: {
+          camera_id?: string | null
+          cleared_at?: string | null
+          created_at?: string
+          detected_at?: string
+          duration_ms?: number | null
+          email_sent?: boolean | null
+          id?: string
+          motion_level?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recordings: {
+        Row: {
+          camera_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          file_size: number | null
+          filename: string
+          id: string
+          motion_detected: boolean | null
+          pi_sync_status: string | null
+          pi_synced_at: string | null
+          recorded_at: string
+          storage_path: string | null
+          storage_type: string | null
+          user_id: string
+        }
+        Insert: {
+          camera_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_size?: number | null
+          filename: string
+          id?: string
+          motion_detected?: boolean | null
+          pi_sync_status?: string | null
+          pi_synced_at?: string | null
+          recorded_at?: string
+          storage_path?: string | null
+          storage_type?: string | null
+          user_id: string
+        }
+        Update: {
+          camera_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_size?: number | null
+          filename?: string
+          id?: string
+          motion_detected?: boolean | null
+          pi_sync_status?: string | null
+          pi_synced_at?: string | null
+          recorded_at?: string
+          storage_path?: string | null
+          storage_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_motion_event_cleared: {
+        Args: { event_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
