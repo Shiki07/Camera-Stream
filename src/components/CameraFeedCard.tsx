@@ -9,15 +9,19 @@ import {
   Maximize2, 
   Minimize2,
   Circle,
+  Square,
   Camera,
   Wifi,
   WifiOff,
-  AlertTriangle
+  AlertTriangle,
+  HardDrive
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useImageMotionDetection } from '@/hooks/useImageMotionDetection';
+import { useCameraRecording } from '@/hooks/useCameraRecording';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface CameraFeedCardProps {
@@ -43,6 +47,7 @@ const DEFAULT_SETTINGS = {
   min_motion_duration: 500,
   noise_reduction: true,
   detection_zones_enabled: false,
+  video_path: '/home/pi/Videos',
 };
 
 export const CameraFeedCard = ({
@@ -64,6 +69,10 @@ export const CameraFeedCard = ({
   const isTabVisible = useTabVisibility();
   const fetchControllerRef = useRef<AbortController | null>(null);
   const isActiveRef = useRef(true);
+  const { toast } = useToast();
+  
+  // Per-camera recording hook
+  const recording = useCameraRecording();
   
   // Motion detection for this camera
   const imageMotionDetection = useImageMotionDetection({
@@ -77,7 +86,13 @@ export const CameraFeedCard = ({
     cooldownPeriod: settings.cooldown_period,
     minMotionDuration: settings.min_motion_duration,
     noiseReduction: settings.noise_reduction,
-    onMotionDetected: () => setMotionDetected(true),
+    onMotionDetected: () => {
+      setMotionDetected(true);
+      // Auto-record on motion if enabled
+      if (settings.motion_enabled && recording.piServiceConnected && !recording.isRecording) {
+        handleStartRecording(true);
+      }
+    },
     onMotionCleared: () => setMotionDetected(false),
   });
 
@@ -124,6 +139,9 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
+      
+      // Test Pi service connection once connected
+      recording.testPiConnection(config.url);
 
       // Process MJPEG stream
       let buffer = new Uint8Array();
@@ -180,7 +198,7 @@ export const CameraFeedCard = ({
     } finally {
       setIsConnecting(false);
     }
-  }, [config.url]);
+  }, [config.url, recording]);
 
   // Connect on mount
   useEffect(() => {
@@ -208,11 +226,61 @@ export const CameraFeedCard = ({
     setSettings(prev => ({ ...prev, motion_enabled: !prev.motion_enabled }));
   }, []);
 
+  // Recording handlers
+  const handleStartRecording = useCallback(async (motionTriggered = false) => {
+    const result = await recording.startRecording({
+      cameraUrl: config.url,
+      cameraName: config.name,
+      quality: settings.quality,
+      motionTriggered,
+      videoPath: settings.video_path,
+    });
+
+    if (result) {
+      toast({
+        title: "Recording started",
+        description: `Recording ${config.name} to Pi`,
+      });
+    } else if (recording.error) {
+      toast({
+        title: "Recording failed",
+        description: recording.error,
+        variant: "destructive",
+      });
+    }
+  }, [config, settings, recording, toast]);
+
+  const handleStopRecording = useCallback(async () => {
+    const result = await recording.stopRecording(config.url);
+
+    if (result) {
+      toast({
+        title: "Recording saved",
+        description: `Saved ${result.filename} (${Math.round(result.file_size / 1024 / 1024)}MB)`,
+      });
+    } else if (recording.error) {
+      toast({
+        title: "Stop failed",
+        description: recording.error,
+        variant: "destructive",
+      });
+    }
+  }, [config.url, recording, toast]);
+
+  const handleRecordingToggle = useCallback(() => {
+    if (recording.isRecording) {
+      handleStopRecording();
+    } else {
+      handleStartRecording(false);
+    }
+  }, [recording.isRecording, handleStartRecording, handleStopRecording]);
+
   return (
     <Card className={cn(
       "relative overflow-hidden bg-card border-border transition-all duration-300",
       isFocused ? "col-span-full row-span-full" : "",
-      motionDetected && "ring-2 ring-destructive"
+      motionDetected && "ring-2 ring-destructive",
+      recording.isRecording && "ring-2 ring-red-500"
     )}>
       {/* Camera Feed */}
       <div className="relative aspect-video bg-muted">
@@ -244,13 +312,26 @@ export const CameraFeedCard = ({
           alt={config.name}
         />
 
-        {/* Overlays */}
-        <div className="absolute top-2 left-2 flex gap-2">
+        {/* Status Badges - Top Left */}
+        <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+          {/* Connection Status */}
           <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
             {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
           
+          {/* Pi Service Status */}
+          {recording.piServiceConnected !== null && (
+            <Badge 
+              variant={recording.piServiceConnected ? "secondary" : "outline"} 
+              className="text-xs"
+            >
+              <HardDrive className="h-3 w-3 mr-1" />
+              {recording.piServiceConnected ? 'Pi Ready' : 'Pi Offline'}
+            </Badge>
+          )}
+          
+          {/* Motion Detection */}
           {settings.motion_enabled && (
             <Badge variant={motionDetected ? "destructive" : "secondary"} className="text-xs">
               {motionDetected ? <AlertTriangle className="h-3 w-3 mr-1" /> : <Video className="h-3 w-3 mr-1" />}
@@ -259,14 +340,24 @@ export const CameraFeedCard = ({
           )}
         </div>
 
-        {/* Camera Name */}
+        {/* Recording Indicator - Top Center */}
+        {recording.isRecording && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2">
+            <Badge variant="destructive" className="text-xs animate-pulse">
+              <Circle className="h-3 w-3 mr-1 fill-current" />
+              REC {recording.formattedDuration}
+            </Badge>
+          </div>
+        )}
+
+        {/* Camera Name - Bottom Left */}
         <div className="absolute bottom-2 left-2">
           <Badge variant="outline" className="bg-background/80 text-xs">
             {config.name}
           </Badge>
         </div>
 
-        {/* Control Buttons */}
+        {/* Control Buttons - Top Right */}
         <div className="absolute top-2 right-2 flex gap-1">
           <Button
             size="icon"
@@ -286,21 +377,47 @@ export const CameraFeedCard = ({
           </Button>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Bottom Right */}
         <div className="absolute bottom-2 right-2 flex gap-1">
+          {/* Motion Toggle */}
           <Button
             size="icon"
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={toggleMotion}
+            title={settings.motion_enabled ? 'Disable motion detection' : 'Enable motion detection'}
           >
             {settings.motion_enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
           </Button>
+          
+          {/* Recording Toggle */}
+          <Button
+            size="icon"
+            variant={recording.isRecording ? "destructive" : "ghost"}
+            className={cn(
+              "h-7 w-7",
+              !recording.isRecording && "bg-background/50 hover:bg-background/80"
+            )}
+            onClick={handleRecordingToggle}
+            disabled={!isConnected || !recording.piServiceConnected || recording.isProcessing}
+            title={recording.isRecording ? 'Stop recording' : 'Start recording'}
+          >
+            {recording.isProcessing ? (
+              <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+            ) : recording.isRecording ? (
+              <Square className="h-4 w-4 fill-current" />
+            ) : (
+              <Circle className="h-4 w-4 fill-red-500 text-red-500" />
+            )}
+          </Button>
+          
+          {/* Snapshot */}
           <Button
             size="icon"
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             disabled={!isConnected}
+            title="Take snapshot"
           >
             <Camera className="h-4 w-4" />
           </Button>

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
-import { Camera, Trash2, Video, Bell, Clock, Settings } from 'lucide-react';
+import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen } from 'lucide-react';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -259,7 +259,31 @@ export const CameraSettingsSheet = ({
 
           <Separator />
 
-          {/* Danger Zone */}
+          {/* Recording Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              <h3 className="font-medium">Recording</h3>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="video-path">Pi Video Path</Label>
+              <div className="flex gap-2">
+                <FolderOpen className="h-4 w-4 mt-2.5 text-muted-foreground" />
+                <Input
+                  id="video-path"
+                  placeholder="/home/pi/Videos"
+                  value={settings.video_path || '/home/pi/Videos'}
+                  onChange={(e) => updateSetting('video_path', e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Path on the Raspberry Pi where recordings will be saved
+              </p>
+            </div>
+          </div>
+
+          <Separator />
           <div className="space-y-4">
             <h3 className="font-medium text-destructive">Danger Zone</h3>
             
