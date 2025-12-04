@@ -20,6 +20,8 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [showEmailSent, setShowEmailSent] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
@@ -132,6 +134,131 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetEmailSent(true);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    }
+    
+    setIsLoading(false);
+  };
+
+  if (resetEmailSent) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+              <Mail className="w-6 h-6 text-white" />
+            </div>
+            <CardTitle className="text-white">Check Your Email</CardTitle>
+            <CardDescription className="text-gray-300">
+              We've sent a password reset link to {email}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Alert className="bg-blue-600/20 border-blue-600">
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription className="text-blue-200">
+                Click the link in your email to reset your password.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => {
+                setResetEmailSent(false);
+                setShowForgotPassword(false);
+              }}
+            >
+              Back to Sign In
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+        <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
+          This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+          <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+            rpicamalert.xyz
+          </a>
+        </p>
+        <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+              <Mail className="w-6 h-6 text-white" />
+            </div>
+            <CardTitle className="text-white">Reset Password</CardTitle>
+            <CardDescription className="text-gray-300">
+              Enter your email to receive a password reset link
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email" className="text-gray-300">Email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
+              </div>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              variant="ghost" 
+              className="w-full text-gray-400 hover:text-white" 
+              onClick={() => {
+                setShowForgotPassword(false);
+                setError('');
+              }}
+            >
+              Back to Sign In
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   if (showEmailSent) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -241,6 +368,17 @@ const Auth = () => {
                 )}
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing In...' : 'Sign In'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="link" 
+                  className="w-full text-gray-400 hover:text-blue-400"
+                  onClick={() => {
+                    setShowForgotPassword(true);
+                    setError('');
+                  }}
+                >
+                  Forgot password?
                 </Button>
               </form>
             </TabsContent>
