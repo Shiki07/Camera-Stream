@@ -24,6 +24,7 @@ export interface CameraSettings {
   min_motion_duration: number;
   noise_reduction: boolean;
   detection_zones_enabled: boolean;
+  video_path: string;
 }
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
@@ -41,6 +42,7 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   min_motion_duration: 500,
   noise_reduction: true,
   detection_zones_enabled: false,
+  video_path: '/home/pi/Videos',
 };
 
 export type GridLayout = '1x1' | '2x2' | '3x3' | '4x4';
