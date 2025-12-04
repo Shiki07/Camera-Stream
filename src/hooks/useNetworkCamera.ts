@@ -79,7 +79,7 @@ export const useNetworkCamera = () => {
       }
       
       // Include the auth token as a URL parameter for img elements
-      const proxyUrl = new URL('https://mlrouwmtqdrlbwhacmic.supabase.co/functions/v1/camera-proxy');
+      const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
       proxyUrl.searchParams.set('url', originalUrl);
       // token sent via Authorization header instead of query param
       
