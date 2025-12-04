@@ -238,10 +238,11 @@ serve(async (req) => {
             }
           );
         }
-      } catch (fetchError) {
+      } catch (fetchError: unknown) {
         clearTimeout(timeoutId);
+        const err = fetchError as Error & { name?: string };
         
-        if (fetchError.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           console.error('DuckDNS request timeout');
           if (retryCount < maxRetries) {
             retryCount++;
@@ -259,7 +260,7 @@ serve(async (req) => {
         }
         
         // Check if it's a DNS-related error
-        const errorString = String(fetchError);
+        const errorString = String(err);
         if ((errorString.includes('dns error') || 
              errorString.includes('failed to lookup') ||
              errorString.includes('Name or service not known') ||
@@ -271,7 +272,7 @@ serve(async (req) => {
           continue;
         }
         
-        console.error('DuckDNS fetch error:', fetchError);
+        console.error('DuckDNS fetch error:', err);
         return new Response(
           JSON.stringify({ error: 'Failed to update DuckDNS', details: errorString }),
           { 
@@ -281,6 +282,15 @@ serve(async (req) => {
         );
       }
     }
+    
+    // Fallback return for edge case
+    return new Response(
+      JSON.stringify({ error: 'Unexpected end of retry loop' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   } catch (error) {
     console.error('DuckDNS update error:', error);
     return new Response(

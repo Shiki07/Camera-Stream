@@ -10,13 +10,14 @@ import { useToast } from '@/hooks/use-toast';
 
 interface MotionEvent {
   id: string;
-  motion_level: number;
+  motion_level: number | null;
   duration_ms: number | null;
   detected_at: string;
   cleared_at: string | null;
-  recording_triggered: boolean;
-  email_sent: boolean;
-  detection_zone: string | null;
+  email_sent: boolean | null;
+  camera_id: string | null;
+  user_id: string;
+  created_at: string;
 }
 
 export const MotionEventHistory = () => {
@@ -138,7 +139,7 @@ export const MotionEventHistory = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${getMotionLevelColor(event.motion_level)}`}
+                      className={`w-3 h-3 rounded-full ${getMotionLevelColor(event.motion_level || 0)}`}
                     />
                     <div>
                       <div className="flex items-center gap-2 text-sm">
@@ -147,7 +148,7 @@ export const MotionEventHistory = () => {
                           {formatTime(event.detected_at)}
                         </span>
                         <Badge variant="secondary" className="text-xs">
-                          {event.motion_level.toFixed(1)}%
+                          {(event.motion_level || 0).toFixed(1)}%
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -157,9 +158,6 @@ export const MotionEventHistory = () => {
                   </div>
                   
                   <div className="flex items-center gap-1">
-                    {event.recording_triggered && (
-                      <Video className="w-4 h-4 text-blue-400" />
-                    )}
                     {event.email_sent && (
                       <Mail className="w-4 h-4 text-green-400" />
                     )}

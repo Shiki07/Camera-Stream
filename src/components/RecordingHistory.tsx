@@ -238,7 +238,7 @@ export const RecordingHistory = () => {
             >
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  {recording.file_type === 'video' ? (
+                  {recording.filename?.endsWith('.webm') || recording.filename?.endsWith('.mp4') ? (
                     <Video className="w-5 h-5 text-blue-400" />
                   ) : (
                     <Camera className="w-5 h-5 text-green-400" />
