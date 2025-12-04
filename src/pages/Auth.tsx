@@ -152,21 +152,21 @@ const Auth = () => {
 
   if (resetEmailSent) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <Mail className="w-6 h-6 text-white" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+              <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-white">Check Your Email</CardTitle>
-            <CardDescription className="text-gray-300">
+            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <CardDescription className="text-muted-foreground">
               We've sent a password reset link to {email}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Alert className="bg-blue-600/20 border-blue-600">
+            <Alert className="bg-primary/20 border-primary">
               <CheckCircle className="h-4 w-4" />
-              <AlertDescription className="text-blue-200">
+              <AlertDescription className="text-primary-foreground">
                 Click the link in your email to reset your password.
               </AlertDescription>
             </Alert>
@@ -190,27 +190,27 @@ const Auth = () => {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <p className="text-sm text-muted-foreground text-center mb-4 max-w-md">
           This website is under construction, to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
-          <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+          <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 underline">
             rpicamalert.xyz
           </a>
         </p>
-        <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+        <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <Mail className="w-6 h-6 text-white" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+              <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-white">Reset Password</CardTitle>
-            <CardDescription className="text-gray-300">
+            <CardTitle className="text-foreground">Reset Password</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Enter your email to receive a password reset link
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reset-email" className="text-gray-300">Email</Label>
+                <Label htmlFor="reset-email" className="text-muted-foreground">Email</Label>
                 <Input
                   id="reset-email"
                   type="email"
@@ -218,7 +218,7 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  className="bg-secondary border-border text-foreground placeholder-muted-foreground"
                 />
               </div>
               {error && (
@@ -234,7 +234,7 @@ const Auth = () => {
           <CardFooter>
             <Button 
               variant="ghost" 
-              className="w-full text-gray-400 hover:text-white" 
+              className="w-full text-muted-foreground hover:text-foreground" 
               onClick={() => {
                 setShowForgotPassword(false);
                 setError('');
@@ -250,26 +250,26 @@ const Auth = () => {
 
   if (showEmailSent) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <Mail className="w-6 h-6 text-white" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+              <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-white">Check Your Email</CardTitle>
-            <CardDescription className="text-gray-300">
+            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <CardDescription className="text-muted-foreground">
               We've sent a verification link to {email}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <div className="space-y-4">
-              <Alert className="bg-blue-600/20 border-blue-600">
+              <Alert className="bg-primary/20 border-primary">
                 <CheckCircle className="h-4 w-4" />
-                <AlertDescription className="text-blue-200">
+                <AlertDescription className="text-primary-foreground">
                   Please click the verification link in your email to activate your account and access your camera control system.
                 </AlertDescription>
               </Alert>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Didn't receive the email? Check your spam folder or try signing up again.
               </p>
             </div>
@@ -296,39 +296,39 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-      <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <p className="text-sm text-muted-foreground text-center mb-4 max-w-md">
         This website is under construction, to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
         <a 
           href="https://rpicamalert.xyz" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-blue-400 hover:text-blue-300 underline"
+          className="text-primary hover:text-primary/80 underline"
         >
           rpicamalert.xyz
         </a>
       </p>
-      <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+      <Card className="w-full max-w-md bg-card border-border">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-            <Camera className="w-6 h-6 text-white" />
+          <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+            <Camera className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-white">CamAlert</CardTitle>
-          <CardDescription className="text-gray-300">
+          <CardTitle className="text-foreground">CamAlert</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Secure access to your remote camera system
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-700">
-              <TabsTrigger value="signin" className="text-gray-300">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="text-gray-300">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-secondary">
+              <TabsTrigger value="signin" className="text-muted-foreground data-[state=active]:text-foreground">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="text-muted-foreground data-[state=active]:text-foreground">Sign Up</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-300">Email</Label>
+                  <Label htmlFor="email" className="text-muted-foreground">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -336,18 +336,18 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    className="bg-secondary border-border text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-gray-300">Password</Label>
+                  <Label htmlFor="password" className="text-muted-foreground">Password</Label>
                   <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-secondary border-border text-foreground"
                   />
                 </div>
                 {error && (
@@ -361,7 +361,7 @@ const Auth = () => {
                 <Button 
                   type="button" 
                   variant="link" 
-                  className="w-full text-gray-400 hover:text-blue-400"
+                  className="w-full text-muted-foreground hover:text-primary"
                   onClick={() => {
                     setShowForgotPassword(true);
                     setError('');
@@ -375,7 +375,7 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-gray-300">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-muted-foreground">Full Name</Label>
                   <Input
                     id="fullName"
                     type="text"
@@ -383,11 +383,11 @@ const Auth = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    className="bg-secondary border-border text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-gray-300">Email</Label>
+                  <Label htmlFor="signup-email" className="text-muted-foreground">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -395,11 +395,11 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    className="bg-secondary border-border text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-gray-300">Password</Label>
+                  <Label htmlFor="signup-password" className="text-muted-foreground">Password</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -407,18 +407,18 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-secondary border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password" className="text-gray-300">Confirm Password</Label>
+                  <Label htmlFor="confirm-password" className="text-muted-foreground">Confirm Password</Label>
                   <Input
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-secondary border-border text-foreground"
                   />
                 </div>
                 {error && (
@@ -429,7 +429,7 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Button>
-                <p className="text-xs text-gray-400 text-center">
+                <p className="text-xs text-muted-foreground text-center">
                   You'll receive an email to verify your account before you can sign in.
                 </p>
               </form>
