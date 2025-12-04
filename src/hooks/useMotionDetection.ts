@@ -66,6 +66,8 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
   }, [config.sensitivity]);
 
   const processFrame = useCallback((video: HTMLVideoElement) => {
+    // Skip processing when tab is hidden to save CPU
+    if (document.hidden) return;
     if (!config.enabled || !video.videoWidth || !video.videoHeight) return;
     
     const canvasData = initializeCanvas(video);
@@ -83,11 +85,8 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
       
       setCurrentMotionLevel(motionLevel);
       
-      console.log('Motion level:', motionLevel.toFixed(2) + '%', 'Threshold:', config.threshold);
-      
       if (motionLevel > config.threshold) {
         if (!motionDetected) {
-          console.log('Motion detected!');
           setMotionDetected(true);
           setLastMotionTime(new Date());
           config.onMotionDetected?.(motionLevel);
@@ -106,7 +105,6 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
         
         // Clear motion after 3 seconds of no movement
         motionTimeoutRef.current = setTimeout(() => {
-          console.log('Motion cleared');
           setMotionDetected(false);
           setCurrentMotionLevel(0);
           config.onMotionCleared?.();
@@ -120,17 +118,15 @@ export const useMotionDetection = (config: MotionDetectionConfig) => {
   const startDetection = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || isDetecting) return;
     
-    console.log('Starting motion detection');
     setIsDetecting(true);
     
-    // Process frames every 200ms (5 FPS for motion detection)
+    // Process frames every 500ms (2 FPS for motion detection - reduces CPU usage)
     detectionIntervalRef.current = setInterval(() => {
       processFrame(video);
-    }, 200);
+    }, 500);
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
-    console.log('Stopping motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);

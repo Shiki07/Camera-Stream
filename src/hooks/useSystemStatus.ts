@@ -102,8 +102,12 @@ export const useSystemStatus = () => {
     if (user) {
       fetchSystemStatus();
       
-      // Refresh data every 30 seconds
-      const interval = setInterval(fetchSystemStatus, 30000);
+      // Refresh data every 60 seconds (reduced frequency), skip when tab is hidden
+      const interval = setInterval(() => {
+        if (!document.hidden) {
+          fetchSystemStatus();
+        }
+      }, 60000);
       return () => clearInterval(interval);
     }
   }, [user]);

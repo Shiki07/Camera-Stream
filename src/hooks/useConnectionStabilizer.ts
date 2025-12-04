@@ -22,14 +22,15 @@ export const useConnectionStabilizer = ({
   const consecutiveFailuresRef = useRef<number>(0);
 
   const checkConnectionHealth = useCallback(async () => {
-    if (!enabled) return;
+    // Skip when tab is hidden to save resources
+    if (!enabled || document.hidden) return;
 
     try {
       // Simple connectivity check
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch('https://www.google.com/favicon.ico', {
+      await fetch('https://www.google.com/favicon.ico', {
         method: 'HEAD',
         signal: controller.signal,
         mode: 'no-cors'
@@ -39,20 +40,17 @@ export const useConnectionStabilizer = ({
       
       // Connection is healthy
       if (consecutiveFailuresRef.current > 0) {
-        console.log('ConnectionStabilizer: Connection restored');
         consecutiveFailuresRef.current = 0;
         if (!lastConnectionStateRef.current) {
           lastConnectionStateRef.current = true;
           onConnectionRestored();
         }
       }
-    } catch (error) {
+    } catch {
       consecutiveFailuresRef.current++;
-      console.warn(`ConnectionStabilizer: Connection check failed (${consecutiveFailuresRef.current}/3)`, error);
 
       // If we've had 2 consecutive failures, consider connection lost
       if (consecutiveFailuresRef.current >= 2 && lastConnectionStateRef.current) {
-        console.log('ConnectionStabilizer: Connection lost detected');
         lastConnectionStateRef.current = false;
         onConnectionLost();
       }
