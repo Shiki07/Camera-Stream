@@ -1,6 +1,8 @@
 
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface EnhancedMotionDetectionConfig {
   sensitivity: number;
@@ -23,6 +25,7 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
   const [lastMotionTime, setLastMotionTime] = useState<Date | null>(null);
   const [currentMotionLevel, setCurrentMotionLevel] = useState(0);
   const [motionEventsToday, setMotionEventsToday] = useState(0);
+  const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [lastAlertTime, setLastAlertTime] = useState<Date | null>(null);
   
   const previousFrameRef = useRef<ImageData | null>(null);
@@ -33,6 +36,7 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
   const motionStartTimeRef = useRef<Date | null>(null);
   
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const isWithinSchedule = useCallback(() => {
     if (!config.scheduleEnabled) return true;
@@ -48,21 +52,22 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
     }
   }, [config.scheduleEnabled, config.startHour, config.endHour]);
 
-  // Use fixed small resolution for motion detection to reduce CPU usage
-  const DETECTION_WIDTH = 160;
-  const DETECTION_HEIGHT = 120;
-
-  const initializeCanvas = useCallback(() => {
+  const initializeCanvas = useCallback((video: HTMLVideoElement) => {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
-      canvasRef.current.width = DETECTION_WIDTH;
-      canvasRef.current.height = DETECTION_HEIGHT;
       contextRef.current = canvasRef.current.getContext('2d');
     }
     
-    return canvasRef.current && contextRef.current 
-      ? { canvas: canvasRef.current, context: contextRef.current }
-      : null;
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    
+    if (canvas && context) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      return { canvas, context };
+    }
+    
+    return null;
   }, []);
 
   const isInCooldownPeriod = useCallback(() => {
@@ -95,34 +100,43 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
     return changedPixels;
   }, [config.sensitivity, config.noiseReduction]);
 
-  const saveMotionEvent = useCallback((motionLevel: number, detected: boolean) => {
+  const saveMotionEvent = useCallback(async (motionLevel: number, detected: boolean) => {
+    if (!user) return;
+
     try {
-      const events = JSON.parse(localStorage.getItem('motionEvents') || '[]');
-      
-      if (detected) {
-        const newEvent = {
-          id: crypto.randomUUID(),
-          motion_level: motionLevel,
-          detected_at: new Date().toISOString(),
-          recording_triggered: true,
-          email_sent: false,
-          detection_zone: null,
-          duration_ms: null,
-          cleared_at: null
-        };
-        events.unshift(newEvent);
-        localStorage.setItem('motionEvents', JSON.stringify(events.slice(0, 100)));
+      if (detected && !currentEventId) {
+        // Start new motion event
+        const { data, error } = await supabase
+          .from('motion_events')
+          .insert({
+            user_id: user.id,
+            motion_level: motionLevel,
+            detected_at: new Date().toISOString(),
+            recording_triggered: true
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error saving motion event:', error);
+          return;
+        }
+
+        setCurrentEventId(data.id);
+      } else if (!detected && currentEventId) {
+        // End motion event
+        await supabase.rpc('update_motion_event_cleared', {
+          event_id: currentEventId
+        });
+        setCurrentEventId(null);
       }
     } catch (error) {
-      console.error('Error saving motion event:', error);
+      console.error('Error in motion event logging:', error);
     }
-  }, []);
+  }, [user, currentEventId]);
 
   const processFrame = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || !video.videoWidth || !video.videoHeight) return;
-    
-    // Skip if tab is not visible
-    if (document.hidden) return;
     
     // Check schedule
     if (!isWithinSchedule()) {
@@ -134,18 +148,17 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
       return;
     }
     
-    const canvasData = initializeCanvas();
+    const canvasData = initializeCanvas(video);
     if (!canvasData) return;
     
     const { canvas, context } = canvasData;
     
-    // Draw downsampled frame
-    context.drawImage(video, 0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
-    const currentFrame = context.getImageData(0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
     
     if (previousFrameRef.current) {
       const changedPixels = calculateMotion(currentFrame, previousFrameRef.current);
-      const motionLevel = (changedPixels / (DETECTION_WIDTH * DETECTION_HEIGHT)) * 100;
+      const motionLevel = (changedPixels / (canvas.width * canvas.height)) * 100;
       
       setCurrentMotionLevel(motionLevel);
       
@@ -158,12 +171,13 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
           // Check minimum motion duration
           const motionDuration = new Date().getTime() - motionStartTimeRef.current.getTime();
           if (motionDuration >= config.minMotionDuration) {
+            console.log('Motion detected!', motionLevel.toFixed(2) + '%');
             setMotionDetected(true);
             setLastMotionTime(new Date());
             setLastAlertTime(new Date());
             setMotionEventsToday(prev => prev + 1);
             
-            // Save motion event to localStorage
+            // Save motion event to database
             saveMotionEvent(motionLevel, true);
             
             config.onMotionDetected?.(motionLevel);
@@ -181,9 +195,13 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
         }
         
         motionTimeoutRef.current = setTimeout(() => {
+          console.log('Motion cleared');
           setMotionDetected(false);
           setCurrentMotionLevel(0);
           motionStartTimeRef.current = null;
+          
+          // End motion event in database
+          saveMotionEvent(0, false);
           
           config.onMotionCleared?.();
         }, 3000);
@@ -199,15 +217,16 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
   const startDetection = useCallback((video: HTMLVideoElement) => {
     if (!config.enabled || isDetecting) return;
     
+    console.log('Starting enhanced motion detection');
     setIsDetecting(true);
     
-    // Process frames every 500ms to reduce CPU usage
     detectionIntervalRef.current = setInterval(() => {
       processFrame(video);
-    }, 500);
+    }, 200);
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
+    console.log('Stopping enhanced motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);

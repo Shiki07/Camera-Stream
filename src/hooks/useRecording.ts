@@ -1,5 +1,7 @@
 
 import { useState, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useDirectoryPicker } from './useDirectoryPicker';
 import { getRecordingPath } from '@/utils/folderStructure';
@@ -17,12 +19,22 @@ export interface RecordingOptions {
 export const useRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
   const { saveFileToDirectory } = useDirectoryPicker();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async (stream: MediaStream, options: RecordingOptions) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to start recording",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       recordedChunksRef.current = [];
       
@@ -76,7 +88,7 @@ export const useRecording = () => {
         variant: "destructive"
       });
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -94,12 +106,21 @@ export const useRecording = () => {
     } else {
       await saveToLocal(blob, filename, 'image', options.motionDetected, options.dateOrganizedFolders);
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const takeSnapshot = useCallback(async (
     videoElement: HTMLVideoElement | HTMLImageElement,
     options: RecordingOptions
   ) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to take snapshots",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -184,7 +205,7 @@ export const useRecording = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [toast, handleImageSave]);
+  }, [user, toast, handleImageSave]);
 
   const handleRecordingComplete = async (options: RecordingOptions) => {
     if (recordedChunksRef.current.length === 0) return;
@@ -239,7 +260,7 @@ export const useRecording = () => {
       // Get organized path
       const dateOrganized = dateOrganizedFolders ?? true;
       const folderPath = getRecordingPath({
-        basePath: 'recordings',
+        basePath: user!.id,
         dateOrganized,
         motionDetected
       });
@@ -253,21 +274,27 @@ export const useRecording = () => {
         throw new Error(uploadResult.error || 'Upload failed');
       }
 
-      console.log('Upload successful, saving metadata to localStorage');
+      console.log('Upload successful, saving metadata to database');
 
-      // Save metadata to localStorage
-      const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-      recordings.unshift({
-        id: crypto.randomUUID(),
-        filename,
-        file_type: fileType,
-        storage_type: 'cloud',
-        file_path: uploadResult.fileId || uploadResult.filePath || filename,
-        file_size: blob.size,
-        motion_detected: motionDetected || false,
-        recorded_at: new Date().toISOString()
-      });
-      localStorage.setItem('recordings', JSON.stringify(recordings));
+      // Save metadata to database
+      const { data: recording, error: dbError } = await supabase
+        .from('recordings')
+        .insert({
+          user_id: user!.id,
+          filename,
+          file_type: fileType,
+          storage_type: 'cloud',
+          file_path: uploadResult.fileId || uploadResult.filePath || filename,
+          file_size: blob.size,
+          motion_detected: motionDetected || false
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw dbError;
+      }
 
       toast({
         title: "Saved to cloud",
@@ -309,19 +336,19 @@ export const useRecording = () => {
         URL.revokeObjectURL(url);
       }
       
-      // Save metadata to localStorage
-      const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-      recordings.unshift({
-        id: crypto.randomUUID(),
-        filename,
-        file_type: fileType,
-        storage_type: 'local',
-        file_path: `/${folderPath}/${filename}`,
-        file_size: blob.size,
-        motion_detected: motionDetected || false,
-        recorded_at: new Date().toISOString()
-      });
-      localStorage.setItem('recordings', JSON.stringify(recordings));
+      const { error } = await supabase
+        .from('recordings')
+        .insert({
+          user_id: user!.id,
+          filename,
+          file_type: fileType,
+          storage_type: 'local',
+          file_path: `/${folderPath}/${filename}`,
+          file_size: blob.size,
+          motion_detected: motionDetected || false
+        });
+      
+      if (error) throw error;
       
       toast({
         title: "Saved locally",

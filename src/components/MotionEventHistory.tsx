@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Activity, Clock, Mail, Video, RefreshCw } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface MotionEvent {
   id: string;
@@ -18,27 +21,51 @@ interface MotionEvent {
 
 export const MotionEventHistory = () => {
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [totalEventsToday, setTotalEventsToday] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const loadMotionEvents = () => {
+  const loadMotionEvents = async () => {
+    if (!user) return;
+
     try {
       setIsLoading(true);
-      const savedEvents = localStorage.getItem('motionEvents');
-      if (savedEvents) {
-        const events = JSON.parse(savedEvents) as MotionEvent[];
-        setMotionEvents(events.slice(0, 50));
-        
-        // Count today's events
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayEvents = events.filter(event => 
-          new Date(event.detected_at) >= today
-        ).length;
-        setTotalEventsToday(todayEvents);
+      
+      // Get events from last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data, error } = await supabase
+        .from('motion_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('detected_at', sevenDaysAgo.toISOString())
+        .order('detected_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Error loading motion events:', error);
+        toast({
+          title: "Error loading motion events",
+          description: "Could not fetch motion detection history",
+          variant: "destructive"
+        });
+        return;
       }
+
+      setMotionEvents(data || []);
+      
+      // Count today's events
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEvents = data?.filter(event => 
+        new Date(event.detected_at) >= today
+      ).length || 0;
+      setTotalEventsToday(todayEvents);
+
     } catch (error) {
-      console.error('Error loading motion events:', error);
+      console.error('Error in loadMotionEvents:', error);
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +73,7 @@ export const MotionEventHistory = () => {
 
   useEffect(() => {
     loadMotionEvents();
-  }, []);
+  }, [user]);
 
   const formatDuration = (durationMs: number | null) => {
     if (!durationMs) return 'Ongoing';

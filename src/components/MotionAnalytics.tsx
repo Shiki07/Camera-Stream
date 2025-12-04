@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity, Clock } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MotionStats {
   totalEvents: number;
@@ -21,20 +23,89 @@ export const MotionAnalytics = () => {
     trend: 'stable',
     trendPercentage: 0
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Load stats from localStorage
   useEffect(() => {
-    try {
-      const savedStats = localStorage.getItem('motionStats');
-      if (savedStats) {
-        setStats(JSON.parse(savedStats));
+    const loadMotionStats = async () => {
+      if (!user) return;
+
+      try {
+        setIsLoading(true);
+        
+        // Get events from last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const { data: events, error } = await supabase
+          .from('motion_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('detected_at', thirtyDaysAgo.toISOString())
+          .not('cleared_at', 'is', null);
+
+        if (error) {
+          console.error('Error loading motion stats:', error);
+          return;
+        }
+
+        if (!events || events.length === 0) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Calculate statistics
+        const totalEvents = events.length;
+        const averageMotionLevel = events.reduce((sum, event) => sum + event.motion_level, 0) / totalEvents;
+        const totalDuration = events.reduce((sum, event) => sum + (event.duration_ms || 0), 0);
+
+        // Find peak hour
+        const hourCounts = new Array(24).fill(0);
+        events.forEach(event => {
+          const hour = new Date(event.detected_at).getHours();
+          hourCounts[hour]++;
+        });
+        const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+
+        // Calculate trend (compare last 15 days to previous 15 days)
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+        
+        const recentEvents = events.filter(event => new Date(event.detected_at) >= fifteenDaysAgo);
+        const olderEvents = events.filter(event => new Date(event.detected_at) < fifteenDaysAgo);
+        
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        let trendPercentage = 0;
+        
+        if (olderEvents.length > 0) {
+          const recentAvg = recentEvents.length / 15;
+          const olderAvg = olderEvents.length / 15;
+          const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+          
+          if (Math.abs(change) > 10) {
+            trend = change > 0 ? 'up' : 'down';
+            trendPercentage = Math.abs(change);
+          }
+        }
+
+        setStats({
+          totalEvents,
+          averageMotionLevel,
+          totalDuration,
+          peakHour,
+          trend,
+          trendPercentage
+        });
+
+      } catch (error) {
+        console.error('Error in loadMotionStats:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading motion stats:', error);
-    }
-    setIsLoading(false);
-  }, []);
+    };
+
+    loadMotionStats();
+  }, [user]);
 
   const formatDuration = (totalMs: number) => {
     const totalSeconds = Math.round(totalMs / 1000);

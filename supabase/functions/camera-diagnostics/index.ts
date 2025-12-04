@@ -7,27 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-interface TestResult {
-  name: string;
-  success: boolean;
-  details?: any;
-  error?: string;
-  message?: string;
-}
-
-interface DiagnosticResults {
-  timestamp: string;
-  targetUrl: string;
-  tests: TestResult[];
-  summary?: {
-    testsRun: number;
-    testsPassed: number;
-    testsFailed: number;
-    overallSuccess: boolean;
-    recommendation: string;
-  };
-}
-
 // Basic per-user rate limiting
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 const checkRateLimit = (userId: string): boolean => {
@@ -67,6 +46,21 @@ const resolveAndValidateHost = async (hostname: string): Promise<boolean> => {
     return ips.length > 0 && ips.every(ip => !isPrivateIp(ip));
   } catch {
     return false;
+  }
+};
+
+const validateTargetUrl = async (raw: string): Promise<{ ok: boolean; reason?: string }> => {
+  try {
+    const u = new URL(raw);
+    if (!['http:', 'https:'].includes(u.protocol)) return { ok: false, reason: 'protocol' };
+    if (['localhost', '127.0.0.1', '::1'].includes(u.hostname.toLowerCase())) return { ok: false, reason: 'localhost' };
+    const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+    const allowedPorts = ['80', '443', '8000'];
+    if (!allowedPorts.includes(port)) return { ok: false, reason: 'port' };
+    if (!(await resolveAndValidateHost(u.hostname))) return { ok: false, reason: 'dns' };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: 'parse' };
   }
 };
 
@@ -122,7 +116,7 @@ serve(async (req) => {
 
     console.log(`Running diagnostics for ${targetUrl}`);
     
-    const results: DiagnosticResults = {
+    const results = {
       timestamp: new Date().toISOString(),
       targetUrl,
       tests: []
@@ -142,15 +136,14 @@ serve(async (req) => {
         success: dnsData.Status === 0,
         details: dnsData,
         message: dnsData.Status === 0 ? 
-          `Resolved to: ${dnsData.Answer?.map((a: { data: string }) => a.data).join(', ') || 'No A records'}` :
+          `Resolved to: ${dnsData.Answer?.map(a => a.data).join(', ') || 'No A records'}` :
           `DNS resolution failed with status ${dnsData.Status}`
       });
-    } catch (error: unknown) {
-      const err = error as Error;
+    } catch (error) {
       results.tests.push({
         name: 'DNS Resolution',
         success: false,
-        error: err.message
+        error: error.message
       });
     }
 
@@ -174,13 +167,12 @@ serve(async (req) => {
         details: { status: response.status, statusText: response.statusText },
         message: `Port 80 is reachable (Status: ${response.status})`
       });
-    } catch (error: unknown) {
-      const err = error as Error;
+    } catch (error) {
       results.tests.push({
         name: 'Basic HTTP (Port 80)',
         success: false,
-        error: err.message,
-        message: err.name === 'AbortError' ? 'Connection timeout' : `Connection failed: ${err.message}`
+        error: error.message,
+        message: error.name === 'AbortError' ? 'Connection timeout' : `Connection failed: ${error.message}`
       });
     }
 
@@ -208,15 +200,14 @@ serve(async (req) => {
         },
         message: `Target URL is reachable (Status: ${response.status})`
       });
-    } catch (error: unknown) {
-      const err = error as Error;
+    } catch (error) {
       results.tests.push({
         name: 'Target URL Connectivity',
         success: false,
-        error: err.message,
-        message: err.name === 'AbortError' ? 
+        error: error.message,
+        message: error.name === 'AbortError' ? 
           'Connection timeout - port may be closed or filtered' : 
-          `Connection failed: ${err.message}`
+          `Connection failed: ${error.message}`
       });
     }
 
@@ -253,23 +244,22 @@ serve(async (req) => {
           `MJPEG stream accessible (Type: ${contentType})` :
           `Stream not accessible (Status: ${response.status})`
       });
-    } catch (error: unknown) {
-      const err = error as Error;
+    } catch (error) {
       results.tests.push({
         name: 'MJPEG Stream',
         success: false,
-        error: err.message,
-        message: err.name === 'AbortError' ? 
+        error: error.message,
+        message: error.name === 'AbortError' ? 
           'Stream timeout' : 
-          `Stream test failed: ${err.message}`
+          `Stream test failed: ${error.message}`
       });
     }
 
     // Adjust Port 80 test to informational success when target stream tests pass
-    const dnsOk = (results.tests.find(t => t.name === 'DNS Resolution')?.success ?? false);
-    const targetOk = (results.tests.find(t => t.name === 'Target URL Connectivity')?.success ?? false);
-    const streamOk = (results.tests.find(t => t.name === 'MJPEG Stream')?.success ?? false);
-    const basicIdx = results.tests.findIndex(t => t.name === 'Basic HTTP (Port 80)');
+    const dnsOk = (results.tests.find((t: any) => t.name === 'DNS Resolution')?.success ?? false);
+    const targetOk = (results.tests.find((t: any) => t.name === 'Target URL Connectivity')?.success ?? false);
+    const streamOk = (results.tests.find((t: any) => t.name === 'MJPEG Stream')?.success ?? false);
+    const basicIdx = results.tests.findIndex((t: any) => t.name === 'Basic HTTP (Port 80)');
     
     // Make Port 80 informational when the actual camera functionality works
     if (targetOk && streamOk && basicIdx >= 0 && results.tests[basicIdx].success === false) {
@@ -278,7 +268,7 @@ serve(async (req) => {
     }
 
     // Summary
-    const successCount = results.tests.filter(test => test.success).length;
+    const successCount = results.tests.filter((test: any) => test.success).length;
     const totalTests = results.tests.length;
     
     // Camera is functional if target and stream work, regardless of DNS/Port 80 issues
@@ -298,17 +288,16 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: unknown) {
-    const err = error as Error;
+  } catch (error) {
     console.error('Diagnostics error:', error);
-    return new Response(JSON.stringify({ error: 'Diagnostics failed', details: err.message }), {
+    return new Response(JSON.stringify({ error: 'Diagnostics failed', details: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
 
-function generateRecommendation(tests: TestResult[]): string {
+function generateRecommendation(tests: any[]): string {
   const dnsTest = tests.find(t => t.name === 'DNS Resolution');
   const basicHttpTest = tests.find(t => t.name === 'Basic HTTP (Port 80)');
   const targetTest = tests.find(t => t.name === 'Target URL Connectivity');

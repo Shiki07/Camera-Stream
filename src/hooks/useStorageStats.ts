@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 export type StorageTier = '5GB' | '25GB' | '100GB';
 
@@ -20,6 +23,7 @@ const STORAGE_TIERS: Record<StorageTier, number> = {
 };
 
 export const useStorageStats = () => {
+  const { user } = useAuth();
   const [storageTier, setStorageTier] = useState<StorageTier>(() => {
     try {
       const saved = localStorage.getItem('storageTier');
@@ -28,20 +32,6 @@ export const useStorageStats = () => {
       return '5GB';
     }
   });
-
-  const [stats, setStats] = useState<StorageStats>({
-    totalFiles: 0,
-    totalSizeBytes: 0,
-    cloudFiles: 0,
-    localFiles: 0,
-    cloudSizeBytes: 0,
-    localSizeBytes: 0,
-    percentageUsed: 0,
-    warningLevel: 'safe'
-  });
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
 
   const updateStorageTier = (tier: StorageTier) => {
     setStorageTier(tier);
@@ -61,23 +51,44 @@ export const useStorageStats = () => {
     return 'safe';
   };
 
-  const calculateStats = useCallback(() => {
-    try {
-      setIsLoading(true);
-      const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+  const { data: stats, isLoading, error, refetch } = useQuery({
+    queryKey: ['storage-stats', user?.id, storageTier],
+    queryFn: async (): Promise<StorageStats> => {
+      if (!user) {
+        return {
+          totalFiles: 0,
+          totalSizeBytes: 0,
+          cloudFiles: 0,
+          localFiles: 0,
+          cloudSizeBytes: 0,
+          localSizeBytes: 0,
+          percentageUsed: 0,
+          warningLevel: 'safe'
+        };
+      }
 
-      const cloudFiles = recordings.filter((r: any) => r.storage_type === 'cloud');
-      const localFiles = recordings.filter((r: any) => r.storage_type === 'local');
+      const { data: recordings, error } = await supabase
+        .from('recordings')
+        .select('file_size, storage_type')
+        .eq('user_id', user.id);
 
-      const cloudSizeBytes = cloudFiles.reduce((sum: number, r: any) => sum + (r.file_size || 0), 0);
-      const localSizeBytes = localFiles.reduce((sum: number, r: any) => sum + (r.file_size || 0), 0);
+      if (error) {
+        console.error('Error fetching storage stats:', error);
+        throw error;
+      }
+
+      const cloudFiles = recordings?.filter(r => r.storage_type === 'cloud') || [];
+      const localFiles = recordings?.filter(r => r.storage_type === 'local') || [];
+
+      const cloudSizeBytes = cloudFiles.reduce((sum, r) => sum + (r.file_size || 0), 0);
+      const localSizeBytes = localFiles.reduce((sum, r) => sum + (r.file_size || 0), 0);
       const totalSizeBytes = cloudSizeBytes + localSizeBytes;
 
       const percentageUsed = Math.min(100, Math.round((totalSizeBytes / storageLimitBytes) * 100));
       const warningLevel = getWarningLevel(percentageUsed);
 
-      setStats({
-        totalFiles: recordings.length,
+      return {
+        totalFiles: recordings?.length || 0,
         totalSizeBytes,
         cloudFiles: cloudFiles.length,
         localFiles: localFiles.length,
@@ -85,22 +96,11 @@ export const useStorageStats = () => {
         localSizeBytes,
         percentageUsed,
         warningLevel
-      });
-      setError(null);
-    } catch (err) {
-      console.error('Error calculating storage stats:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [storageLimitBytes]);
-
-  useEffect(() => {
-    calculateStats();
-    // Recalculate every 30 seconds
-    const interval = setInterval(calculateStats, 30000);
-    return () => clearInterval(interval);
-  }, [calculateStats]);
+      };
+    },
+    enabled: !!user,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -111,10 +111,19 @@ export const useStorageStats = () => {
   };
 
   return {
-    stats,
+    stats: stats || {
+      totalFiles: 0,
+      totalSizeBytes: 0,
+      cloudFiles: 0,
+      localFiles: 0,
+      cloudSizeBytes: 0,
+      localSizeBytes: 0,
+      percentageUsed: 0,
+      warningLevel: 'safe'
+    },
     isLoading,
     error,
-    refetch: calculateStats,
+    refetch,
     formatFileSize,
     storageTier,
     updateStorageTier,

@@ -1,5 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ImageMotionDetectionConfig {
   sensitivity: number;
@@ -22,6 +24,7 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const [lastMotionTime, setLastMotionTime] = useState<Date | null>(null);
   const [currentMotionLevel, setCurrentMotionLevel] = useState(0);
   const [motionEventsToday, setMotionEventsToday] = useState(0);
+  const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [lastAlertTime, setLastAlertTime] = useState<Date | null>(null);
   
   const previousFrameRef = useRef<ImageData | null>(null);
@@ -33,6 +36,7 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const imageRef = useRef<HTMLImageElement | null>(null);
   
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const isWithinSchedule = useCallback(() => {
     if (!config.scheduleEnabled) return true;
@@ -48,21 +52,22 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     }
   }, [config.scheduleEnabled, config.startHour, config.endHour]);
 
-  // Use fixed small resolution for motion detection to reduce CPU usage
-  const DETECTION_WIDTH = 160;
-  const DETECTION_HEIGHT = 120;
-
-  const initializeCanvas = useCallback(() => {
+  const initializeCanvas = useCallback((img: HTMLImageElement) => {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
-      canvasRef.current.width = DETECTION_WIDTH;
-      canvasRef.current.height = DETECTION_HEIGHT;
       contextRef.current = canvasRef.current.getContext('2d');
     }
     
-    return canvasRef.current && contextRef.current 
-      ? { canvas: canvasRef.current, context: contextRef.current }
-      : null;
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    
+    if (canvas && context && img.naturalWidth && img.naturalHeight) {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      return { canvas, context };
+    }
+    
+    return null;
   }, []);
 
   const isInCooldownPeriod = useCallback(() => {
@@ -95,34 +100,43 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     return changedPixels;
   }, [config.sensitivity, config.noiseReduction]);
 
-  const saveMotionEvent = useCallback((motionLevel: number, detected: boolean) => {
+  const saveMotionEvent = useCallback(async (motionLevel: number, detected: boolean) => {
+    if (!user) return;
+
     try {
-      const events = JSON.parse(localStorage.getItem('motionEvents') || '[]');
-      
-      if (detected) {
-        const newEvent = {
-          id: crypto.randomUUID(),
-          motion_level: motionLevel,
-          detected_at: new Date().toISOString(),
-          recording_triggered: true,
-          email_sent: false,
-          detection_zone: null,
-          duration_ms: null,
-          cleared_at: null
-        };
-        events.unshift(newEvent);
-        localStorage.setItem('motionEvents', JSON.stringify(events.slice(0, 100)));
+      if (detected && !currentEventId) {
+        // Start new motion event
+        const { data, error } = await supabase
+          .from('motion_events')
+          .insert({
+            user_id: user.id,
+            motion_level: motionLevel,
+            detected_at: new Date().toISOString(),
+            recording_triggered: true
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error saving motion event:', error);
+          return;
+        }
+
+        setCurrentEventId(data.id);
+      } else if (!detected && currentEventId) {
+        // End motion event
+        await supabase.rpc('update_motion_event_cleared', {
+          event_id: currentEventId
+        });
+        setCurrentEventId(null);
       }
     } catch (error) {
-      console.error('Error saving motion event:', error);
+      console.error('Error in motion event logging:', error);
     }
-  }, []);
+  }, [user, currentEventId]);
 
   const processFrame = useCallback(() => {
     if (!config.enabled || !imageRef.current) return;
-    
-    // Skip if tab is not visible
-    if (document.hidden) return;
     
     // Check schedule
     if (!isWithinSchedule()) {
@@ -141,30 +155,30 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
       return;
     }
     
-    const canvasData = initializeCanvas();
+    const canvasData = initializeCanvas(img);
     if (!canvasData) return;
     
     const { canvas, context } = canvasData;
     
     try {
-      // Draw downsampled frame
-      context.drawImage(img, 0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
-      const currentFrame = context.getImageData(0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
       
       if (previousFrameRef.current) {
         const changedPixels = calculateMotion(currentFrame, previousFrameRef.current);
-        const motionLevel = (changedPixels / (DETECTION_WIDTH * DETECTION_HEIGHT)) * 100;
+        const motionLevel = (changedPixels / (canvas.width * canvas.height)) * 100;
         
         setCurrentMotionLevel(motionLevel);
         
         if (motionLevel > config.threshold) {
           if (!motionDetected) {
+            console.log('Motion detected!', motionLevel.toFixed(2) + '%');
             setMotionDetected(true);
             setLastMotionTime(new Date());
             setLastAlertTime(new Date());
             setMotionEventsToday(prev => prev + 1);
             
-            // Save motion event to localStorage
+            // Save motion event to database
             saveMotionEvent(motionLevel, true);
             
             config.onMotionDetected?.(motionLevel);
@@ -181,9 +195,13 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
           }
           
           motionTimeoutRef.current = setTimeout(() => {
+            console.log('Motion cleared');
             setMotionDetected(false);
             setCurrentMotionLevel(0);
             motionStartTimeRef.current = null;
+            
+            // End motion event in database
+            saveMotionEvent(0, false);
             
             config.onMotionCleared?.();
           }, 3000);
@@ -196,12 +214,14 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
       previousFrameRef.current = currentFrame;
     } catch (error) {
       console.error('Error processing motion detection frame:', error);
+      // Don't stop detection due to temporary errors
     }
   }, [config, motionDetected, isWithinSchedule, isInCooldownPeriod, initializeCanvas, calculateMotion, saveMotionEvent, toast]);
 
   const startDetection = useCallback((imgElement: HTMLImageElement) => {
     if (!config.enabled || isDetecting) return;
     
+    console.log('Starting image-based motion detection');
     setIsDetecting(true);
     imageRef.current = imgElement;
     
@@ -212,6 +232,7 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
+    console.log('Stopping image-based motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface PiRecordingOptions {
   piUrl: string;
@@ -15,10 +16,20 @@ export const usePiRecording = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const { user } = useAuth();
   const { toast } = useToast();
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startRecording = useCallback(async (options: PiRecordingOptions) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to start recording",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (isRecording) {
       toast({
         title: "Already recording",
@@ -63,19 +74,23 @@ export const usePiRecording = () => {
 
         result = await response.json();
 
-        // Save to localStorage
-        const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-        recordings.unshift({
-          id: recordingId,
-          filename: result.filename,
-          file_type: 'video',
-          storage_type: 'local',
-          file_path: `/pi/${result.filename}`,
-          motion_detected: options.motionTriggered || false,
-          pi_sync_status: 'recording',
-          recorded_at: new Date().toISOString()
-        });
-        localStorage.setItem('recordings', JSON.stringify(recordings));
+        // Save to Supabase manually when using direct call
+        const { error: dbError } = await supabase
+          .from('recordings')
+          .insert({
+            id: recordingId,
+            user_id: user.id,
+            filename: result.filename,
+            file_type: 'video',
+            storage_type: 'local',
+            file_path: `/pi/${result.filename}`,
+            motion_detected: options.motionTriggered || false,
+            pi_sync_status: 'recording'
+          });
+
+        if (dbError) {
+          console.warn('Failed to save recording metadata:', dbError);
+        }
       } else {
         // Use edge function (external access, requires port forwarding)
         console.log('Using edge function (external access, requires port 3002 forwarding)');
@@ -130,7 +145,7 @@ export const usePiRecording = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [isRecording, toast]);
+  }, [user, isRecording, toast, supabase]);
 
   const stopRecording = useCallback(async (piUrl: string) => {
     if (!currentRecordingId) {
@@ -195,21 +210,23 @@ export const usePiRecording = () => {
           throw fetchError;
         }
 
-        // Update localStorage
-        const recordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-        const updatedRecordings = recordings.map((r: any) => {
-          if (r.id === currentRecordingId) {
-            return {
-              ...r,
+        // Update Supabase manually when using direct call
+        if (user) {
+          const { error: dbError } = await supabase
+            .from('recordings')
+            .update({
               file_size: result.file_size,
               duration_seconds: result.duration_seconds,
               pi_sync_status: 'completed',
               pi_synced_at: new Date().toISOString()
-            };
+            })
+            .eq('id', currentRecordingId)
+            .eq('user_id', user.id);
+
+          if (dbError) {
+            console.warn('Failed to update recording metadata:', dbError);
           }
-          return r;
-        });
-        localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
+        }
       } else {
         // Use edge function (external access)
         console.log('Using edge function (external access)');
@@ -263,7 +280,7 @@ export const usePiRecording = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [currentRecordingId, toast]);
+  }, [currentRecordingId, user, toast]);
 
   const getStatus = useCallback(async (piUrl: string, recordingId?: string) => {
     const id = recordingId || currentRecordingId;
