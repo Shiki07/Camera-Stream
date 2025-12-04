@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,13 +25,11 @@ export const useSystemStatus = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Track uptime
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStatus(prev => ({ ...prev, uptime: prev.uptime + 1 }));
-    }, 1000);
-
-    return () => clearInterval(interval);
+  // Track uptime - calculate from mount time instead of 1-second interval
+  const mountTimeRef = useRef(Date.now());
+  
+  const getUptime = useCallback(() => {
+    return Math.floor((Date.now() - mountTimeRef.current) / 1000);
   }, []);
 
   // Fetch system status from database
@@ -125,5 +123,6 @@ export const useSystemStatus = () => {
     loading,
     updateConnectionStatus,
     refreshStatus,
+    getUptime,
   };
 };
