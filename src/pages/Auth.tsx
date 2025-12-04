@@ -180,7 +180,18 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+      <p className="text-xs text-gray-400 text-center mb-4 max-w-md">
+        This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+        <a 
+          href="https://rpicamalert.xyz" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline"
+        >
+          rpicamalert.xyz
+        </a>
+      </p>
       <Card className="w-full max-w-md bg-gray-800 border-gray-700">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
