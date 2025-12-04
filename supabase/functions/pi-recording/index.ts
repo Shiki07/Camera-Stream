@@ -16,6 +16,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const piServiceApiKey = Deno.env.get('PI_SERVICE_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get user from auth header
@@ -41,19 +42,25 @@ serve(async (req) => {
 
     console.log(`Pi recording: Action=${action}, Pi URL=${pi_url}`);
 
+    // Build headers for Pi service requests
+    const piHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (piServiceApiKey) {
+      piHeaders['X-API-Key'] = piServiceApiKey;
+    }
+
     // Route to appropriate action
     switch (action) {
       case 'start':
-        return await startRecording(pi_url, recording_id, stream_url, quality, motion_triggered, video_path, user.id);
+        return await startRecording(pi_url, recording_id, stream_url, quality, motion_triggered, video_path, user.id, piHeaders);
       
       case 'stop':
-        return await stopRecording(pi_url, recording_id, user.id);
+        return await stopRecording(pi_url, recording_id, user.id, piHeaders);
       
       case 'status':
-        return await getStatus(pi_url, recording_id);
+        return await getStatus(pi_url, recording_id, piHeaders);
       
       case 'list_active':
-        return await listActive(pi_url);
+        return await listActive(pi_url, piHeaders);
       
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -81,7 +88,8 @@ async function startRecording(
   quality: string, 
   motionTriggered: boolean,
   videoPath: string | undefined,
-  userId: string
+  userId: string,
+  piHeaders: Record<string, string>
 ): Promise<Response> {
   const startTime = Date.now();
   console.log(`[${recordingId}] Starting recording on Pi at ${piUrl}`);
@@ -94,7 +102,7 @@ async function startRecording(
   try {
     const response = await fetch(`${piUrl}/recording/start`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: piHeaders,
       body: JSON.stringify({
         recording_id: recordingId,
         stream_url: streamUrl,
@@ -117,35 +125,35 @@ async function startRecording(
     const result = await response.json();
     console.log(`[${recordingId}] Recording started successfully:`, result);
 
-  // Save initial metadata to Supabase
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+    // Save initial metadata to Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { error: dbError } = await supabase
-    .from('recordings')
-    .insert({
-      id: recordingId,
-      user_id: userId,
-      filename: result.filename,
-      storage_type: 'local',
-      storage_path: `/pi/${result.filename}`,
-      motion_detected: motionTriggered,
-      pi_sync_status: 'recording'
-    });
+    const { error: dbError } = await supabase
+      .from('recordings')
+      .insert({
+        id: recordingId,
+        user_id: userId,
+        filename: result.filename,
+        storage_type: 'local',
+        storage_path: `/pi/${result.filename}`,
+        motion_detected: motionTriggered,
+        pi_sync_status: 'recording'
+      });
 
-  if (dbError) {
-    console.error('Database error:', dbError);
-    // Don't fail the request if DB insert fails - recording is still active
-  }
-
-  return new Response(
-    JSON.stringify({ success: true, ...result }),
-    { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    if (dbError) {
+      console.error('Database error:', dbError);
+      // Don't fail the request if DB insert fails - recording is still active
     }
-  );
+
+    return new Response(
+      JSON.stringify({ success: true, ...result }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   } catch (error: any) {
     clearTimeout(timeoutId);
     const elapsedMs = Date.now() - startTime;
@@ -160,7 +168,7 @@ async function startRecording(
   }
 }
 
-async function stopRecording(piUrl: string, recordingId: string, userId: string): Promise<Response> {
+async function stopRecording(piUrl: string, recordingId: string, userId: string, piHeaders: Record<string, string>): Promise<Response> {
   console.log(`Stopping recording ${recordingId} on Pi at ${piUrl}`);
   
   // Add timeout controller - 15 seconds for stop operation
@@ -170,7 +178,7 @@ async function stopRecording(piUrl: string, recordingId: string, userId: string)
   try {
     const response = await fetch(`${piUrl}/recording/stop`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: piHeaders,
       body: JSON.stringify({ recording_id: recordingId }),
       signal: controller.signal
     });
@@ -185,30 +193,30 @@ async function stopRecording(piUrl: string, recordingId: string, userId: string)
     const result = await response.json();
     console.log('Recording stopped:', result);
 
-  // Update metadata in Supabase
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+    // Update metadata in Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { error: dbError } = await supabase
-    .from('recordings')
-    .update({
-      file_size: result.file_size,
-      duration_seconds: result.duration_seconds,
-      pi_sync_status: 'completed',
-      pi_synced_at: new Date().toISOString()
-    })
-    .eq('id', recordingId)
-    .eq('user_id', userId);
+    const { error: dbError } = await supabase
+      .from('recordings')
+      .update({
+        file_size: result.file_size,
+        duration_seconds: result.duration_seconds,
+        pi_sync_status: 'completed',
+        pi_synced_at: new Date().toISOString()
+      })
+      .eq('id', recordingId)
+      .eq('user_id', userId);
 
-  if (dbError) {
-    console.error('Database update error:', dbError);
-  }
+    if (dbError) {
+      console.error('Database update error:', dbError);
+    }
 
-  return new Response(
-    JSON.stringify({ success: true, ...result }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
+    return new Response(
+      JSON.stringify({ success: true, ...result }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error: any) {
     clearTimeout(timeoutId);
     
@@ -221,10 +229,12 @@ async function stopRecording(piUrl: string, recordingId: string, userId: string)
   }
 }
 
-async function getStatus(piUrl: string, recordingId: string): Promise<Response> {
+async function getStatus(piUrl: string, recordingId: string, piHeaders: Record<string, string>): Promise<Response> {
   console.log(`Getting status for recording ${recordingId} from Pi at ${piUrl}`);
   
-  const response = await fetch(`${piUrl}/recording/status/${recordingId}`);
+  const response = await fetch(`${piUrl}/recording/status/${recordingId}`, {
+    headers: piHeaders
+  });
 
   if (!response.ok) {
     const error = await response.text();
@@ -239,10 +249,12 @@ async function getStatus(piUrl: string, recordingId: string): Promise<Response> 
   );
 }
 
-async function listActive(piUrl: string): Promise<Response> {
+async function listActive(piUrl: string, piHeaders: Record<string, string>): Promise<Response> {
   console.log(`Listing active recordings from Pi at ${piUrl}`);
   
-  const response = await fetch(`${piUrl}/recording/active`);
+  const response = await fetch(`${piUrl}/recording/active`, {
+    headers: piHeaders
+  });
 
   if (!response.ok) {
     const error = await response.text();

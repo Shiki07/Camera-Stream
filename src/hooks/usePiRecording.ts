@@ -52,12 +52,19 @@ export const usePiRecording = () => {
 
       let result;
       
+      // Get PI_SERVICE_API_KEY from user metadata or localStorage
+      const piApiKey = localStorage.getItem('PI_SERVICE_API_KEY') || '';
+
       if (isLocalNetwork) {
         // Direct call to Pi service (local network, no port forwarding needed)
         console.log('Using direct Pi service call (local network)');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (piApiKey) {
+          headers['X-API-Key'] = piApiKey;
+        }
         const response = await fetch(`${options.piUrl}/recording/start`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             recording_id: recordingId,
             stream_url: options.streamUrl,
@@ -179,6 +186,9 @@ export const usePiRecording = () => {
 
       let result;
 
+      // Get PI_SERVICE_API_KEY from localStorage
+      const piApiKey = localStorage.getItem('PI_SERVICE_API_KEY') || '';
+
       if (isLocalNetwork) {
         // Direct call to Pi service (local network) with timeout
         console.log('Using direct Pi service call (local network)');
@@ -186,10 +196,15 @@ export const usePiRecording = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (piApiKey) {
+          headers['X-API-Key'] = piApiKey;
+        }
+        
         try {
           const response = await fetch(`${piUrl}/recording/stop`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ recording_id: currentRecordingId }),
             signal: controller.signal
           });

@@ -8,12 +8,53 @@ const { spawn } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// API Key authentication - set via environment variable
+const API_KEY = process.env.PI_SERVICE_API_KEY;
+
 // Recording state management
 const activeRecordings = new Map(); // Map<recordingId, { process, filename, startTime }>
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Authentication middleware
+const authenticateApiKey = (req, res, next) => {
+  // Allow health endpoint without auth for basic connectivity checks
+  if (req.path === '/health') {
+    return next();
+  }
+
+  // If no API key is configured, warn but allow (for backwards compatibility during setup)
+  if (!API_KEY) {
+    console.warn('⚠️  WARNING: PI_SERVICE_API_KEY not set. Service is running without authentication!');
+    console.warn('   Set PI_SERVICE_API_KEY environment variable to secure this service.');
+    return next();
+  }
+
+  const providedKey = req.headers['x-api-key'];
+
+  if (!providedKey) {
+    console.warn('Request rejected: Missing X-API-Key header');
+    return res.status(401).json({ 
+      error: 'Unauthorized',
+      message: 'Missing X-API-Key header'
+    });
+  }
+
+  if (providedKey !== API_KEY) {
+    console.warn('Request rejected: Invalid API key');
+    return res.status(403).json({ 
+      error: 'Forbidden',
+      message: 'Invalid API key'
+    });
+  }
+
+  next();
+};
+
+// Apply authentication to all routes
+app.use(authenticateApiKey);
 
 // Configure storage for uploaded files
 const storage = multer.diskStorage({
@@ -39,12 +80,13 @@ const upload = multer({
   }
 });
 
-// Health check endpoint
+// Health check endpoint (no auth required)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'running',
     timestamp: new Date().toISOString(),
-    videosPath: '/home/pi/Videos'
+    videosPath: '/home/pi/Videos',
+    authEnabled: !!API_KEY
   });
 });
 
@@ -362,8 +404,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎥 CamAlert Pi Service running on port ${PORT}`);
   console.log(`📁 Videos will be saved to: /home/pi/Videos`);
   console.log(`🌐 Access at: http://YOUR_PI_IP:${PORT}`);
+  if (API_KEY) {
+    console.log(`🔒 Authentication: ENABLED (API key required)`);
+  } else {
+    console.log(`⚠️  Authentication: DISABLED - Set PI_SERVICE_API_KEY to secure this service`);
+  }
   console.log('\n📋 Available endpoints:');
-  console.log(`   GET  /health - Health check`);
+  console.log(`   GET  /health - Health check (no auth)`);
   console.log(`   POST /upload - Upload recordings`);
   console.log(`   GET  /recordings - List saved recordings`);
   console.log(`   POST /recording/start - Start Pi recording`);
@@ -372,4 +419,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   GET  /recording/active - List active recordings`);
   console.log('\n⚙️  Requirements:');
   console.log(`   - FFmpeg must be installed: sudo apt install ffmpeg`);
+  console.log(`   - Set PI_SERVICE_API_KEY env var for security`);
 });

@@ -35,9 +35,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Testing Pi connection to: ${normalizedEndpoint}/health`);
 
-    // Test the Pi health endpoint from the cloud
+    // Test the Pi health endpoint from the cloud (health endpoint doesn't require auth)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout (handles cold starts better with retry)
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout
 
     try {
       const response = await fetch(`${normalizedEndpoint}/health`, {
@@ -72,6 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
           success: true,
           reachable: true,
           healthData,
+          authEnabled: healthData.authEnabled ?? false,
           message: 'Pi service is reachable and responding correctly'
         }),
         { 
