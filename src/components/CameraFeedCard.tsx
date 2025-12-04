@@ -84,6 +84,23 @@ export const CameraFeedCard = ({
     includeAttachment: true,
   });
   
+  // Helper to save motion thumbnail
+  const saveMotionThumbnail = useCallback((eventId: string, element: HTMLVideoElement | HTMLImageElement) => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 120;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(element, 0, 0, 160, 120);
+        const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+        localStorage.setItem(`motion_thumbnail_${eventId}`, thumbnail);
+      }
+    } catch (e) {
+      console.error('Failed to save thumbnail:', e);
+    }
+  }, []);
+
   // Motion detection for webcam (video element)
   const webcamMotionDetection = useEnhancedMotionDetection({
     sensitivity: settings.motion_sensitivity,
@@ -98,6 +115,12 @@ export const CameraFeedCard = ({
     noiseReduction: settings.noise_reduction,
     onMotionDetected: (motionLevel) => {
       setMotionDetected(true);
+      // Generate event ID for thumbnail storage
+      const eventId = `${cameraId}_${Date.now()}`;
+      // Save thumbnail
+      if (videoRef.current) {
+        saveMotionThumbnail(eventId, videoRef.current);
+      }
       // Send email notification
       if (settings.email_notifications && videoRef.current) {
         motionNotification.sendMotionAlert(videoRef.current, motionLevel);
@@ -129,6 +152,12 @@ export const CameraFeedCard = ({
     noiseReduction: settings.noise_reduction,
     onMotionDetected: (motionLevel) => {
       setMotionDetected(true);
+      // Generate event ID for thumbnail storage
+      const eventId = `${cameraId}_${Date.now()}`;
+      // Save thumbnail
+      if (imgRef.current) {
+        saveMotionThumbnail(eventId, imgRef.current);
+      }
       // Send email notification
       if (settings.email_notifications && imgRef.current) {
         motionNotification.sendMotionAlert(undefined, motionLevel, imgRef.current);
