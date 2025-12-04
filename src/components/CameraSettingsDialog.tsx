@@ -12,7 +12,7 @@ import { UnifiedMotionDetection } from "./UnifiedMotionDetection";
 import { FolderSettings } from "./FolderSettings";
 import { StorageTierSettings } from "./StorageTierSettings";
 import { CloudStorageSettings } from "./CloudStorageSettings";
-
+import { PiServiceSettings } from "./PiServiceSettings";
 interface CameraSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,11 +111,12 @@ export const CameraSettingsDialog = ({
         </DialogHeader>
 
         <Tabs defaultValue="storage" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 bg-secondary">
+          <TabsList className="grid w-full grid-cols-7 bg-secondary">
             <TabsTrigger value="storage">Storage</TabsTrigger>
             <TabsTrigger value="cloud">Cloud</TabsTrigger>
             <TabsTrigger value="tier">Tier</TabsTrigger>
             <TabsTrigger value="folder">Folder</TabsTrigger>
+            <TabsTrigger value="pi">Pi Service</TabsTrigger>
             <TabsTrigger value="motion">Motion</TabsTrigger>
             <TabsTrigger value="notifications">Alerts</TabsTrigger>
           </TabsList>
@@ -147,6 +148,10 @@ export const CameraSettingsDialog = ({
               dateOrganizedFoldersPi={dateOrganizedFoldersPi}
               onDateOrganizedTogglePi={onDateOrganizedTogglePi}
             />
+          </TabsContent>
+
+          <TabsContent value="pi" className="space-y-4 mt-4">
+            <PiServiceSettings />
           </TabsContent>
 
           <TabsContent value="motion" className="space-y-4 mt-4">
