@@ -4,11 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Grid, LayoutGrid } from 'lucide-react';
 import { CameraFeedCard } from '@/components/CameraFeedCard';
-import { AddCameraDialog } from '@/components/AddCameraDialog';
+import { AddCameraDialog, CameraConfig } from '@/components/AddCameraDialog';
 import { CameraSettingsSheet } from '@/components/CameraSettingsSheet';
 import { useMultiCamera } from '@/hooks/useMultiCamera';
 import { GridLayout, GRID_LAYOUTS } from '@/types/camera';
 import { cn } from '@/lib/utils';
+
+// Helper to ensure camera has source field
+const ensureCameraConfig = (camera: any): CameraConfig => ({
+  ...camera,
+  source: camera.source || (camera.url?.startsWith('webcam://') ? 'webcam' : 'network'),
+});
 
 export const MultiCameraGrid = () => {
   const {
@@ -98,11 +104,12 @@ export const MultiCameraGrid = () => {
               return null;
             }
             
+            const cameraConfig = ensureCameraConfig(camera);
             return (
               <CameraFeedCard
                 key={camera.url + index}
-                cameraId={camera.url} // Use URL as ID for now
-                config={camera}
+                cameraId={camera.url}
+                config={cameraConfig}
                 index={index}
                 isFocused={focusedCameraIndex === index}
                 onFocus={focusCamera}
