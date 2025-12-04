@@ -94,6 +94,9 @@ export const useConnectionMonitor = (targetUrl?: string, enabled: boolean = true
     if (!enabled) return;
 
     intervalRef.current = setInterval(async () => {
+      // Skip when tab is hidden to save resources
+      if (document.hidden) return;
+      
       const result = await ping();
       
       if (result.success) {
@@ -107,7 +110,7 @@ export const useConnectionMonitor = (targetUrl?: string, enabled: boolean = true
           attemptReconnect();
         }
       }
-    }, 5000); // Check every 5 seconds
+    }, 15000); // Check every 15 seconds (reduced from 5s)
   }, [enabled, ping, updateConnectionStatus, status.isConnected, status.reconnectAttempts, autoReconnect, attemptReconnect]);
 
   const stopMonitoring = useCallback(() => {
