@@ -181,7 +181,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-      <p className="text-xs text-gray-400 text-center mb-4 max-w-md">
+      <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
         This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
         <a 
           href="https://rpicamalert.xyz" 

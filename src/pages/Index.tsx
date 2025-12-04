@@ -74,6 +74,20 @@ const Index = () => {
       <div className="min-h-screen bg-gray-900">
         <Header />
         
+        <div className="bg-gray-800 border-b border-gray-700 py-2">
+          <p className="text-sm text-gray-400 text-center">
+            This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+            <a 
+              href="https://rpicamalert.xyz" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              rpicamalert.xyz
+            </a>
+          </p>
+        </div>
+        
         <div className="container mx-auto px-4 py-8">
           <CameraGrid
             isRecording={isRecording}
