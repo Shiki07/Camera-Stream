@@ -192,7 +192,7 @@ const Auth = () => {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
         <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
-          This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+          This website is under construction, to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
           <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">
             rpicamalert.xyz
           </a>
@@ -298,7 +298,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       <p className="text-sm text-gray-400 text-center mb-4 max-w-md">
-        This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+        This website is under construction, to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
         <a 
           href="https://rpicamalert.xyz" 
           target="_blank" 

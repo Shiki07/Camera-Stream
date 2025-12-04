@@ -76,7 +76,7 @@ const Index = () => {
         
         <div className="bg-gray-800 border-b border-gray-700 py-2">
           <p className="text-sm text-gray-400 text-center">
-            This website is under construction to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
+            This website is under construction, to be able to connect multiple cameras, if you need to connect just one you can go to{' '}
             <a 
               href="https://rpicamalert.xyz" 
               target="_blank" 
