@@ -91,9 +91,30 @@ export const CameraSettingsSheet = ({
             </Select>
           </div>
 
-          <Separator />
+          {/* Storage Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              <h3 className="font-medium">Storage</h3>
+            </div>
+            <Select
+              value={settings.storage_type || 'local'}
+              onValueChange={(v) => updateSetting('storage_type', v as 'cloud' | 'local')}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">Local (Download)</SelectItem>
+                <SelectItem value="cloud">Cloud Storage</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Where to save recordings and snapshots
+            </p>
+          </div>
 
-          {/* Motion Detection */}
+          <Separator />
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Video className="h-4 w-4" />
