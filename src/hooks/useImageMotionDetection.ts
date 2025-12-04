@@ -3,6 +3,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Downsampled resolution for motion detection (reduces CPU by ~99%)
+const DETECTION_WIDTH = 160;
+const DETECTION_HEIGHT = 120;
+const DETECTION_INTERVAL_MS = 500;
+
 export interface ImageMotionDetectionConfig {
   sensitivity: number;
   threshold: number;
@@ -52,7 +57,7 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     }
   }, [config.scheduleEnabled, config.startHour, config.endHour]);
 
-  const initializeCanvas = useCallback((img: HTMLImageElement) => {
+  const initializeCanvas = useCallback(() => {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
       contextRef.current = canvasRef.current.getContext('2d');
@@ -61,9 +66,10 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     const canvas = canvasRef.current;
     const context = contextRef.current;
     
-    if (canvas && context && img.naturalWidth && img.naturalHeight) {
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+    if (canvas && context) {
+      // Use fixed downsampled resolution for performance
+      canvas.width = DETECTION_WIDTH;
+      canvas.height = DETECTION_HEIGHT;
       return { canvas, context };
     }
     
@@ -138,6 +144,9 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const processFrame = useCallback(() => {
     if (!config.enabled || !imageRef.current) return;
     
+    // Skip processing if tab is not visible
+    if (document.hidden) return;
+    
     // Check schedule
     if (!isWithinSchedule()) {
       return;
@@ -155,24 +164,24 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
       return;
     }
     
-    const canvasData = initializeCanvas(img);
+    const canvasData = initializeCanvas();
     if (!canvasData) return;
     
     const { canvas, context } = canvasData;
     
     try {
-      context.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+      // Draw image at downsampled resolution
+      context.drawImage(img, 0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
+      const currentFrame = context.getImageData(0, 0, DETECTION_WIDTH, DETECTION_HEIGHT);
       
       if (previousFrameRef.current) {
         const changedPixels = calculateMotion(currentFrame, previousFrameRef.current);
-        const motionLevel = (changedPixels / (canvas.width * canvas.height)) * 100;
+        const motionLevel = (changedPixels / (DETECTION_WIDTH * DETECTION_HEIGHT)) * 100;
         
         setCurrentMotionLevel(motionLevel);
         
         if (motionLevel > config.threshold) {
           if (!motionDetected) {
-            console.log('Motion detected!', motionLevel.toFixed(2) + '%');
             setMotionDetected(true);
             setLastMotionTime(new Date());
             setLastAlertTime(new Date());
@@ -195,7 +204,6 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
           }
           
           motionTimeoutRef.current = setTimeout(() => {
-            console.log('Motion cleared');
             setMotionDetected(false);
             setCurrentMotionLevel(0);
             motionStartTimeRef.current = null;
@@ -221,18 +229,15 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
   const startDetection = useCallback((imgElement: HTMLImageElement) => {
     if (!config.enabled || isDetecting) return;
     
-    console.log('Starting image-based motion detection');
     setIsDetecting(true);
     imageRef.current = imgElement;
     
-    // Start detection interval - less frequent to improve performance
     detectionIntervalRef.current = setInterval(() => {
       processFrame();
-    }, 1000); // Check every 1000ms for motion
+    }, DETECTION_INTERVAL_MS);
   }, [config.enabled, isDetecting, processFrame]);
 
   const stopDetection = useCallback(() => {
-    console.log('Stopping image-based motion detection');
     setIsDetecting(false);
     setMotionDetected(false);
     setCurrentMotionLevel(0);
