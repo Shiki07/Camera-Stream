@@ -19,6 +19,8 @@ export type Database = {
           camera_name: string
           camera_url: string
           created_at: string
+          encrypted_password: string | null
+          encrypted_username: string | null
           id: string
           password: string | null
           updated_at: string
@@ -29,6 +31,8 @@ export type Database = {
           camera_name: string
           camera_url: string
           created_at?: string
+          encrypted_password?: string | null
+          encrypted_username?: string | null
           id?: string
           password?: string | null
           updated_at?: string
@@ -39,6 +43,8 @@ export type Database = {
           camera_name?: string
           camera_url?: string
           created_at?: string
+          encrypted_password?: string | null
+          encrypted_username?: string | null
           id?: string
           password?: string | null
           updated_at?: string
@@ -117,6 +123,13 @@ export type Database = {
             columns: ["camera_id"]
             isOneToOne: false
             referencedRelation: "camera_credentials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "camera_settings_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "camera_credentials_decrypted"
             referencedColumns: ["id"]
           },
         ]
@@ -234,9 +247,49 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      camera_credentials_decrypted: {
+        Row: {
+          camera_name: string | null
+          camera_url: string | null
+          created_at: string | null
+          id: string | null
+          password: string | null
+          updated_at: string | null
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          camera_name?: string | null
+          camera_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          password?: never
+          updated_at?: string | null
+          user_id?: string | null
+          username?: never
+        }
+        Update: {
+          camera_name?: string | null
+          camera_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          password?: never
+          updated_at?: string | null
+          user_id?: string | null
+          username?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      decrypt_credential: {
+        Args: { ciphertext: string; user_id: string }
+        Returns: string
+      }
+      encrypt_credential: {
+        Args: { plaintext: string; user_id: string }
+        Returns: string
+      }
       update_motion_event_cleared: {
         Args: { event_id: string }
         Returns: undefined
