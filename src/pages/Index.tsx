@@ -20,6 +20,21 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Header />
         
+        {/* Construction Banner */}
+        <div className="bg-primary/20 border-b border-primary/30 py-3 px-4 text-center">
+          <p className="text-sm text-foreground">
+            This website is under construction to be able to connect multiple cameras. If you need to connect just one, you can go to{' '}
+            <a 
+              href="https://rpicamalert.xyz" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              rpicamalert.xyz
+            </a>
+          </p>
+        </div>
+        
         <div className="container mx-auto px-4 py-8 space-y-8">
           {/* Multi-Camera Grid */}
           <MultiCameraGrid />
