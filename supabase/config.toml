@@ -2,3 +2,6 @@ project_id = "mlrouwmtqdrlbwhacmic"
 
 [functions.pi-recording]
 verify_jwt = true
+
+[functions.test-pi-connection]
+verify_jwt = true
