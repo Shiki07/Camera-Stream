@@ -109,7 +109,10 @@ serve(async (req) => {
     }
 
     if (!targetUrl) {
-      targetUrl = 'http://alepava.duckdns.org:8000';
+      return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
     
     // Authenticate user

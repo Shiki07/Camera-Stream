@@ -39,10 +39,36 @@ serve(async (req) => {
     }
 
     const body: S3UploadRequest = await req.json();
-    const { filename, fileData, contentType, path, bucketName, region } = body;
+    const { filename: rawFilename, fileData, contentType, path: rawPath, bucketName, region } = body;
 
-    if (!filename || !fileData || !bucketName) {
+    if (!rawFilename || !fileData || !bucketName) {
       throw new Error('Missing required fields');
+    }
+
+    // Sanitize path and filename to prevent path traversal attacks
+    const sanitizePath = (p: string): string => {
+      if (!p) return '';
+      return p
+        .replace(/\.\./g, '')           // Remove path traversal sequences
+        .replace(/^\/+/, '')            // Remove leading slashes
+        .replace(/\/+$/, '')            // Remove trailing slashes
+        .replace(/\/+/g, '/')           // Normalize multiple slashes
+        .trim();
+    };
+
+    const sanitizeFilename = (f: string): string => {
+      if (!f) return '';
+      // Extract just the filename (remove any path components)
+      const basename = f.split('/').pop() || f;
+      // Only allow safe characters: alphanumeric, dots, hyphens, underscores
+      return basename.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
+    };
+
+    const path = sanitizePath(rawPath);
+    const filename = sanitizeFilename(rawFilename);
+
+    if (!filename) {
+      throw new Error('Invalid filename after sanitization');
     }
 
     // Get S3 credentials from user's local config (passed through securely)
