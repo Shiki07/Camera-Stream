@@ -11,6 +11,83 @@ interface PiSyncRequest {
   pi_endpoint: string; // Your Pi's local IP + port (e.g., "http://192.168.1.100:3001")
 }
 
+// SSRF Protection: Validate URLs to prevent internal network access
+function validatePiEndpoint(urlString: string): { valid: boolean; error?: string } {
+  try {
+    const url = new URL(urlString);
+    
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return { valid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
+    }
+    
+    const hostname = url.hostname.toLowerCase();
+    
+    // Block localhost variations
+    const localhostPatterns = ['localhost', '127.0.0.1', '::1', '0.0.0.0'];
+    if (localhostPatterns.some(pattern => hostname === pattern)) {
+      return { valid: false, error: 'Localhost addresses are not allowed' };
+    }
+    
+    // Block private IP ranges (RFC 1918)
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const [, a, b, c, d] = ipv4Match.map(Number);
+      
+      // 10.0.0.0/8
+      if (a === 10) {
+        return { valid: false, error: 'Private IP addresses (10.x.x.x) are not allowed' };
+      }
+      
+      // 172.16.0.0/12
+      if (a === 172 && b >= 16 && b <= 31) {
+        return { valid: false, error: 'Private IP addresses (172.16-31.x.x) are not allowed' };
+      }
+      
+      // 192.168.0.0/16
+      if (a === 192 && b === 168) {
+        return { valid: false, error: 'Private IP addresses (192.168.x.x) are not allowed' };
+      }
+      
+      // Link-local (169.254.x.x) - includes cloud metadata endpoints
+      if (a === 169 && b === 254) {
+        return { valid: false, error: 'Link-local addresses are not allowed' };
+      }
+      
+      // Loopback range 127.x.x.x
+      if (a === 127) {
+        return { valid: false, error: 'Loopback addresses are not allowed' };
+      }
+    }
+    
+    // Block cloud metadata endpoints by hostname
+    const blockedHostnames = [
+      'metadata.google.internal',
+      'metadata.goog',
+      'instance-data',
+      'metadata.azure.com'
+    ];
+    if (blockedHostnames.some(blocked => hostname.includes(blocked))) {
+      return { valid: false, error: 'Cloud metadata endpoints are not allowed' };
+    }
+    
+    // Allowlist: Only allow specific domains for Pi services
+    const allowedDomains = ['.duckdns.org'];
+    const isAllowedDomain = allowedDomains.some(domain => hostname.endsWith(domain));
+    
+    // Also allow direct public IP addresses (non-private ranges already filtered above)
+    const isPublicIp = ipv4Match !== null;
+    
+    if (!isAllowedDomain && !isPublicIp) {
+      return { valid: false, error: `Domain not allowed. Use DuckDNS (*.duckdns.org) or a public IP address` };
+    }
+    
+    return { valid: true };
+  } catch (e) {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log('Pi sync function called');
 
@@ -63,6 +140,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { recording_id, pi_endpoint }: PiSyncRequest = await req.json();
+
+    // SSRF Protection: Validate pi_endpoint before making any requests
+    const endpointValidation = validatePiEndpoint(pi_endpoint);
+    if (!endpointValidation.valid) {
+      console.error(`SSRF blocked: ${endpointValidation.error} - URL: ${pi_endpoint}`);
+      return new Response(
+        JSON.stringify({ error: `Invalid Pi endpoint: ${endpointValidation.error}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`Processing Pi sync for recording: ${recording_id}`);
 
