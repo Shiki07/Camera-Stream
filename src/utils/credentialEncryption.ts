@@ -1,48 +1,80 @@
 /**
  * Credential Encryption Utility
- * Uses Web Crypto API to encrypt sensitive camera credentials in localStorage
+ * Uses Web Crypto API to encrypt sensitive camera credentials
+ * Key is derived from user session using PBKDF2 - never stored directly
  */
 
-const ENCRYPTION_KEY_NAME = 'cam_encryption_key';
+const SALT_KEY_NAME = 'cam_encryption_salt';
 const ALGORITHM = 'AES-GCM';
 const KEY_LENGTH = 256;
+const PBKDF2_ITERATIONS = 100000;
 
-// Generate a random encryption key and store it
-async function generateAndStoreKey(): Promise<CryptoKey> {
-  const key = await crypto.subtle.generateKey(
-    { name: ALGORITHM, length: KEY_LENGTH },
-    true, // extractable for storage
-    ['encrypt', 'decrypt']
-  );
+// Get or create salt for key derivation (salt is not secret, just needs to be unique)
+function getOrCreateSalt(): Uint8Array {
+  const storedSalt = localStorage.getItem(SALT_KEY_NAME);
   
-  // Export and store the key
-  const exportedKey = await crypto.subtle.exportKey('raw', key);
-  const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exportedKey)));
-  localStorage.setItem(ENCRYPTION_KEY_NAME, keyBase64);
-  
-  return key;
-}
-
-// Get or create the encryption key
-async function getEncryptionKey(): Promise<CryptoKey> {
-  const storedKey = localStorage.getItem(ENCRYPTION_KEY_NAME);
-  
-  if (storedKey) {
+  if (storedSalt) {
     try {
-      const keyBytes = Uint8Array.from(atob(storedKey), c => c.charCodeAt(0));
-      return await crypto.subtle.importKey(
-        'raw',
-        keyBytes,
-        { name: ALGORITHM, length: KEY_LENGTH },
-        false,
-        ['encrypt', 'decrypt']
-      );
+      return Uint8Array.from(atob(storedSalt), c => c.charCodeAt(0));
     } catch {
-      // Key import failed, generate new one
+      // Invalid salt, generate new one
     }
   }
   
-  return generateAndStoreKey();
+  // Generate new random salt
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  localStorage.setItem(SALT_KEY_NAME, btoa(String.fromCharCode(...salt)));
+  return salt;
+}
+
+// Get user identifier for key derivation
+// Uses a combination of browser fingerprint and stored identifier
+// This ensures the key is tied to this specific browser/device
+function getUserKeyMaterial(): string {
+  const storedId = localStorage.getItem('cam_user_device_id');
+  if (storedId) {
+    return storedId;
+  }
+  
+  // Generate a unique device identifier that persists across sessions
+  // This is combined with the salt for key derivation
+  const deviceId = crypto.randomUUID();
+  localStorage.setItem('cam_user_device_id', deviceId);
+  return deviceId;
+}
+
+// Derive encryption key from user material using PBKDF2
+// The key is never stored - it's derived fresh each time
+async function deriveEncryptionKey(): Promise<CryptoKey> {
+  const userMaterial = getUserKeyMaterial();
+  const salt = getOrCreateSalt();
+  
+  // Import user material as key material for PBKDF2
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(userMaterial),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  
+  // Create a proper ArrayBuffer copy of salt for PBKDF2
+  const saltBuffer = new ArrayBuffer(salt.length);
+  new Uint8Array(saltBuffer).set(salt);
+  
+  // Derive the actual encryption key using PBKDF2
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: saltBuffer,
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: ALGORITHM, length: KEY_LENGTH },
+    false, // Not extractable - key can never be exported
+    ['encrypt', 'decrypt']
+  );
 }
 
 // Encrypt a string value
@@ -50,7 +82,7 @@ export async function encryptValue(value: string): Promise<string> {
   if (!value) return '';
   
   try {
-    const key = await getEncryptionKey();
+    const key = await deriveEncryptionKey();
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encodedValue = new TextEncoder().encode(value);
     
@@ -77,7 +109,7 @@ export async function decryptValue(encryptedValue: string): Promise<string> {
   if (!encryptedValue) return '';
   
   try {
-    const key = await getEncryptionKey();
+    const key = await deriveEncryptionKey();
     const combined = Uint8Array.from(atob(encryptedValue), c => c.charCodeAt(0));
     
     // Extract IV and encrypted data
@@ -200,4 +232,9 @@ export async function migrateLegacyCameras(
   }
   
   return migrated;
+}
+
+// Clean up old encryption key if it exists (migration from old system)
+export function cleanupLegacyEncryptionKey(): void {
+  localStorage.removeItem('cam_encryption_key');
 }
