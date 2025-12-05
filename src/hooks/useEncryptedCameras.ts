@@ -6,6 +6,7 @@ import {
   migrateLegacyCameras,
   isLegacyFormat,
   EncryptedCameraConfig,
+  cleanupLegacyEncryptionKey,
 } from '@/utils/credentialEncryption';
 
 const STORAGE_KEY = 'networkCameras';
@@ -18,6 +19,9 @@ export function useEncryptedCameras() {
   // Load and decrypt cameras on mount
   useEffect(() => {
     const loadCameras = async () => {
+      // Clean up old encryption key from previous implementation
+      cleanupLegacyEncryptionKey();
+      
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (!saved) {
