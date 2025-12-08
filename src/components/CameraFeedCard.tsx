@@ -17,8 +17,7 @@ import {
   HardDrive,
   Download,
   Mail,
-  Power,
-  PowerOff
+  Trash2
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useImageMotionDetection } from '@/hooks/useImageMotionDetection';
@@ -42,11 +41,9 @@ interface CameraFeedCardProps {
   config: CameraConfig;
   index: number;
   isFocused: boolean;
-  isDisabled?: boolean;
   onFocus: (index: number | null) => void;
   onSettings: (index: number) => void;
   onRemove: (index: number) => void;
-  onToggleDisabled?: (index: number) => void;
 }
 
 export const CameraFeedCard = ({
@@ -54,11 +51,9 @@ export const CameraFeedCard = ({
   config,
   index,
   isFocused,
-  isDisabled = false,
   onFocus,
   onSettings,
   onRemove,
-  onToggleDisabled,
 }: CameraFeedCardProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -306,25 +301,8 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount (or disconnect when disabled)
+  // Connect on mount
   useEffect(() => {
-    if (isDisabled) {
-      // Disconnect when disabled
-      isActiveRef.current = false;
-      if (fetchControllerRef.current) {
-        fetchControllerRef.current.abort();
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      webcamMotionDetection.stopDetection();
-      networkMotionDetection.stopDetection();
-      setIsConnected(false);
-      setIsConnecting(false);
-      return;
-    }
-
     if (isWebcam) {
       connectToWebcam();
     } else {
@@ -342,7 +320,7 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam, isDisabled]);
+  }, [config.url, config.deviceId, isWebcam]);
 
   // Start motion detection when connected
   useEffect(() => {
@@ -449,23 +427,7 @@ export const CameraFeedCard = ({
       isRecording && "ring-2 ring-red-500"
     )}>
       <div className="relative aspect-video bg-muted">
-        {/* Disabled Overlay */}
-        {isDisabled ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/90 z-10">
-            <div className="flex flex-col items-center gap-2 text-center p-4">
-              <PowerOff className="h-10 w-10 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Camera Disabled</span>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => onToggleDisabled?.(index)}
-              >
-                <Power className="h-4 w-4 mr-2" />
-                Enable
-              </Button>
-            </div>
-          </div>
-        ) : isConnecting ? (
+        {isConnecting ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -557,12 +519,12 @@ export const CameraFeedCard = ({
         <div className="absolute top-2 right-2 flex gap-1">
           <Button
             size="icon"
-            variant={isDisabled ? "destructive" : "ghost"}
-            className={cn("h-7 w-7", !isDisabled && "bg-background/50 hover:bg-background/80")}
-            onClick={() => onToggleDisabled?.(index)}
-            title={isDisabled ? 'Enable camera' : 'Disable camera'}
+            variant="ghost"
+            className="h-7 w-7 bg-background/50 hover:bg-destructive hover:text-destructive-foreground"
+            onClick={() => onRemove(index)}
+            title="Remove camera"
           >
-            {isDisabled ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Button
             size="icon"
