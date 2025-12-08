@@ -4,9 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Cloud, HardDrive, Settings, Wifi } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Cloud, HardDrive, Settings, Wifi, Check, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CloudProvider, CloudStorageConfig } from '@/services/cloudStorage/types';
+import { CloudStorageFactory } from '@/services/cloudStorage/CloudStorageFactory';
+import { Badge } from '@/components/ui/badge';
 
 interface StorageSettingsProps {
   storageType: 'cloud' | 'local';
@@ -28,7 +32,11 @@ export const StorageSettings = ({
       return '';
     }
   });
+  const [selectedProvider, setSelectedProvider] = useState<CloudProvider>('none');
+  const [isCloudConfigured, setIsCloudConfigured] = useState(false);
   const { toast } = useToast();
+
+  const providers = CloudStorageFactory.getSupportedProviders();
 
   useEffect(() => {
     try {
@@ -37,6 +45,68 @@ export const StorageSettings = ({
       // Silent failure
     }
   }, [piEndpoint]);
+
+  // Load saved cloud configuration on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('cloudStorageConfig');
+    if (savedConfig) {
+      try {
+        const config: CloudStorageConfig = JSON.parse(savedConfig);
+        setSelectedProvider(config.provider);
+        checkCloudConfiguration(config);
+      } catch (error) {
+        console.error('Failed to load cloud storage config:', error);
+      }
+    }
+  }, []);
+
+  const checkCloudConfiguration = async (config: CloudStorageConfig) => {
+    if (config.provider === 'none') {
+      setIsCloudConfigured(false);
+      return;
+    }
+    const provider = CloudStorageFactory.getProvider(config.provider);
+    if (provider) {
+      const configured = await provider.configure(config);
+      setIsCloudConfigured(configured);
+    }
+  };
+
+  const handleProviderChange = (providerId: string) => {
+    const newProvider = providerId as CloudProvider;
+    setSelectedProvider(newProvider);
+    
+    if (newProvider === 'none') {
+      localStorage.removeItem('cloudStorageConfig');
+      setIsCloudConfigured(false);
+      toast({
+        title: "Cloud storage disabled",
+        description: "Recordings will be saved locally only"
+      });
+      return;
+    }
+
+    // Check if this provider was previously configured
+    const savedConfig = localStorage.getItem('cloudStorageConfig');
+    if (savedConfig) {
+      try {
+        const config: CloudStorageConfig = JSON.parse(savedConfig);
+        if (config.provider === newProvider) {
+          checkCloudConfiguration(config);
+          return;
+        }
+      } catch {
+        // Continue to show not configured
+      }
+    }
+
+    // Provider changed, needs configuration
+    setIsCloudConfigured(false);
+    toast({
+      title: "Provider selected",
+      description: `Please configure ${providers.find(p => p.id === newProvider)?.name} in Cloud Storage Settings`,
+    });
+  };
 
   const testPiConnection = async () => {
     if (!piEndpoint.trim()) {
@@ -84,10 +154,15 @@ export const StorageSettings = ({
     }
   };
 
+  const getSelectedProviderName = () => {
+    if (selectedProvider === 'none') return 'Not configured';
+    return providers.find(p => p.id === selectedProvider)?.name || 'Unknown';
+  };
+
   return (
-    <Card className="bg-gray-800 border-gray-700">
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
+        <CardTitle className="text-foreground flex items-center gap-2">
           <Settings className="w-5 h-5" />
           Storage Settings
         </CardTitle>
@@ -95,7 +170,7 @@ export const StorageSettings = ({
       <CardContent className="space-y-4">
         {/* Storage Type Selection */}
         <div>
-          <label className="text-sm text-gray-300 mb-2 block">Storage Location</label>
+          <label className="text-sm text-muted-foreground mb-2 block">Storage Location</label>
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant={storageType === 'cloud' ? 'default' : 'outline'}
@@ -103,7 +178,7 @@ export const StorageSettings = ({
               className={`flex items-center gap-2 ${
                 storageType === 'cloud' 
                   ? 'bg-blue-600 hover:bg-blue-700' 
-                  : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                  : 'border-border text-muted-foreground hover:bg-secondary'
               }`}
             >
               <Cloud className="w-4 h-4" />
@@ -115,7 +190,7 @@ export const StorageSettings = ({
               className={`flex items-center gap-2 ${
                 storageType === 'local' 
                   ? 'bg-green-600 hover:bg-green-700' 
-                  : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                  : 'border-border text-muted-foreground hover:bg-secondary'
               }`}
             >
               <HardDrive className="w-4 h-4" />
@@ -124,9 +199,56 @@ export const StorageSettings = ({
           </div>
         </div>
 
+        {/* Cloud Provider Selection - Show when cloud is selected */}
+        {storageType === 'cloud' && (
+          <div className="space-y-3 p-3 bg-secondary/30 rounded-lg border border-border">
+            <Label className="text-foreground flex items-center gap-2">
+              <Cloud className="w-4 h-4" />
+              Cloud Provider
+            </Label>
+            <Select value={selectedProvider} onValueChange={handleProviderChange}>
+              <SelectTrigger className="bg-background border-border text-foreground">
+                <SelectValue placeholder="Select a cloud provider" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border z-50">
+                <SelectItem value="none">None (Local only)</SelectItem>
+                {providers.map((provider) => (
+                  <SelectItem key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Configuration Status */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Status:</span>
+              <Badge variant={isCloudConfigured ? "default" : "secondary"} className="gap-1">
+                {isCloudConfigured ? (
+                  <>
+                    <Check className="w-3 h-3" />
+                    Configured
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3 h-3" />
+                    {selectedProvider === 'none' ? 'Not Selected' : 'Needs Setup'}
+                  </>
+                )}
+              </Badge>
+            </div>
+            
+            {selectedProvider !== 'none' && !isCloudConfigured && (
+              <p className="text-xs text-amber-400">
+                ⚠️ Configure {getSelectedProviderName()} credentials in the "Cloud Storage Configuration" section below to enable uploads.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Quality Settings */}
         <div>
-          <label className="text-sm text-gray-300 mb-2 block">Recording Quality</label>
+          <label className="text-sm text-muted-foreground mb-2 block">Recording Quality</label>
           <div className="grid grid-cols-3 gap-2">
             {['high', 'medium', 'low'].map((q) => (
               <Button
@@ -137,7 +259,7 @@ export const StorageSettings = ({
                 className={`${
                   quality === q 
                     ? 'bg-blue-600 hover:bg-blue-700' 
-                    : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                    : 'border-border text-muted-foreground hover:bg-secondary'
                 }`}
               >
                 {q.charAt(0).toUpperCase() + q.slice(1)}
@@ -147,17 +269,20 @@ export const StorageSettings = ({
         </div>
 
         {/* Storage Info */}
-        <div className="bg-gray-700 rounded p-3 text-sm">
+        <div className="bg-secondary/30 rounded p-3 text-sm">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-300">Current:</span>
-            <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-muted-foreground">Current:</span>
+            <span className="text-foreground flex items-center gap-1">
               {storageType === 'cloud' ? <Cloud className="w-3 h-3" /> : <HardDrive className="w-3 h-3" />}
-              {storageType === 'cloud' ? 'Your Cloud Storage' : 'Local Storage'}
+              {storageType === 'cloud' 
+                ? (selectedProvider !== 'none' ? getSelectedProviderName() : 'No Provider Selected')
+                : 'Local Storage'
+              }
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-300">Quality:</span>
-            <span className="text-gray-400">{quality} ({
+            <span className="text-muted-foreground">Quality:</span>
+            <span className="text-foreground">{quality} ({
               quality === 'high' ? '1080p' : quality === 'medium' ? '720p' : '480p'
             })</span>
           </div>
@@ -165,7 +290,7 @@ export const StorageSettings = ({
         
         {/* Pi Sync Configuration */}
         <div className="space-y-3">
-          <Label className="text-gray-300 flex items-center gap-2">
+          <Label className="text-muted-foreground flex items-center gap-2">
             <Wifi className="w-4 h-4" />
             Raspberry Pi Sync (Optional)
           </Label>
@@ -174,7 +299,7 @@ export const StorageSettings = ({
               placeholder="http://yourname.duckdns.org:3002"
               value={piEndpoint}
               onChange={(e) => setPiEndpoint(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+              className="bg-background border-border text-foreground placeholder-muted-foreground"
             />
             <Button 
               variant="outline" 
@@ -185,7 +310,7 @@ export const StorageSettings = ({
               Test Connection
             </Button>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {piEndpoint 
               ? "✅ Pi sync enabled - recordings will be saved to your Pi's local storage" 
               : "Enter your DuckDNS URL with port 3002 (e.g., http://yourname.duckdns.org:3002). Requires port forwarding on your router."
