@@ -32,23 +32,10 @@ export const MultiCameraGrid = () => {
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [settingsIndex, setSettingsIndex] = useState<number | null>(null);
-  const [disabledCameras, setDisabledCameras] = useState<Set<number>>(new Set());
 
   const handleAddCamera = (config: any) => {
     addCamera(config);
     setAddDialogOpen(false);
-  };
-
-  const handleToggleDisabled = (index: number) => {
-    setDisabledCameras(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
   };
 
   const emptySlots = getEmptySlots();
@@ -125,11 +112,9 @@ export const MultiCameraGrid = () => {
                 config={cameraConfig}
                 index={index}
                 isFocused={focusedCameraIndex === index}
-                isDisabled={disabledCameras.has(index)}
                 onFocus={focusCamera}
                 onSettings={setSettingsIndex}
                 onRemove={removeCamera}
-                onToggleDisabled={handleToggleDisabled}
               />
             );
           })}
