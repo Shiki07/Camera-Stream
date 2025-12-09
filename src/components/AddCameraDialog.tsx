@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,7 @@ interface AddCameraDialogProps {
 }
 
 export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogProps) => {
-  const [tab, setTab] = useState<'webcam' | 'network'>('network');
+  const [tab, setTab] = useState<'webcam' | 'network'>('webcam');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [type, setType] = useState<'mjpeg' | 'rtsp' | 'hls'>('mjpeg');
@@ -38,9 +38,11 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
   const [webcamDevices, setWebcamDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [webcamLoading, setWebcamLoading] = useState(false);
+  const [hasLoadedWebcams, setHasLoadedWebcams] = useState(false);
 
   // Enumerate webcam devices
   const loadWebcamDevices = async () => {
+    if (hasLoadedWebcams) return;
     setWebcamLoading(true);
     try {
       // Request permission first
@@ -48,6 +50,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setWebcamDevices(videoDevices);
+      setHasLoadedWebcams(true);
       if (videoDevices.length > 0 && !selectedDevice) {
         setSelectedDevice(videoDevices[0].deviceId);
       }
@@ -58,10 +61,17 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     }
   };
 
+  // Auto-load webcam devices when dialog opens (webcam is default tab)
+  useEffect(() => {
+    if (open && tab === 'webcam' && !hasLoadedWebcams) {
+      loadWebcamDevices();
+    }
+  }, [open]);
+
   // Load devices when tab changes to webcam
   const handleTabChange = (value: string) => {
     setTab(value as 'webcam' | 'network');
-    if (value === 'webcam' && webcamDevices.length === 0) {
+    if (value === 'webcam' && !hasLoadedWebcams) {
       loadWebcamDevices();
     }
   };
@@ -126,6 +136,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
 
   const handleClose = () => {
     setError(null);
+    setHasLoadedWebcams(false);
     onOpenChange(false);
   };
 
@@ -144,13 +155,13 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
 
         <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="network" className="flex items-center gap-2">
-              <Wifi className="h-4 w-4" />
-              Network Camera
-            </TabsTrigger>
             <TabsTrigger value="webcam" className="flex items-center gap-2">
               <Webcam className="h-4 w-4" />
               Webcam
+            </TabsTrigger>
+            <TabsTrigger value="network" className="flex items-center gap-2">
+              <Wifi className="h-4 w-4" />
+              Network Camera
             </TabsTrigger>
           </TabsList>
 
