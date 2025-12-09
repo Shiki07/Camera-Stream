@@ -10,11 +10,17 @@ import { useMultiCamera } from '@/hooks/useMultiCamera';
 import { GridLayout, GRID_LAYOUTS } from '@/types/camera';
 import { cn } from '@/lib/utils';
 
-// Helper to ensure camera has source field
-const ensureCameraConfig = (camera: any): CameraConfig => ({
-  ...camera,
-  source: camera.source || (camera.url?.startsWith('webcam://') ? 'webcam' : 'network'),
-});
+// Helper to ensure camera has source field and extract deviceId for webcams
+const ensureCameraConfig = (camera: any): CameraConfig => {
+  const isWebcam = camera.source === 'webcam' || camera.url?.startsWith('webcam://');
+  const deviceId = camera.deviceId || (isWebcam && camera.url ? camera.url.replace('webcam://', '') : undefined);
+  
+  return {
+    ...camera,
+    source: isWebcam ? 'webcam' : 'network',
+    deviceId,
+  };
+};
 
 export const MultiCameraGrid = () => {
   const {
