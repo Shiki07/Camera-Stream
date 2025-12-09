@@ -17,7 +17,8 @@ import {
   HardDrive,
   Download,
   Mail,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useImageMotionDetection } from '@/hooks/useImageMotionDetection';
@@ -322,6 +323,27 @@ export const CameraFeedCard = ({
     };
   }, [config.url, config.deviceId, isWebcam]);
 
+  // Auto-reconnect when disconnected
+  useEffect(() => {
+    if (isConnected || isConnecting) return;
+    
+    // Only auto-reconnect if there was an error (not initial state)
+    if (!error) return;
+    
+    const reconnectInterval = setInterval(() => {
+      if (!isConnected && !isConnecting && isTabVisible) {
+        console.log(`Auto-reconnecting camera: ${config.name}`);
+        if (isWebcam) {
+          connectToWebcam();
+        } else {
+          connectToNetworkStream();
+        }
+      }
+    }, 15000); // Try every 15 seconds
+
+    return () => clearInterval(reconnectInterval);
+  }, [isConnected, isConnecting, error, isTabVisible, isWebcam, config.name, connectToWebcam, connectToNetworkStream]);
+
   // Start motion detection when connected
   useEffect(() => {
     if (isConnected && settings.motion_enabled) {
@@ -472,6 +494,14 @@ export const CameraFeedCard = ({
             {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
+          
+          {/* Auto-reconnect indicator */}
+          {!isConnected && !isConnecting && error && isTabVisible && (
+            <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50 text-amber-200">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Auto-retry
+            </Badge>
+          )}
           
           {!isWebcam && piRecording.piServiceConnected !== null && (
             <Badge variant={piRecording.piServiceConnected ? "secondary" : "outline"} className="text-xs">
