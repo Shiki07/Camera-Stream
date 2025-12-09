@@ -280,27 +280,47 @@ export const CameraSettingsSheet = ({
 
           <Separator />
 
-          {/* Recording Settings */}
+          {/* Recording Storage Settings */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4" />
-              <h3 className="font-medium">Recording</h3>
+              <h3 className="font-medium">Recording Storage</h3>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="video-path">Pi Video Path</Label>
-              <div className="flex gap-2">
-                <FolderOpen className="h-4 w-4 mt-2.5 text-muted-foreground" />
-                <Input
-                  id="video-path"
-                  placeholder="/home/pi/Videos"
-                  value={settings.video_path || '/home/pi/Videos'}
-                  onChange={(e) => updateSetting('video_path', e.target.value)}
-                />
-              </div>
+            {/* Primary: Host Computer Storage */}
+            <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
+              <Label className="text-sm font-medium">Host Computer (Primary)</Label>
               <p className="text-xs text-muted-foreground">
-                Path on the Raspberry Pi where recordings will be saved
+                Recordings will be downloaded directly to your computer's default download folder.
               </p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="px-2 py-1 bg-primary/20 text-primary rounded text-xs">
+                  Recommended for webcams
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary: Raspberry Pi Storage */}
+            <div className="space-y-3 p-3 rounded-lg border border-dashed border-muted-foreground/30">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-muted-foreground">Raspberry Pi Storage (Advanced)</Label>
+                <span className="text-xs text-muted-foreground">For Pi cameras only</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <FolderOpen className="h-4 w-4 mt-2.5 text-muted-foreground" />
+                  <Input
+                    id="video-path"
+                    placeholder="/home/pi/Videos"
+                    value={settings.video_path || '/home/pi/Videos'}
+                    onChange={(e) => updateSetting('video_path', e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Path on the Raspberry Pi where recordings will be saved when using Pi recording service
+                </p>
+              </div>
             </div>
           </div>
 
