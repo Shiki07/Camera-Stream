@@ -23,15 +23,7 @@ const Index = () => {
         {/* Construction Banner */}
         <div className="bg-primary/20 border-b border-primary/30 py-3 px-4 text-center">
           <p className="text-sm text-foreground">
-            This website is under construction to be able to connect multiple cameras. If you need to connect just one, you can go to{' '}
-            <a 
-              href="https://rpicamalert.xyz" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              rpicamalert.xyz
-            </a>
+            Multi-camera support is under construction. Connect webcams, IP cameras, or Raspberry Pi cameras.
           </p>
         </div>
         
