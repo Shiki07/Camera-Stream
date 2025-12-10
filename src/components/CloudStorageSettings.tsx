@@ -6,16 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Cloud, Key, Check, AlertCircle, ExternalLink } from 'lucide-react';
+import { Cloud, Key, Check, AlertCircle, ExternalLink, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CloudProvider, CloudStorageConfig, AuthMethod } from '@/services/cloudStorage/types';
 import { CloudStorageFactory } from '@/services/cloudStorage/CloudStorageFactory';
+import { saveEncryptedCloudConfig, loadEncryptedCloudConfig } from '@/utils/cloudCredentialEncryption';
 
 export const CloudStorageSettings = () => {
   const { toast } = useToast();
   const [selectedProvider, setSelectedProvider] = useState<CloudProvider>('none');
   const [authMethod, setAuthMethod] = useState<AuthMethod>('oauth');
   const [isConfigured, setIsConfigured] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // OAuth state
   const [oauthToken, setOauthToken] = useState('');
@@ -27,26 +29,31 @@ export const CloudStorageSettings = () => {
   const [region, setRegion] = useState('us-east-1');
 
   useEffect(() => {
-    // Load saved configuration from localStorage
-    const savedConfig = localStorage.getItem('cloudStorageConfig');
-    if (savedConfig) {
+    // Load saved configuration from encrypted storage
+    const loadConfig = async () => {
       try {
-        const config: CloudStorageConfig = JSON.parse(savedConfig);
-        setSelectedProvider(config.provider);
-        setAuthMethod(config.authMethod);
-        if (config.authMethod === 'oauth') {
-          setOauthToken(config.credentials?.accessToken || '');
-        } else {
-          setApiKey(config.credentials?.apiKey || '');
-          setApiSecret(config.credentials?.apiSecret || '');
-          setBucketName(config.credentials?.bucketName || '');
-          setRegion(config.credentials?.region || 'us-east-1');
+        const config = await loadEncryptedCloudConfig();
+        if (config) {
+          setSelectedProvider(config.provider);
+          setAuthMethod(config.authMethod);
+          if (config.authMethod === 'oauth') {
+            setOauthToken(config.credentials?.accessToken || '');
+          } else {
+            setApiKey(config.credentials?.apiKey || '');
+            setApiSecret(config.credentials?.apiSecret || '');
+            setBucketName(config.credentials?.bucketName || '');
+            setRegion(config.credentials?.region || 'us-east-1');
+          }
+          await checkConfiguration(config);
         }
-        checkConfiguration(config);
       } catch (error) {
         console.error('Failed to load cloud storage config:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+    
+    loadConfig();
   }, []);
 
   const checkConfiguration = async (config: CloudStorageConfig) => {
@@ -88,11 +95,12 @@ export const CloudStorageSettings = () => {
 
       const configured = await provider.configure(config);
       if (configured) {
-        localStorage.setItem('cloudStorageConfig', JSON.stringify(config));
+        // Save with encryption
+        await saveEncryptedCloudConfig(config);
         setIsConfigured(true);
         toast({
-          title: "Configuration saved",
-          description: `${provider.name} is now configured and ready to use`
+          title: "Configuration saved securely",
+          description: `${provider.name} credentials are encrypted and ready to use`
         });
       } else {
         throw new Error('Configuration validation failed');
@@ -295,11 +303,11 @@ export const CloudStorageSettings = () => {
         )}
 
         {/* Info Alert */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
+        <Alert className="border-green-500/30 bg-green-500/10">
+          <Shield className="h-4 w-4 text-green-500" />
           <AlertDescription className="text-sm">
-            Your cloud storage credentials are stored locally in your browser and used only for uploading recordings.
-            {selectedProvider === 's3' && ' Note: S3 uploads require additional edge function configuration for security.'}
+            Your cloud storage credentials are encrypted using AES-256-GCM before being stored locally in your browser.
+            {selectedProvider === 's3' && ' Note: S3 uploads are processed through secure edge functions.'}
           </AlertDescription>
         </Alert>
       </CardContent>
