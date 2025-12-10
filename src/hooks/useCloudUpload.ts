@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { CloudStorageFactory } from '@/services/cloudStorage/CloudStorageFactory';
 import { CloudStorageConfig } from '@/services/cloudStorage/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordingPath } from '@/utils/folderStructure';
+import { loadEncryptedCloudConfig } from '@/utils/cloudCredentialEncryption';
 
 interface UploadOptions {
   fileType: 'video' | 'image';
@@ -25,19 +26,37 @@ export const useCloudUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
   const { user } = useAuth();
+  const cachedConfigRef = useRef<CloudStorageConfig | null>(null);
+  const configLoadedRef = useRef(false);
 
-  const getConfig = useCallback((): CloudStorageConfig | null => {
-    try {
-      const configStr = localStorage.getItem('cloudStorageConfig');
-      if (!configStr) return null;
-      return JSON.parse(configStr);
-    } catch {
-      return null;
-    }
+  // Load encrypted config on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        cachedConfigRef.current = await loadEncryptedCloudConfig();
+        configLoadedRef.current = true;
+      } catch (error) {
+        console.error('Failed to load cloud config:', error);
+        configLoadedRef.current = true;
+      }
+    };
+    loadConfig();
   }, []);
 
-  const isConfigured = useCallback((): boolean => {
-    const config = getConfig();
+  const getConfig = useCallback(async (): Promise<CloudStorageConfig | null> => {
+    // Use cached config if already loaded
+    if (configLoadedRef.current) {
+      return cachedConfigRef.current;
+    }
+    // Load fresh if not yet loaded
+    const config = await loadEncryptedCloudConfig();
+    cachedConfigRef.current = config;
+    configLoadedRef.current = true;
+    return config;
+  }, []);
+
+  const isConfigured = useCallback(async (): Promise<boolean> => {
+    const config = await getConfig();
     if (!config || config.provider === 'none') return false;
     
     const provider = CloudStorageFactory.getProvider(config.provider);
@@ -53,7 +72,7 @@ export const useCloudUpload = () => {
       return { success: false, error: 'Authentication required' };
     }
 
-    const config = getConfig();
+    const config = await getConfig();
     if (!config || config.provider === 'none') {
       return { success: false, error: 'No cloud storage configured' };
     }
