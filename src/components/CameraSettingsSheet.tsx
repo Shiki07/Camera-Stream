@@ -12,9 +12,11 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
-import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen } from 'lucide-react';
+import { useDirectoryPicker } from '@/hooks/useDirectoryPicker';
+import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X } from 'lucide-react';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +45,15 @@ export const CameraSettingsSheet = ({
   onRemove,
 }: CameraSettingsSheetProps) => {
   const { settings, updateSetting, isLoading, isSaving } = useCameraInstanceSettings(cameraId);
+  const { 
+    directoryPath, 
+    isSupported: isDirectoryPickerSupported, 
+    pickDirectory, 
+    clearDirectory,
+    getStoredDirectoryName
+  } = useDirectoryPicker();
+  
+  const storedFolderName = getStoredDirectoryName();
 
   if (isLoading) {
     return (
@@ -288,11 +299,60 @@ export const CameraSettingsSheet = ({
             </div>
             
             {/* Primary: Host Computer Storage */}
-            <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
               <Label className="text-sm font-medium">Host Computer (Primary)</Label>
               <p className="text-xs text-muted-foreground">
-                Recordings will be downloaded directly to your computer's default download folder.
+                Choose where recordings are saved on your computer.
               </p>
+              
+              {/* Folder Selection */}
+              {isDirectoryPickerSupported ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={pickDirectory}
+                      className="flex-1 text-foreground border-border hover:bg-secondary"
+                      size="sm"
+                    >
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                      {directoryPath || storedFolderName ? 'Change Folder' : 'Select Folder'}
+                    </Button>
+
+                    {(directoryPath || storedFolderName) && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={clearDirectory}
+                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground h-8 w-8"
+                        title="Clear folder selection"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {(directoryPath || storedFolderName) ? (
+                    <Alert className="bg-primary/10 border-primary/20 py-2">
+                      <Folder className="w-4 h-4" />
+                      <AlertDescription className="text-xs">
+                        Saving to: <strong>{directoryPath || storedFolderName}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No folder selected. Files will download to your browser's default folder.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Alert className="py-2">
+                  <AlertDescription className="text-xs">
+                    Your browser doesn't support folder selection. Use Chrome or Edge for this feature. Files will save to your default Downloads folder.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="flex items-center gap-2 mt-2">
                 <div className="px-2 py-1 bg-primary/20 text-primary rounded text-xs">
                   Recommended for webcams
