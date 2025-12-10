@@ -7,10 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Mail, CheckCircle } from 'lucide-react';
+import { Camera, Mail, CheckCircle, Settings, ChevronDown, ChevronUp, HardDrive, Cloud, Wifi, FolderOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { StorageSettings } from '@/components/StorageSettings';
+import { CloudStorageSettings } from '@/components/CloudStorageSettings';
+import { DuckDNSSettings } from '@/components/DuckDNSSettings';
+import { FolderSettings } from '@/components/FolderSettings';
+import { PiServiceSettings } from '@/components/PiServiceSettings';
+import { SystemStatus } from '@/components/SystemStatus';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +29,14 @@ const Auth = () => {
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Storage settings state
+  const [storageType, setStorageType] = useState<'cloud' | 'local'>('local');
+  const [quality, setQuality] = useState<'high' | 'medium' | 'low'>('medium');
+  const [dateOrganizedFolders, setDateOrganizedFolders] = useState(true);
+  const [piVideoPath, setPiVideoPath] = useState('/home/pi/Videos');
+  const [dateOrganizedFoldersPi, setDateOrganizedFoldersPi] = useState(true);
   
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
@@ -437,6 +452,86 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Settings Section */}
+      <div className="w-full max-w-4xl mt-8">
+        <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="outline" 
+              className="w-full flex items-center justify-between gap-2 border-border text-muted-foreground hover:text-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                <span>Configure Settings (Optional)</span>
+              </div>
+              {settingsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4">
+            <Tabs defaultValue="storage" className="w-full">
+              <TabsList className="grid w-full grid-cols-5 bg-secondary mb-4">
+                <TabsTrigger value="storage" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <HardDrive className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Storage</span>
+                </TabsTrigger>
+                <TabsTrigger value="cloud" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <Cloud className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Cloud</span>
+                </TabsTrigger>
+                <TabsTrigger value="folder" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <FolderOpen className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Folder</span>
+                </TabsTrigger>
+                <TabsTrigger value="pi" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <Wifi className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Pi Service</span>
+                </TabsTrigger>
+                <TabsTrigger value="duckdns" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">DuckDNS</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="storage">
+                <StorageSettings
+                  storageType={storageType}
+                  onStorageTypeChange={setStorageType}
+                  quality={quality}
+                  onQualityChange={setQuality}
+                />
+              </TabsContent>
+
+              <TabsContent value="cloud">
+                <CloudStorageSettings />
+              </TabsContent>
+
+              <TabsContent value="folder">
+                <FolderSettings
+                  storageType={storageType}
+                  dateOrganizedFolders={dateOrganizedFolders}
+                  onDateOrganizedToggle={setDateOrganizedFolders}
+                  piVideoPath={piVideoPath}
+                  onPiVideoPathChange={setPiVideoPath}
+                  dateOrganizedFoldersPi={dateOrganizedFoldersPi}
+                  onDateOrganizedTogglePi={setDateOrganizedFoldersPi}
+                />
+              </TabsContent>
+
+              <TabsContent value="pi">
+                <PiServiceSettings />
+              </TabsContent>
+
+              <TabsContent value="duckdns">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <DuckDNSSettings />
+                  <SystemStatus cameraConnected={false} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
     </div>
   );
 };
