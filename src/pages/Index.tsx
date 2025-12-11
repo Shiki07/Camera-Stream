@@ -7,23 +7,37 @@ import { DuckDNSSettings } from "@/components/DuckDNSSettings";
 import { StorageSettings } from "@/components/StorageSettings";
 import { MotionEventDashboard } from "@/components/MotionEventDashboard";
 import { CloudStorageSettings } from "@/components/CloudStorageSettings";
+import { FolderSettings } from "@/components/FolderSettings";
+import { PiServiceSettings } from "@/components/PiServiceSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useState } from "react";
-import { Camera, Activity, Settings, History } from "lucide-react";
+import { Camera, Activity, Settings, History, AlertTriangle } from "lucide-react";
 
 const Index = () => {
   const [storageType, setStorageType] = useState<'cloud' | 'local'>('local');
   const [quality, setQuality] = useState<'high' | 'medium' | 'low'>('medium');
+  const [dateOrganizedFolders, setDateOrganizedFolders] = useState(true);
+  const [piVideoPath, setPiVideoPath] = useState('/home/pi/Videos');
+  const [dateOrganizedFoldersPi, setDateOrganizedFoldersPi] = useState(true);
 
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
         <Header />
         
-        {/* Construction Banner */}
+        {/* Construction Banner with rpicamalert.xyz link */}
         <div className="bg-primary/20 border-b border-primary/30 py-3 px-4 text-center">
           <p className="text-sm text-foreground">
-            Multi-camera support is under construction. Connect webcams, IP cameras, or Raspberry Pi cameras.
+            This website is under construction to connect multiple cameras. If you need just one camera, go to{' '}
+            <a 
+              href="https://rpicamalert.xyz" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 underline font-medium"
+            >
+              rpicamalert.xyz
+            </a>
           </p>
         </div>
         
@@ -65,15 +79,36 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="settings">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <SystemStatus cameraConnected={false} />
-                <DuckDNSSettings />
-                <StorageSettings
-                  storageType={storageType}
-                  onStorageTypeChange={setStorageType}
-                  quality={quality}
-                  onQualityChange={setQuality}
-                />
+              <div className="space-y-6">
+                {/* VPN Warning */}
+                <Alert className="bg-destructive/10 border-destructive/50">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-foreground">
+                    <strong>VPN Warning:</strong> If you're using a Raspberry Pi camera, VPN is not supported. 
+                    You must have direct internet access (not behind VPN) for the Pi recording service to function properly.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <SystemStatus cameraConnected={false} />
+                  <DuckDNSSettings />
+                  <StorageSettings
+                    storageType={storageType}
+                    onStorageTypeChange={setStorageType}
+                    quality={quality}
+                    onQualityChange={setQuality}
+                  />
+                  <FolderSettings
+                    storageType={storageType}
+                    dateOrganizedFolders={dateOrganizedFolders}
+                    onDateOrganizedToggle={setDateOrganizedFolders}
+                    piVideoPath={piVideoPath}
+                    onPiVideoPathChange={setPiVideoPath}
+                    dateOrganizedFoldersPi={dateOrganizedFoldersPi}
+                    onDateOrganizedTogglePi={setDateOrganizedFoldersPi}
+                  />
+                  <PiServiceSettings />
+                </div>
               </div>
             </TabsContent>
           </Tabs>
