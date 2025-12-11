@@ -10,7 +10,7 @@ import { CloudStorageSettings } from "@/components/CloudStorageSettings";
 import { FolderSettings } from "@/components/FolderSettings";
 import { PiServiceSettings } from "@/components/PiServiceSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import { useState } from "react";
 import { Camera, Activity, Settings, History, AlertTriangle } from "lucide-react";
 
@@ -39,6 +39,16 @@ const Index = () => {
               rpicamalert.xyz
             </a>
           </p>
+        </div>
+        
+        {/* VPN Warning Banner */}
+        <div className="bg-destructive/20 border-b border-destructive/30 py-3 px-4">
+          <div className="container mx-auto flex items-center justify-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <p className="text-sm text-foreground">
+              <strong>VPN Warning:</strong> If using a Raspberry Pi camera, VPN is not supported. Direct internet access is required for the Pi recording service.
+            </p>
+          </div>
         </div>
         
         <div className="container mx-auto px-4 py-8 space-y-8">
@@ -80,15 +90,6 @@ const Index = () => {
 
             <TabsContent value="settings">
               <div className="space-y-6">
-                {/* VPN Warning */}
-                <Alert className="bg-destructive/10 border-destructive/50">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-foreground">
-                    <strong>VPN Warning:</strong> If you're using a Raspberry Pi camera, VPN is not supported. 
-                    You must have direct internet access (not behind VPN) for the Pi recording service to function properly.
-                  </AlertDescription>
-                </Alert>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <SystemStatus cameraConnected={false} />
                   <DuckDNSSettings />
