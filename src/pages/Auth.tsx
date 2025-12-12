@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Mail, CheckCircle, AlertTriangle, Construction } from 'lucide-react';
+import { Camera, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
@@ -191,24 +191,6 @@ const Auth = () => {
   if (showForgotPassword) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        {/* Banners Section */}
-        <div className="w-full max-w-lg space-y-3 mb-6">
-          <Alert className="bg-amber-500/20 border-amber-500/50">
-            <Construction className="h-5 w-5 text-amber-500" />
-            <AlertDescription className="text-foreground">
-              <span className="font-medium">Under Construction:</span> Multi-camera support in progress.{' '}
-              <a href="https://rpicamalert.xyz" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 underline font-semibold text-lg">
-                rpicamalert.xyz
-              </a>{' '}for single camera.
-            </AlertDescription>
-          </Alert>
-          <Alert className="bg-orange-500/20 border-orange-500/50">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            <AlertDescription className="text-foreground">
-              <span className="font-medium">VPN Not Supported:</span> Disable VPN for Pi features.
-            </AlertDescription>
-          </Alert>
-        </div>
         <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
@@ -309,36 +291,6 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      {/* Banners Section */}
-      <div className="w-full max-w-lg space-y-3 mb-6">
-        {/* Under Construction Banner */}
-        <Alert className="bg-amber-500/20 border-amber-500/50">
-          <Construction className="h-5 w-5 text-amber-500" />
-          <AlertDescription className="text-foreground">
-            <span className="font-medium">Under Construction:</span> This website is being built for multi-camera support.
-            <br />
-            <span className="text-base mt-1 block">
-              Need just one camera? Visit{' '}
-              <a 
-                href="https://rpicamalert.xyz" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 underline font-semibold text-lg"
-              >
-                rpicamalert.xyz
-              </a>
-            </span>
-          </AlertDescription>
-        </Alert>
-
-        {/* VPN Warning Banner */}
-        <Alert className="bg-orange-500/20 border-orange-500/50">
-          <AlertTriangle className="h-5 w-5 text-orange-500" />
-          <AlertDescription className="text-foreground">
-            <span className="font-medium">VPN Not Supported:</span> Raspberry Pi functionality requires direct internet access. Please disable VPN for Pi features to work.
-          </AlertDescription>
-        </Alert>
-      </div>
       <Card className="w-full max-w-md bg-card border-border">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">

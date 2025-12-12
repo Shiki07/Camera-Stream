@@ -26,28 +26,34 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Header />
         
-        {/* Construction Banner with rpicamalert.xyz link */}
-        <div className="bg-primary/20 border-b border-primary/30 py-3 px-4 text-center">
-          <p className="text-sm text-foreground">
-            This website is under construction to connect multiple cameras. If you need just one camera, go to{' '}
-            <a 
-              href="https://rpicamalert.xyz" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 underline font-medium"
-            >
-              rpicamalert.xyz
-            </a>
-          </p>
-        </div>
-        
-        {/* VPN Warning Banner */}
-        <div className="bg-destructive/20 border-b border-destructive/30 py-3 px-4">
-          <div className="container mx-auto flex items-center justify-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <p className="text-sm text-foreground">
-              <strong>VPN Warning:</strong> If using a Raspberry Pi camera, VPN is not supported. Direct internet access is required for the Pi recording service.
-            </p>
+        {/* Combined Construction & VPN Warning Banner */}
+        <div className="bg-amber-500/20 border-b border-amber-500/40 py-4 px-4">
+          <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-4">
+            {/* Under Construction */}
+            <div className="flex items-center gap-2 text-center sm:text-left">
+              <p className="text-sm text-foreground">
+                🚧 <span className="font-medium">Under construction</span> for multi-camera support. Need just one?{' '}
+                <a 
+                  href="https://rpicamalert.xyz" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 underline font-semibold text-base"
+                >
+                  Visit rpicamalert.xyz →
+                </a>
+              </p>
+            </div>
+            
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-6 bg-amber-500/50" />
+            
+            {/* VPN Warning */}
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+              <p className="text-sm text-foreground font-medium">
+                VPN not supported for Pi features
+              </p>
+            </div>
           </div>
         </div>
         
