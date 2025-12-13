@@ -32,15 +32,16 @@ const Index = () => {
             {/* Under Construction */}
             <div className="flex items-center gap-2 text-center sm:text-left">
               <p className="text-sm text-foreground">
-                🚧 <span className="font-medium">Under construction</span> for multi-camera support. Need just one?{' '}
+                🚧 <span className="font-medium">Under construction</span> for multi-camera support. Need just one? Visit{' '}
                 <a 
                   href="https://rpicamalert.xyz" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 underline font-semibold text-base"
+                  className="text-primary hover:text-primary/80 underline font-semibold"
                 >
-                  Visit rpicamalert.xyz →
+                  rpicamalert.xyz
                 </a>
+                {' '}→
               </p>
             </div>
             
@@ -51,7 +52,7 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
               <p className="text-sm text-foreground font-medium">
-                VPN not supported for Pi features
+                VPN not supported for Raspberry Pi features
               </p>
             </div>
           </div>
