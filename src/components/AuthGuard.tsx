@@ -43,7 +43,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           <div className="mx-auto mb-6 w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
             <Camera className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">CamAlert</h1>
+          <h1 className="text-3xl font-bold text-white mb-4">Camera Stream</h1>
           <p className="text-gray-300 mb-6">
             Secure remote camera control and monitoring system
           </p>

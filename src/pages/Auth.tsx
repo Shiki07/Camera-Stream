@@ -296,7 +296,7 @@ const Auth = () => {
           <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
             <Camera className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-foreground">CamAlert</CardTitle>
+          <CardTitle className="text-foreground">Camera Stream</CardTitle>
           <CardDescription className="text-muted-foreground">
             Secure access to your remote camera system
           </CardDescription>
