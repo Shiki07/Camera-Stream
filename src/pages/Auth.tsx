@@ -420,16 +420,6 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
-      
-      <p className="mt-6 text-sm text-muted-foreground">
-        For support, contact{' '}
-        <a 
-          href="mailto:support@camerastream.live" 
-          className="text-primary hover:text-primary/80 underline"
-        >
-          support@camerastream.live
-        </a>
-      </p>
     </div>
   );
 };

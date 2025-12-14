@@ -120,6 +120,19 @@ const Index = () => {
               </div>
             </TabsContent>
           </Tabs>
+          
+          {/* Support Footer */}
+          <div className="text-center py-6 border-t border-border mt-8">
+            <p className="text-sm text-muted-foreground">
+              For support, contact{' '}
+              <a 
+                href="mailto:support@camerastream.live" 
+                className="text-primary hover:text-primary/80 underline"
+              >
+                support@camerastream.live
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </AuthGuard>
