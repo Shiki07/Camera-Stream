@@ -26,35 +26,13 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Header />
         
-        {/* Combined Construction & VPN Warning Banner */}
-        <div className="bg-amber-500/20 border-b border-amber-500/40 py-4 px-4">
-          <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-4">
-            {/* Under Construction */}
-            <div className="flex items-center gap-2 text-center sm:text-left">
-              <p className="text-sm text-foreground">
-                🚧 <span className="font-medium">Under construction</span> for multi-camera support. Need just one? Visit{' '}
-                <a 
-                  href="https://rpicamalert.xyz" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 underline font-semibold"
-                >
-                  rpicamalert.xyz
-                </a>
-                {' '}→
-              </p>
-            </div>
-            
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-6 bg-amber-500/50" />
-            
-            {/* VPN Warning */}
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
-              <p className="text-sm text-foreground font-medium">
-                VPN not supported for Raspberry Pi features
-              </p>
-            </div>
+        {/* VPN Warning Banner */}
+        <div className="bg-amber-500/20 border-b border-amber-500/40 py-3 px-4">
+          <div className="container mx-auto flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+            <p className="text-sm text-foreground font-medium">
+              VPN not supported for Raspberry Pi features
+            </p>
           </div>
         </div>
         
