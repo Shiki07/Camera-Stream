@@ -172,6 +172,20 @@ export const CameraFeedCard = ({
     onMotionCleared: () => setMotionDetected(false),
   });
 
+  // Get resolution based on quality setting
+  const getResolutionForQuality = useCallback((quality: 'high' | 'medium' | 'low') => {
+    switch (quality) {
+      case 'high':
+        return { width: 1920, height: 1080 };
+      case 'medium':
+        return { width: 1280, height: 720 };
+      case 'low':
+        return { width: 640, height: 480 };
+      default:
+        return { width: 1280, height: 720 };
+    }
+  }, []);
+
   // Connect to webcam
   const connectToWebcam = useCallback(async () => {
     if (!config.deviceId) return;
@@ -180,12 +194,20 @@ export const CameraFeedCard = ({
     setError(null);
     isActiveRef.current = true;
 
+    // Stop existing stream if any
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    const resolution = getResolutionForQuality(settings.quality);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: { exact: config.deviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: resolution.width },
+          height: { ideal: resolution.height },
           frameRate: { ideal: 30 },
         },
         audio: true,
@@ -202,7 +224,7 @@ export const CameraFeedCard = ({
     } finally {
       setIsConnecting(false);
     }
-  }, [config.deviceId]);
+  }, [config.deviceId, settings.quality, getResolutionForQuality]);
 
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
@@ -302,7 +324,7 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount
+  // Connect on mount and reconnect webcam when quality changes
   useEffect(() => {
     if (isWebcam) {
       connectToWebcam();
@@ -321,7 +343,7 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam]);
+  }, [config.url, config.deviceId, isWebcam, isWebcam ? settings.quality : null]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
