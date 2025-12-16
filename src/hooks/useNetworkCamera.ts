@@ -15,6 +15,7 @@ export const useNetworkCamera = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const isConnectedRef = useRef(false);
   const [currentConfig, setCurrentConfig] = useState<NetworkCameraConfig | null>(null);
   const [connectionQuality, setConnectionQuality] = useState<'excellent' | 'good' | 'poor' | 'disconnected'>('disconnected');
   const videoRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
@@ -98,6 +99,7 @@ export const useNetworkCamera = () => {
     // Mark stream as inactive
     isActiveRef.current = false;
     isConnectingRef.current = false;
+    isConnectedRef.current = false;
     
     // Cancel any pending fetch operations gracefully
     if (fetchControllerRef.current) {
@@ -195,6 +197,7 @@ export const useNetworkCamera = () => {
     setIsConnecting(true);
     setConnectionError(null);
     setCurrentConfig(config);
+    isConnectedRef.current = false;
     setIsConnected(false); // Reset connection state
 
     try {
@@ -296,6 +299,7 @@ export const useNetworkCamera = () => {
     } catch (error) {
       console.error('useNetworkCamera: Connection error:', error);
       setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      isConnectedRef.current = false;
       setIsConnected(false);
       setIsConnecting(false);
       isActiveRef.current = false;
@@ -319,9 +323,10 @@ export const useNetworkCamera = () => {
       const STALE_THRESHOLD_MS = 10000; // 10 seconds without frames = stale
       heartbeatRef.current = setInterval(() => {
         if (!isActiveRef.current || document.hidden) return;
+        if (!isConnectedRef.current) return;
         
         const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
-        if (isConnected && timeSinceLastFrame > STALE_THRESHOLD_MS) {
+        if (timeSinceLastFrame > STALE_THRESHOLD_MS) {
           console.log(`useNetworkCamera: Stream stale - no frames for ${Math.round(timeSinceLastFrame / 1000)}s, reconnecting...`);
           
           // Cancel current stream and reconnect
@@ -438,6 +443,7 @@ export const useNetworkCamera = () => {
                     }, delay);
                    } else {
                     console.log('useNetworkCamera: Max reconnection attempts reached');
+                    isConnectedRef.current = false;
                     setIsConnected(false);
                     setConnectionError('Camera connection failed after multiple attempts');
                     isConnectingRef.current = false;
@@ -524,8 +530,9 @@ export const useNetworkCamera = () => {
                     lastFrameRateCheckRef.current = now;
                   }
                   
-                  if (!isConnected) {
+                  if (!isConnectedRef.current) {
                     console.log('useNetworkCamera: MJPEG fetch stream connected successfully!');
+                    isConnectedRef.current = true;
                     setIsConnected(true);
                     setCurrentConfig(config);
                     setConnectionError(null);
@@ -587,6 +594,7 @@ export const useNetworkCamera = () => {
             }, delay);
           } else {
             setConnectionError('Fetch-based stream processing failed. Your camera is confirmed working, but there may be a temporary connectivity issue.');
+            isConnectedRef.current = false;
             setIsConnected(false);
             isActiveRef.current = false;
             isConnectingRef.current = false;
@@ -616,6 +624,7 @@ export const useNetworkCamera = () => {
         }
         
         console.log('useNetworkCamera: Single JPEG image loaded successfully');
+        isConnectedRef.current = true;
         setIsConnected(true);
         setCurrentConfig(config);
         setConnectionError(null);
@@ -690,6 +699,7 @@ export const useNetworkCamera = () => {
           }, delay);
         } else {
           setConnectionError(`Camera connection failed after multiple attempts. If this is a local IP, enable DuckDNS and forward port 8000, then use your DuckDNS URL.`);
+          isConnectedRef.current = false;
           setIsConnected(false);
           setIsConnecting(false);
           isActiveRef.current = false;
@@ -699,6 +709,7 @@ export const useNetworkCamera = () => {
     } catch (error) {
       console.error('useNetworkCamera: connectToMJPEGStream error:', error);
       setConnectionError('Failed to establish camera connection');
+      isConnectedRef.current = false;
       setIsConnected(false);
       setIsConnecting(false);
       isActiveRef.current = false;
@@ -709,6 +720,7 @@ export const useNetworkCamera = () => {
   const disconnect = useCallback(() => {
     console.log('useNetworkCamera: Disconnecting camera...');
     cleanupStream();
+    isConnectedRef.current = false;
     setIsConnected(false);
     setIsConnecting(false);
     setConnectionError(null);
