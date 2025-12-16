@@ -29,7 +29,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -107,7 +107,7 @@ const Auth = () => {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email.toLowerCase().trim(),
-        options: { emailRedirectTo: `${window.location.origin}/` }
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` }
       } as any);
       if (error) {
         setError(error.message || 'Could not resend verification email. Please try again.');

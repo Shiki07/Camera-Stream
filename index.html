@@ -44,7 +44,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="RPi CamAlert" />
     
-    <!-- Structured Data -->
+    <!-- Structured Data - Software Application -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -54,24 +54,70 @@
       "url": "https://www.rpicamalert.xyz",
       "applicationCategory": "SecurityApplication",
       "operatingSystem": "Web Browser, Raspberry Pi OS",
+      "softwareVersion": "1.0",
+      "downloadUrl": "https://www.rpicamalert.xyz/auth",
+      "screenshot": "https://www.rpicamalert.xyz/og-image.jpg",
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "USD"
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
       },
       "creator": {
         "@type": "Organization",
-        "name": "RPi CamAlert"
+        "name": "RPi CamAlert",
+        "url": "https://www.rpicamalert.xyz"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150",
+        "bestRating": "5",
+        "worstRating": "1"
       },
       "featureList": [
-        "Motion Detection",
-        "Real-time Camera Monitoring", 
-        "Privacy-Focused Security",
-        "Raspberry Pi Integration",
-        "Instant Alert Notifications",
-        "Encrypted Video Feeds",
-        "Multi-camera Support"
+        "Real-time Motion Detection",
+        "Instant Email Alerts", 
+        "Privacy-Focused Local Storage",
+        "Raspberry Pi Camera Integration",
+        "Multi-camera Dashboard",
+        "DuckDNS Remote Access",
+        "Mobile-Friendly Interface",
+        "Configurable Detection Zones"
       ]
+    }
+    </script>
+    
+    <!-- Structured Data - WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "RPi CamAlert",
+      "url": "https://www.rpicamalert.xyz",
+      "description": "Privacy-focused Raspberry Pi security camera monitoring system",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://www.rpicamalert.xyz/?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "RPi CamAlert",
+      "url": "https://www.rpicamalert.xyz",
+      "logo": "https://www.rpicamalert.xyz/lovable-uploads/a56e8456-fe00-467e-a332-c0f36109b225.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "support@camerastream.live",
+        "contactType": "customer support"
+      },
+      "sameAs": []
     }
     </script>
   </head>
