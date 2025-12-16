@@ -1,6 +1,7 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 import { initializeHttpsOnlyModePrevention } from "./utils/preventHttpsOnlyMode.ts";
 
 // Prevent extension interference (silent)
@@ -15,4 +16,8 @@ window.addEventListener('error', (e) => {
 // Initialize HTTPS-Only mode prevention for camera proxy
 initializeHttpsOnlyModePrevention();
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
