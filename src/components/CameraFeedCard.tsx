@@ -346,8 +346,11 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount
+  // Connect on mount (only after settings are loaded)
   useEffect(() => {
+    // Wait for settings to load before connecting
+    if (settingsLoading) return;
+
     if (isWebcam) {
       connectToWebcam();
     } else {
@@ -365,7 +368,7 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam]);
+  }, [config.url, config.deviceId, isWebcam, settingsLoading]);
 
   // Reconnect webcam when quality changes and show toast
   const prevQualityRef = useRef(settings.quality);
