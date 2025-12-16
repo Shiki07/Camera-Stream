@@ -25,11 +25,13 @@ const authenticateApiKey = (req, res, next) => {
     return next();
   }
 
-  // If no API key is configured, warn but allow (for backwards compatibility during setup)
+  // SECURITY: API key is now MANDATORY - refuse requests if not configured
   if (!API_KEY) {
-    console.warn('⚠️  WARNING: PI_SERVICE_API_KEY not set. Service is running without authentication!');
-    console.warn('   Set PI_SERVICE_API_KEY environment variable to secure this service.');
-    return next();
+    console.error('❌ PI_SERVICE_API_KEY not set. Request rejected for security.');
+    return res.status(503).json({ 
+      error: 'Service Not Configured',
+      message: 'PI_SERVICE_API_KEY environment variable must be set. See documentation for setup instructions.'
+    });
   }
 
   const providedKey = req.headers['x-api-key'];
@@ -407,7 +409,9 @@ app.listen(PORT, '0.0.0.0', () => {
   if (API_KEY) {
     console.log(`🔒 Authentication: ENABLED (API key required)`);
   } else {
-    console.log(`⚠️  Authentication: DISABLED - Set PI_SERVICE_API_KEY to secure this service`);
+    console.error(`❌ CRITICAL: PI_SERVICE_API_KEY not set!`);
+    console.error(`   All requests (except /health) will be rejected until configured.`);
+    console.error(`   Set PI_SERVICE_API_KEY environment variable to enable the service.`);
   }
   console.log('\n📋 Available endpoints:');
   console.log(`   GET  /health - Health check (no auth)`);

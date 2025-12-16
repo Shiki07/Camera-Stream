@@ -109,7 +109,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    console.log(`Pi recording: Processing request for user ${user.id}`);
+    console.log(`Pi recording: Processing authenticated request`);
 
     const { action, pi_url, recording_id, stream_url, quality, motion_triggered, video_path } = await req.json();
 
@@ -154,11 +154,10 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Pi recording error:', error);
+    console.error('Pi recording error:', error instanceof Error ? error.message : 'Unknown error');
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        details: error 
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       { 
         status: 500, 
