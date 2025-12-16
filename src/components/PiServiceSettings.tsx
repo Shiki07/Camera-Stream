@@ -3,24 +3,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Key, Check, Shield } from "lucide-react";
+import { Eye, EyeOff, Key, Check, Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { savePiServiceApiKey, loadPiServiceApiKey, clearPiServiceApiKey, hasPiServiceApiKey } from "@/utils/piServiceKeyEncryption";
 
 export const PiServiceSettings = () => {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const savedKey = localStorage.getItem("PI_SERVICE_API_KEY");
-    if (savedKey) {
-      setApiKey(savedKey);
-      setIsSaved(true);
-    }
+    const loadKey = async () => {
+      try {
+        const savedKey = await loadPiServiceApiKey();
+        if (savedKey) {
+          setApiKey(savedKey);
+          setIsSaved(true);
+        }
+      } catch (error) {
+        console.error('Failed to load Pi API key:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadKey();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!apiKey.trim()) {
       toast({
         title: "API Key Required",
@@ -30,16 +41,25 @@ export const PiServiceSettings = () => {
       return;
     }
 
-    localStorage.setItem("PI_SERVICE_API_KEY", apiKey.trim());
-    setIsSaved(true);
-    toast({
-      title: "API Key Saved",
-      description: "Pi Service API key has been saved securely",
-    });
+    try {
+      await savePiServiceApiKey(apiKey.trim());
+      setIsSaved(true);
+      toast({
+        title: "API Key Saved",
+        description: "Pi Service API key has been encrypted and saved securely",
+      });
+    } catch (error) {
+      console.error('Failed to save Pi API key:', error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save the API key. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleClear = () => {
-    localStorage.removeItem("PI_SERVICE_API_KEY");
+    clearPiServiceApiKey();
     setApiKey("");
     setIsSaved(false);
     toast({
