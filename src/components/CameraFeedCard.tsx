@@ -324,7 +324,7 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount and reconnect webcam when quality changes
+  // Connect on mount
   useEffect(() => {
     if (isWebcam) {
       connectToWebcam();
@@ -343,7 +343,15 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam, isWebcam ? settings.quality : null]);
+  }, [config.url, config.deviceId, isWebcam]);
+
+  // Reconnect webcam when quality changes
+  useEffect(() => {
+    if (isWebcam && isConnected) {
+      console.log(`Quality changed to ${settings.quality}, reconnecting webcam...`);
+      connectToWebcam();
+    }
+  }, [settings.quality]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
