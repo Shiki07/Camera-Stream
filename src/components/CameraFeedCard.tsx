@@ -60,7 +60,6 @@ export const CameraFeedCard = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [motionDetected, setMotionDetected] = useState(false);
-  const [actualResolution, setActualResolution] = useState<{ width: number; height: number } | null>(null);
   
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
@@ -214,30 +213,9 @@ export const CameraFeedCard = ({
         audio: true,
       });
 
-      // Prefer actual negotiated track settings (can differ from the requested "ideal")
-      const trackSettings = stream.getVideoTracks()[0]?.getSettings?.();
-      if (trackSettings?.width && trackSettings?.height) {
-        setActualResolution({ width: trackSettings.width, height: trackSettings.height });
-      } else {
-        setActualResolution(null);
-      }
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-        
-        // Fallback: some browsers only expose dimensions after metadata loads
-        const handleMetadata = () => {
-          if (!videoRef.current) return;
-          if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
-            setActualResolution({
-              width: videoRef.current.videoWidth,
-              height: videoRef.current.videoHeight,
-            });
-          }
-        };
-        videoRef.current.addEventListener('loadedmetadata', handleMetadata, { once: true });
-        
         setIsConnected(true);
       }
     } catch (err) {
@@ -346,11 +324,8 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount (only after settings are loaded)
+  // Connect on mount and reconnect webcam when quality changes
   useEffect(() => {
-    // Wait for settings to load before connecting
-    if (settingsLoading) return;
-
     if (isWebcam) {
       connectToWebcam();
     } else {
@@ -368,32 +343,7 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam, settingsLoading]);
-
-  // Reconnect webcam when quality changes and show toast
-  const prevQualityRef = useRef(settings.quality);
-  useEffect(() => {
-    if (isWebcam && isConnected && prevQualityRef.current !== settings.quality) {
-      console.log(`Quality changed to ${settings.quality}, reconnecting webcam...`);
-      connectToWebcam().then(() => {
-        const actual = streamRef.current?.getVideoTracks?.()[0]?.getSettings?.();
-        const width = actual?.width;
-        const height = actual?.height;
-        if (width && height) {
-          toast({
-            title: "Resolution changed",
-            description: `Now streaming at ${width}×${height} (${settings.quality})`,
-          });
-        } else {
-          toast({
-            title: "Resolution changed",
-            description: `Now streaming at ${settings.quality}`,
-          });
-        }
-      });
-    }
-    prevQualityRef.current = settings.quality;
-  }, [settings.quality, isWebcam, isConnected, connectToWebcam, toast]);
+  }, [config.url, config.deviceId, isWebcam, isWebcam ? settings.quality : null]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
@@ -566,13 +516,6 @@ export const CameraFeedCard = ({
             {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
-          
-          {/* Resolution indicator for webcams */}
-          {isWebcam && isConnected && actualResolution && (
-            <Badge variant="outline" className="text-xs bg-background/50">
-              {actualResolution.width}×{actualResolution.height}
-            </Badge>
-          )}
           
           {/* Auto-reconnect indicator */}
           {!isConnected && !isConnecting && error && isTabVisible && (
