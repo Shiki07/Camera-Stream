@@ -125,8 +125,9 @@ export const useNetworkCamera = () => {
       reconnectTimeoutRef.current = null;
     }
     
+    // Clear heartbeat interval
     if (heartbeatRef.current) {
-      clearTimeout(heartbeatRef.current);
+      clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
     }
     
@@ -310,9 +311,35 @@ export const useNetworkCamera = () => {
       
       // Clear any existing monitoring
       if (heartbeatRef.current) {
-        clearTimeout(heartbeatRef.current);
+        clearInterval(heartbeatRef.current);
         heartbeatRef.current = null;
       }
+      
+      // Start heartbeat monitor to detect stale streams (frames stop arriving)
+      const STALE_THRESHOLD_MS = 10000; // 10 seconds without frames = stale
+      heartbeatRef.current = setInterval(() => {
+        if (!isActiveRef.current || document.hidden) return;
+        
+        const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
+        if (isConnected && timeSinceLastFrame > STALE_THRESHOLD_MS) {
+          console.log(`useNetworkCamera: Stream stale - no frames for ${Math.round(timeSinceLastFrame / 1000)}s, reconnecting...`);
+          
+          // Cancel current stream and reconnect
+          if (fetchControllerRef.current) {
+            fetchControllerRef.current.abort();
+          }
+          
+          // Reset and reconnect
+          setReconnectAttempts(0);
+          lastFrameTimeRef.current = Date.now(); // Prevent immediate re-trigger
+          
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToMJPEGStream(imgElement, config);
+            }
+          }, 500);
+        }
+      }, 3000); // Check every 3 seconds
 
       // Cancel any existing fetch operations
       if (fetchControllerRef.current) {
