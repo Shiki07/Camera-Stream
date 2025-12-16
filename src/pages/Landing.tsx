@@ -257,7 +257,7 @@ const Landing = () => {
                 <AccordionItem value="item-7">
                   <AccordionTrigger>How many cameras can I connect?</AccordionTrigger>
                   <AccordionContent>
-                    There's no hard limit on the number of cameras you can connect. You can add as many cameras as your system can handle. The multi-camera dashboard lets you view and manage all your cameras from a single interface.
+                    You can connect up to 16 cameras to your dashboard. The multi-camera grid lets you view and manage all your cameras from a single interface, with flexible layout options for different screen sizes.
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-8">
