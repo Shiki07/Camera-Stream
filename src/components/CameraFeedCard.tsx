@@ -214,19 +214,29 @@ export const CameraFeedCard = ({
         audio: true,
       });
 
+      // Prefer actual negotiated track settings (can differ from the requested "ideal")
+      const trackSettings = stream.getVideoTracks()[0]?.getSettings?.();
+      if (trackSettings?.width && trackSettings?.height) {
+        setActualResolution({ width: trackSettings.width, height: trackSettings.height });
+      } else {
+        setActualResolution(null);
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         
-        // Track actual resolution once video is playing
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
+        // Fallback: some browsers only expose dimensions after metadata loads
+        const handleMetadata = () => {
+          if (!videoRef.current) return;
+          if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
             setActualResolution({
               width: videoRef.current.videoWidth,
               height: videoRef.current.videoHeight,
             });
           }
         };
+        videoRef.current.addEventListener('loadedmetadata', handleMetadata, { once: true });
         
         setIsConnected(true);
       }
@@ -363,15 +373,24 @@ export const CameraFeedCard = ({
     if (isWebcam && isConnected && prevQualityRef.current !== settings.quality) {
       console.log(`Quality changed to ${settings.quality}, reconnecting webcam...`);
       connectToWebcam().then(() => {
-        const resolution = getResolutionForQuality(settings.quality);
-        toast({
-          title: "Resolution changed",
-          description: `Now streaming at ${resolution.width}×${resolution.height} (${settings.quality})`,
-        });
+        const actual = streamRef.current?.getVideoTracks?.()[0]?.getSettings?.();
+        const width = actual?.width;
+        const height = actual?.height;
+        if (width && height) {
+          toast({
+            title: "Resolution changed",
+            description: `Now streaming at ${width}×${height} (${settings.quality})`,
+          });
+        } else {
+          toast({
+            title: "Resolution changed",
+            description: `Now streaming at ${settings.quality}`,
+          });
+        }
       });
     }
     prevQualityRef.current = settings.quality;
-  }, [settings.quality]);
+  }, [settings.quality, isWebcam, isConnected, connectToWebcam, toast]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
