@@ -60,6 +60,7 @@ export const CameraFeedCard = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [motionDetected, setMotionDetected] = useState(false);
+  const [actualResolution, setActualResolution] = useState<{ width: number; height: number } | null>(null);
   
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
@@ -216,6 +217,17 @@ export const CameraFeedCard = ({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+        
+        // Track actual resolution once video is playing
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            setActualResolution({
+              width: videoRef.current.videoWidth,
+              height: videoRef.current.videoHeight,
+            });
+          }
+        };
+        
         setIsConnected(true);
       }
     } catch (err) {
@@ -524,6 +536,13 @@ export const CameraFeedCard = ({
             {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
+          
+          {/* Resolution indicator for webcams */}
+          {isWebcam && isConnected && actualResolution && (
+            <Badge variant="outline" className="text-xs bg-background/50">
+              {actualResolution.width}×{actualResolution.height}
+            </Badge>
+          )}
           
           {/* Auto-reconnect indicator */}
           {!isConnected && !isConnecting && error && isTabVisible && (
