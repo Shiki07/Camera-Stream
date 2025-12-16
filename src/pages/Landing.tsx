@@ -11,9 +11,9 @@ const Landing = () => {
   return (
     <>
       <SEOHead 
-        title="RPi CamAlert - Raspberry Pi Security Camera System | Motion Detection & Alerts"
-        description="Transform your Raspberry Pi into a powerful security camera system. Real-time motion detection, instant email alerts, local storage, and privacy-focused monitoring. Free and open-source."
-        keywords="raspberry pi security camera, pi camera motion detection, home security system, DIY security camera, raspberry pi surveillance, motion alerts, privacy camera, local storage camera, open source security"
+        title="Camera Stream - Smart Security Camera Monitoring System | Motion Detection & Alerts"
+        description="Professional security camera monitoring system with real-time motion detection, instant email alerts, local storage, and privacy-focused design. Free and open-source camera management."
+        keywords="security camera system, camera motion detection, home security system, webcam monitoring, surveillance system, motion alerts, privacy camera, local storage camera, multi-camera dashboard"
         canonical="https://www.rpicamalert.xyz/"
       />
       
@@ -23,7 +23,7 @@ const Landing = () => {
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Camera className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold">RPi CamAlert</span>
+              <span className="text-xl font-bold">Camera Stream</span>
             </div>
             <div className="flex items-center gap-4">
               <Link to="/auth">
@@ -39,12 +39,12 @@ const Landing = () => {
         {/* Hero Section */}
         <header className="container mx-auto px-4 py-16 md:py-24 text-center">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-            Turn Your Raspberry Pi Into a
-            <span className="text-primary block mt-2">Smart Security Camera</span>
+            Your Cameras, One
+            <span className="text-primary block mt-2">Smart Dashboard</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Privacy-focused, open-source security monitoring with real-time motion detection, 
-            instant email alerts, and local storage. No cloud subscriptions required.
+            Privacy-focused, open-source camera monitoring with real-time motion detection, 
+            instant email alerts, and local storage. Works with webcams, IP cameras, and more.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/auth">
@@ -67,7 +67,7 @@ const Landing = () => {
               Powerful Security Features
             </h2>
             <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
-              Everything you need to secure your home or office with your Raspberry Pi camera
+              Everything you need to secure your home or office with any camera
             </p>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -84,7 +84,7 @@ const Landing = () => {
               <FeatureCard
                 icon={<HardDrive className="h-8 w-8" />}
                 title="Local Storage Recording"
-                description="Store recordings directly on your Raspberry Pi. Full control over your security footage."
+                description="Store recordings directly on your device. Full control over your security footage."
               />
               <FeatureCard
                 icon={<Lock className="h-8 w-8" />}
@@ -98,8 +98,8 @@ const Landing = () => {
               />
               <FeatureCard
                 icon={<Wifi className="h-8 w-8" />}
-                title="DuckDNS Integration"
-                description="Access your cameras remotely with free dynamic DNS. Easy setup, secure connection."
+                title="Multi-Camera Support"
+                description="Connect webcams, IP cameras, and network cameras. Manage everything from one dashboard."
               />
             </div>
           </div>
@@ -109,7 +109,7 @@ const Landing = () => {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              Why Choose RPi CamAlert?
+              Why Choose Camera Stream?
             </h2>
             
             <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -121,7 +121,7 @@ const Landing = () => {
               <BenefitItem
                 icon={<Zap className="h-6 w-6 text-primary" />}
                 title="No Monthly Fees"
-                description="One-time setup with no recurring subscription costs. Use your existing Raspberry Pi hardware."
+                description="One-time setup with no recurring subscription costs. Use your existing camera hardware."
               />
               <BenefitItem
                 icon={<Settings className="h-6 w-6 text-primary" />}
@@ -130,8 +130,8 @@ const Landing = () => {
               />
               <BenefitItem
                 icon={<Monitor className="h-6 w-6 text-primary" />}
-                title="Multi-Camera Support"
-                description="Monitor multiple Raspberry Pi cameras from a single dashboard interface."
+                title="Any Camera Works"
+                description="Support for webcams, USB cameras, IP cameras, RTSP streams, and Raspberry Pi cameras."
               />
             </div>
           </div>
@@ -144,7 +144,7 @@ const Landing = () => {
               Perfect For Any Security Need
             </h2>
             <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
-              Whether you're protecting your home, office, or monitoring wildlife, RPi CamAlert adapts to your needs
+              Whether you're protecting your home, office, or monitoring wildlife, Camera Stream adapts to your needs
             </p>
             
             <div className="grid md:grid-cols-3 gap-6">
@@ -177,13 +177,13 @@ const Landing = () => {
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <StepCard
                 number="1"
-                title="Set Up Your Pi"
-                description="Install the camera module and run our simple setup script on your Raspberry Pi."
+                title="Create Account"
+                description="Sign up for free and access your secure camera dashboard instantly."
               />
               <StepCard
                 number="2"
-                title="Connect & Configure"
-                description="Add your camera to RPi CamAlert and customize motion detection settings."
+                title="Add Your Cameras"
+                description="Connect webcams, IP cameras, or any video source with our easy setup wizard."
               />
               <StepCard
                 number="3"
@@ -201,7 +201,7 @@ const Landing = () => {
               Ready to Secure Your Space?
             </h2>
             <p className="text-xl opacity-90 max-w-2xl mx-auto mb-8">
-              Join thousands of users who trust RPi CamAlert for their security monitoring needs.
+              Join thousands of users who trust Camera Stream for their security monitoring needs.
             </p>
             <Link to="/auth">
               <Button size="lg" variant="secondary" className="text-lg px-8">
@@ -218,10 +218,10 @@ const Landing = () => {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Camera className="h-6 w-6 text-primary" />
-                  <span className="font-bold">RPi CamAlert</span>
+                  <span className="font-bold">Camera Stream</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Privacy-focused Raspberry Pi security camera monitoring system.
+                  Privacy-focused security camera monitoring system for any camera.
                 </p>
               </div>
               <div>
@@ -247,7 +247,7 @@ const Landing = () => {
               </div>
             </div>
             <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-              <p>© {new Date().getFullYear()} RPi CamAlert. All rights reserved.</p>
+              <p>© {new Date().getFullYear()} Camera Stream. All rights reserved.</p>
             </div>
           </div>
         </footer>

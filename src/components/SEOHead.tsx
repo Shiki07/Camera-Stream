@@ -8,9 +8,9 @@ interface SEOHeadProps {
 }
 
 export const SEOHead = ({ 
-  title = "RPi CamAlert - Raspberry Pi Security Camera Monitoring System",
-  description = "Advanced Raspberry Pi camera monitoring system with motion detection, real-time alerts, and privacy-focused security.",
-  keywords = "raspberry pi camera, pi security camera, home security system, motion detection, camera monitoring",
+  title = "Camera Stream - Smart Security Camera Monitoring System",
+  description = "Professional camera monitoring system with motion detection, real-time alerts, and privacy-focused security.",
+  keywords = "security camera, camera monitoring, home security system, motion detection, webcam monitoring, IP camera",
   canonical = "https://www.rpicamalert.xyz/"
 }: SEOHeadProps) => {
   useEffect(() => {
