@@ -125,13 +125,6 @@ export type Database = {
             referencedRelation: "camera_credentials"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "camera_settings_camera_id_fkey"
-            columns: ["camera_id"]
-            isOneToOne: false
-            referencedRelation: "camera_credentials_decrypted"
-            referencedColumns: ["id"]
-          },
         ]
       }
       motion_events: {
@@ -247,39 +240,7 @@ export type Database = {
       }
     }
     Views: {
-      camera_credentials_decrypted: {
-        Row: {
-          camera_name: string | null
-          camera_url: string | null
-          created_at: string | null
-          id: string | null
-          password: string | null
-          updated_at: string | null
-          user_id: string | null
-          username: string | null
-        }
-        Insert: {
-          camera_name?: string | null
-          camera_url?: string | null
-          created_at?: string | null
-          id?: string | null
-          password?: never
-          updated_at?: string | null
-          user_id?: string | null
-          username?: never
-        }
-        Update: {
-          camera_name?: string | null
-          camera_url?: string | null
-          created_at?: string | null
-          id?: string | null
-          password?: never
-          updated_at?: string | null
-          user_id?: string | null
-          username?: never
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       decrypt_credential: {
