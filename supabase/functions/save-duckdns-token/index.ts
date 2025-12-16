@@ -36,10 +36,6 @@ const validateDuckDNSToken = (token: string): boolean => {
   return tokenRegex.test(token) && token.length === 36;
 };
 
-const sanitizeInput = (input: string): string => {
-  return input.trim().replace(/[<>'"&]/g, '');
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -131,17 +127,16 @@ serve(async (req) => {
       );
     }
 
-    // Sanitize the token
-    const sanitizedToken = sanitizeInput(token);
+    // Encrypt the token using the database function
+    const { data: encryptedToken, error: encryptError } = await supabase.rpc('encrypt_credential', {
+      plaintext: token,
+      user_id: user.id
+    });
 
-    // SECURITY FIX: Only update the specific duckdns_token field
-    // Get current metadata to preserve other fields securely
-    const { data: currentUser, error: fetchError } = await supabase.auth.admin.getUserById(user.id);
-    
-    if (fetchError || !currentUser.user) {
-      console.error('Error fetching user data:', fetchError);
+    if (encryptError || !encryptedToken) {
+      console.error('Error encrypting token:', encryptError);
       return new Response(
-        JSON.stringify({ error: 'Failed to retrieve user data' }),
+        JSON.stringify({ error: 'Failed to encrypt token' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -149,23 +144,20 @@ serve(async (req) => {
       );
     }
 
-    // Preserve existing metadata but only update the duckdns_token field
-    const currentMetadata = currentUser.user.user_metadata || {};
-    const updatedMetadata = {
-      ...currentMetadata,
-      duckdns_token: sanitizedToken,
-      duckdns_token_updated_at: new Date().toISOString() // Add audit trail
-    };
+    // Upsert the encrypted token into user_tokens table
+    const { error: upsertError } = await supabase
+      .from('user_tokens')
+      .upsert({
+        user_id: user.id,
+        token_type: 'duckdns',
+        encrypted_token: encryptedToken,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,token_type'
+      });
 
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      {
-        user_metadata: updatedMetadata
-      }
-    );
-
-    if (updateError) {
-      console.error('Error updating user metadata:', updateError.message);
+    if (upsertError) {
+      console.error('Error saving encrypted token:', upsertError.message);
       return new Response(
         JSON.stringify({ error: 'Failed to save token' }),
         { 
@@ -175,9 +167,9 @@ serve(async (req) => {
       );
     }
 
-    console.log(`DuckDNS token updated successfully for user: ${user.id}`);
+    console.log(`DuckDNS token encrypted and saved for user: ${user.id}`);
     return new Response(
-      JSON.stringify({ success: true, message: 'Token saved successfully' }),
+      JSON.stringify({ success: true, message: 'Token saved securely' }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
