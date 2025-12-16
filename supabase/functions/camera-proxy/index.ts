@@ -199,7 +199,7 @@ serve(async (req) => {
 
     // Check rate limit
     if (!checkRateLimit(user.id)) {
-      console.warn(`Camera proxy: Rate limit exceeded for user: ${user.id}`);
+      console.warn(`Camera proxy: Rate limit exceeded`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded' }),
         { 
@@ -264,7 +264,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Camera proxy: Proxying request to ${targetUrl} for user ${user.id}`);
+    console.log(`Camera proxy: Proxying authenticated request to ${targetUrl}`);
 
     // Enhanced connectivity test with more detailed diagnostics
     try {
