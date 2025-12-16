@@ -1,37 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.rpicamalert.xyz/</loc>
+    <loc>https://www.camerastream.live/</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.rpicamalert.xyz/dashboard</loc>
+    <loc>https://www.camerastream.live/dashboard</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.rpicamalert.xyz/auth</loc>
+    <loc>https://www.camerastream.live/auth</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.rpicamalert.xyz/documentation</loc>
+    <loc>https://www.camerastream.live/documentation</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.rpicamalert.xyz/privacy</loc>
+    <loc>https://www.camerastream.live/contact</loc>
+    <lastmod>2025-12-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.camerastream.live/privacy</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://www.rpicamalert.xyz/terms</loc>
+    <loc>https://www.camerastream.live/terms</loc>
     <lastmod>2025-12-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
