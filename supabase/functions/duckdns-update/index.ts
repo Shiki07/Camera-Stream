@@ -178,9 +178,16 @@ serve(async (req) => {
     const cleanDomain = sanitizeInput(domain.replace('.duckdns.org', '').replace(/^https?:\/\//, ''));
     const cleanIP = sanitizeInput(ip);
 
-    // Get the token from user metadata
-    const token = user.user_metadata?.duckdns_token;
-    if (!token) {
+    // Get the encrypted token from user_tokens table
+    const { data: tokenRecord, error: tokenFetchError } = await supabase
+      .from('user_tokens')
+      .select('encrypted_token')
+      .eq('user_id', user.id)
+      .eq('token_type', 'duckdns')
+      .single();
+
+    if (tokenFetchError || !tokenRecord?.encrypted_token) {
+      console.warn('DuckDNS token not found for user:', user.id);
       return new Response(
         JSON.stringify({ error: 'DuckDNS token not configured. Please save your token first.' }),
         { 
@@ -189,9 +196,26 @@ serve(async (req) => {
         }
       );
     }
+
+    // Decrypt the token using the database function
+    const { data: decryptedToken, error: decryptError } = await supabase.rpc('decrypt_credential', {
+      ciphertext: tokenRecord.encrypted_token,
+      user_id: user.id
+    });
+
+    if (decryptError || !decryptedToken) {
+      console.error('Error decrypting token:', decryptError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to decrypt token. Please re-save your DuckDNS token.' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
     
     // Make request to DuckDNS with retry logic for DNS failures
-    const duckdnsUrl = `https://www.duckdns.org/update?domains=${encodeURIComponent(cleanDomain)}&token=${encodeURIComponent(token)}&ip=${encodeURIComponent(cleanIP)}`;
+    const duckdnsUrl = `https://www.duckdns.org/update?domains=${encodeURIComponent(cleanDomain)}&token=${encodeURIComponent(decryptedToken)}&ip=${encodeURIComponent(cleanIP)}`;
     
     console.log(`Updating DuckDNS - Domain: ${cleanDomain}, IP: ${cleanIP}, User: ${user.id}`);
     
