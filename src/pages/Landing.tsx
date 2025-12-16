@@ -120,8 +120,8 @@ const Landing = () => {
               />
               <BenefitItem
                 icon={<Zap className="h-6 w-6 text-primary" />}
-                title="No Monthly Fees"
-                description="One-time setup with no recurring subscription costs. Use your existing camera hardware."
+                title="100% Free"
+                description="Completely free to use — no upfront costs, no monthly fees, no hidden charges. Just sign up and start monitoring."
               />
               <BenefitItem
                 icon={<Settings className="h-6 w-6 text-primary" />}
