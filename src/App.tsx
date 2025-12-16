@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
 
 // Lazy load the main dashboard to reduce initial bundle size
 const Index = lazy(() => import("./pages/Index"));
@@ -22,8 +23,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route 
-              path="/" 
+              path="/dashboard" 
               element={
                 <Suspense fallback={
                   <div className="min-h-screen bg-background flex items-center justify-center">
