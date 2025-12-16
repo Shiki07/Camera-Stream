@@ -2,8 +2,14 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { 
   Camera, Shield, Bell, Smartphone, Cloud, Zap, 
-  Eye, Lock, Settings, Monitor, HardDrive, Wifi 
+  Eye, Lock, Settings, Monitor, HardDrive, Wifi, HelpCircle
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 
@@ -14,7 +20,7 @@ const Landing = () => {
         title="Camera Stream - Smart Security Camera Monitoring System | Motion Detection & Alerts"
         description="Professional security camera monitoring system with real-time motion detection, instant email alerts, local storage, and privacy-focused design. Free and open-source camera management."
         keywords="security camera system, camera motion detection, home security system, webcam monitoring, surveillance system, motion alerts, privacy camera, local storage camera, multi-camera dashboard"
-        canonical="https://www.rpicamalert.xyz/"
+        canonical="https://www.camerastream.live/"
       />
       
       <div className="min-h-screen bg-background">
@@ -194,6 +200,84 @@ const Landing = () => {
           </div>
         </section>
 
+        {/* FAQ Section */}
+        <section id="faq" className="py-16 md:py-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 text-primary mb-4">
+                <HelpCircle className="h-6 w-6" />
+                <span className="font-semibold">FAQ</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Find answers to common questions about Camera Stream
+              </p>
+            </div>
+            
+            <div className="max-w-3xl mx-auto">
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>Is Camera Stream really free?</AccordionTrigger>
+                  <AccordionContent>
+                    Yes! Camera Stream is completely free to use. There are no upfront costs, no monthly subscription fees, and no hidden charges. Simply create an account and start monitoring your cameras right away.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                  <AccordionTrigger>What types of cameras are supported?</AccordionTrigger>
+                  <AccordionContent>
+                    Camera Stream supports a wide range of cameras including USB webcams, IP cameras with RTSP/MJPEG streams, network cameras, and Raspberry Pi cameras. If your camera can output a video stream, it likely works with Camera Stream.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-3">
+                  <AccordionTrigger>Where are my recordings stored?</AccordionTrigger>
+                  <AccordionContent>
+                    Recordings are stored locally on your device by default. You have full control over your footage — nothing is uploaded to the cloud unless you explicitly configure cloud storage integration. This ensures maximum privacy and security.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                  <AccordionTrigger>How does motion detection work?</AccordionTrigger>
+                  <AccordionContent>
+                    Camera Stream uses advanced frame comparison algorithms to detect movement in your camera feeds. You can customize the sensitivity, set detection zones, and configure cooldown periods to reduce false alerts. When motion is detected, you'll receive instant email notifications.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-5">
+                  <AccordionTrigger>Can I access my cameras remotely?</AccordionTrigger>
+                  <AccordionContent>
+                    Yes! Once your cameras are set up, you can access them from any device with a web browser. The mobile-friendly interface makes it easy to check your cameras from your phone or tablet when you're away from home.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-6">
+                  <AccordionTrigger>Is my data secure and private?</AccordionTrigger>
+                  <AccordionContent>
+                    Absolutely. Camera Stream is designed with privacy as a core principle. Your video feeds and recordings stay on your local network by default. We don't have access to your camera footage, and your credentials are encrypted. You're always in control of your data.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-7">
+                  <AccordionTrigger>How many cameras can I connect?</AccordionTrigger>
+                  <AccordionContent>
+                    There's no hard limit on the number of cameras you can connect. You can add as many cameras as your system can handle. The multi-camera dashboard lets you view and manage all your cameras from a single interface.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-8">
+                  <AccordionTrigger>Do I need technical knowledge to set this up?</AccordionTrigger>
+                  <AccordionContent>
+                    Not at all! Camera Stream is designed to be user-friendly. Adding a webcam is as simple as clicking "Add Camera" and granting browser permissions. For IP cameras, you just need the camera's stream URL. Our documentation provides step-by-step guides for all setup scenarios.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+            
+            <div className="text-center mt-10">
+              <p className="text-muted-foreground mb-4">Still have questions?</p>
+              <Link to="/contact">
+                <Button variant="outline">Contact Support</Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="bg-primary text-primary-foreground py-16 md:py-24">
           <div className="container mx-auto px-4 text-center">
@@ -235,6 +319,7 @@ const Landing = () => {
                 <h3 className="font-semibold mb-4">Resources</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><Link to="/documentation" className="hover:text-foreground">Documentation</Link></li>
+                  <li><Link to="/contact" className="hover:text-foreground">Contact Us</Link></li>
                   <li><a href="mailto:support@camerastream.live" className="hover:text-foreground">Support</a></li>
                 </ul>
               </div>

@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import Documentation from "./pages/Documentation";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
+import Contact from "./pages/Contact";
 
 // Lazy load the main dashboard to reduce initial bundle size
 const Index = lazy(() => import("./pages/Index"));
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/documentation" element={<Documentation />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/contact" element={<Contact />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
