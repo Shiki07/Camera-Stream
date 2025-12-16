@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { loadPiServiceApiKey } from '@/utils/piServiceKeyEncryption';
 
 export interface PiRecordingOptions {
   piUrl: string;
@@ -19,6 +20,15 @@ export const usePiRecording = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const piApiKeyRef = useRef<string>('');
+
+  // Load encrypted Pi API key on mount
+  useEffect(() => {
+    const loadKey = async () => {
+      piApiKeyRef.current = await loadPiServiceApiKey();
+    };
+    loadKey();
+  }, []);
 
   const startRecording = useCallback(async (options: PiRecordingOptions) => {
     if (!user) {
@@ -52,8 +62,8 @@ export const usePiRecording = () => {
 
       let result;
       
-      // Get PI_SERVICE_API_KEY from user metadata or localStorage
-      const piApiKey = localStorage.getItem('PI_SERVICE_API_KEY') || '';
+      // Get PI_SERVICE_API_KEY from encrypted storage
+      const piApiKey = piApiKeyRef.current;
 
       if (isLocalNetwork) {
         // Direct call to Pi service (local network, no port forwarding needed)
@@ -186,8 +196,8 @@ export const usePiRecording = () => {
 
       let result;
 
-      // Get PI_SERVICE_API_KEY from localStorage
-      const piApiKey = localStorage.getItem('PI_SERVICE_API_KEY') || '';
+      // Get PI_SERVICE_API_KEY from encrypted storage
+      const piApiKey = piApiKeyRef.current;
 
       if (isLocalNetwork) {
         // Direct call to Pi service (local network) with timeout

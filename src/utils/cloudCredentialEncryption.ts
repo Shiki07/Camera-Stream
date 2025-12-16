@@ -9,10 +9,86 @@ import { CloudStorageConfig } from '@/services/cloudStorage/types';
 const CLOUD_CONFIG_STORAGE_KEY = 'cloudStorageConfig';
 const CLOUD_CONFIG_ENCRYPTED_KEY = 'cloudStorageConfigEncrypted';
 
+// Validation patterns for cloud storage inputs
+const VALID_PROVIDERS = ['s3', 'google-drive', 'dropbox', 'onedrive'] as const;
+const BUCKET_NAME_PATTERN = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+const REGION_PATTERN = /^[a-z]{2}-[a-z]+-\d+$/;
+const PATH_DANGEROUS_PATTERNS = [/\.\./, /^\//, /\/$/];
+
+/**
+ * Validate provider name against whitelist
+ */
+export function validateProvider(provider: string): boolean {
+  return VALID_PROVIDERS.includes(provider as typeof VALID_PROVIDERS[number]);
+}
+
+/**
+ * Validate S3 bucket name format
+ */
+export function validateBucketName(bucketName: string): boolean {
+  if (!bucketName || bucketName.length < 3 || bucketName.length > 63) {
+    return false;
+  }
+  return BUCKET_NAME_PATTERN.test(bucketName);
+}
+
+/**
+ * Validate AWS region format
+ */
+export function validateRegion(region: string): boolean {
+  if (!region) return true; // Optional field
+  return REGION_PATTERN.test(region);
+}
+
+/**
+ * Sanitize storage path to prevent directory traversal
+ */
+export function sanitizePath(path: string): string {
+  if (!path) return '';
+  
+  let sanitized = path;
+  
+  // Remove dangerous patterns
+  for (const pattern of PATH_DANGEROUS_PATTERNS) {
+    sanitized = sanitized.replace(pattern, '');
+  }
+  
+  // Remove any remaining directory traversal attempts
+  sanitized = sanitized.replace(/\.\./g, '');
+  
+  // Trim leading/trailing slashes and whitespace
+  sanitized = sanitized.replace(/^\/+|\/+$/g, '').trim();
+  
+  // Limit length
+  if (sanitized.length > 500) {
+    sanitized = sanitized.substring(0, 500);
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Sanitize endpoint URL
+ */
+export function sanitizeEndpoint(endpoint: string): string {
+  if (!endpoint) return '';
+  
+  try {
+    const url = new URL(endpoint);
+    // Only allow https (or http for localhost)
+    if (url.protocol !== 'https:' && !url.hostname.includes('localhost')) {
+      return '';
+    }
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
 interface EncryptedCloudStorageConfig {
   provider: CloudStorageConfig['provider'];
   authMethod: CloudStorageConfig['authMethod'];
-  // Non-sensitive data stored in plain
+  // Non-sensitive data stored in plain (validated)
   bucketName?: string;
   region?: string;
   endpoint?: string;
@@ -30,14 +106,31 @@ interface EncryptedCloudStorageConfig {
  * Encrypt and save cloud storage configuration
  */
 export async function saveEncryptedCloudConfig(config: CloudStorageConfig): Promise<void> {
+  // Validate provider
+  if (!validateProvider(config.provider)) {
+    throw new Error(`Invalid cloud storage provider: ${config.provider}`);
+  }
+
+  // Validate and sanitize bucket name if provided
+  const bucketName = config.credentials?.bucketName;
+  if (bucketName && config.provider === 's3' && !validateBucketName(bucketName)) {
+    throw new Error('Invalid S3 bucket name format');
+  }
+
+  // Validate region if provided
+  const region = config.credentials?.region;
+  if (region && !validateRegion(region)) {
+    throw new Error('Invalid AWS region format');
+  }
+
   const encryptedConfig: EncryptedCloudStorageConfig = {
     provider: config.provider,
     authMethod: config.authMethod,
     isEncrypted: true,
-    // Non-sensitive S3 config
-    bucketName: config.credentials?.bucketName,
-    region: config.credentials?.region,
-    endpoint: config.credentials?.endpoint,
+    // Non-sensitive S3 config (validated)
+    bucketName: bucketName,
+    region: region,
+    endpoint: config.credentials?.endpoint ? sanitizeEndpoint(config.credentials.endpoint) : undefined,
     expiresAt: config.credentials?.expiresAt,
   };
 
