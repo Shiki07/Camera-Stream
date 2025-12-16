@@ -234,15 +234,15 @@ const Landing = () => {
               <div>
                 <h3 className="font-semibold mb-4">Resources</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><a href="https://github.com" className="hover:text-foreground">Documentation</a></li>
+                  <li><Link to="/documentation" className="hover:text-foreground">Documentation</Link></li>
                   <li><a href="mailto:support@camerastream.live" className="hover:text-foreground">Support</a></li>
                 </ul>
               </div>
               <div>
                 <h3 className="font-semibold mb-4">Legal</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><a href="#" className="hover:text-foreground">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-foreground">Terms of Service</a></li>
+                  <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
+                  <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
                 </ul>
               </div>
             </div>
