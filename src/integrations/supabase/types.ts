@@ -22,10 +22,8 @@ export type Database = {
           encrypted_password: string | null
           encrypted_username: string | null
           id: string
-          password: string | null
           updated_at: string
           user_id: string
-          username: string | null
         }
         Insert: {
           camera_name: string
@@ -34,10 +32,8 @@ export type Database = {
           encrypted_password?: string | null
           encrypted_username?: string | null
           id?: string
-          password?: string | null
           updated_at?: string
           user_id: string
-          username?: string | null
         }
         Update: {
           camera_name?: string
@@ -46,10 +42,8 @@ export type Database = {
           encrypted_password?: string | null
           encrypted_username?: string | null
           id?: string
-          password?: string | null
           updated_at?: string
           user_id?: string
-          username?: string | null
         }
         Relationships: []
       }
