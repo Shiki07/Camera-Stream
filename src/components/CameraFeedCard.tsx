@@ -357,12 +357,20 @@ export const CameraFeedCard = ({
     };
   }, [config.url, config.deviceId, isWebcam]);
 
-  // Reconnect webcam when quality changes
+  // Reconnect webcam when quality changes and show toast
+  const prevQualityRef = useRef(settings.quality);
   useEffect(() => {
-    if (isWebcam && isConnected) {
+    if (isWebcam && isConnected && prevQualityRef.current !== settings.quality) {
       console.log(`Quality changed to ${settings.quality}, reconnecting webcam...`);
-      connectToWebcam();
+      connectToWebcam().then(() => {
+        const resolution = getResolutionForQuality(settings.quality);
+        toast({
+          title: "Resolution changed",
+          description: `Now streaming at ${resolution.width}×${resolution.height} (${settings.quality})`,
+        });
+      });
     }
+    prevQualityRef.current = settings.quality;
   }, [settings.quality]);
 
   // Auto-reconnect when disconnected
