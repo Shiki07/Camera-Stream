@@ -13,6 +13,55 @@ import {
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 
+// FAQ data for schema markup
+const faqData = [
+  {
+    question: "Is Camera Stream really free?",
+    answer: "Yes! Camera Stream is completely free to use. There are no upfront costs, no monthly subscription fees, and no hidden charges. Simply create an account and start monitoring your cameras right away."
+  },
+  {
+    question: "What types of cameras are supported?",
+    answer: "Camera Stream supports a wide range of cameras including USB webcams, IP cameras with RTSP/MJPEG streams, network cameras, and Raspberry Pi cameras. If your camera can output a video stream, it likely works with Camera Stream."
+  },
+  {
+    question: "Where are my recordings stored?",
+    answer: "Recordings are stored locally on your device by default. You have full control over your footage — nothing is uploaded to the cloud unless you explicitly configure cloud storage integration. This ensures maximum privacy and security."
+  },
+  {
+    question: "How does motion detection work?",
+    answer: "Camera Stream uses advanced frame comparison algorithms to detect movement in your camera feeds. You can customize the sensitivity, set detection zones, and configure cooldown periods to reduce false alerts. When motion is detected, you'll receive instant email notifications."
+  },
+  {
+    question: "Can I access my cameras remotely?",
+    answer: "Yes! Once your cameras are set up, you can access them from any device with a web browser. The mobile-friendly interface makes it easy to check your cameras from your phone or tablet when you're away from home."
+  },
+  {
+    question: "Is my data secure and private?",
+    answer: "Absolutely. Camera Stream is designed with privacy as a core principle. Your video feeds and recordings stay on your local network by default. We don't have access to your camera footage, and your credentials are encrypted. You're always in control of your data."
+  },
+  {
+    question: "How many cameras can I connect?",
+    answer: "You can connect up to 16 cameras to your dashboard. The multi-camera grid lets you view and manage all your cameras from a single interface, with flexible layout options for different screen sizes."
+  },
+  {
+    question: "Do I need technical knowledge to set this up?",
+    answer: "Not at all! Camera Stream is designed to be user-friendly. Adding a webcam is as simple as clicking 'Add Camera' and granting browser permissions. For IP cameras, you just need the camera's stream URL. Our documentation provides step-by-step guides for all setup scenarios."
+  }
+];
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+
 const Landing = () => {
   return (
     <>
@@ -21,6 +70,7 @@ const Landing = () => {
         description="Professional security camera monitoring system with real-time motion detection, instant email alerts, local storage, and privacy-focused design. Free and open-source camera management."
         keywords="security camera system, camera motion detection, home security system, webcam monitoring, surveillance system, motion alerts, privacy camera, local storage camera, multi-camera dashboard"
         canonical="https://www.camerastream.live/"
+        jsonLd={faqJsonLd}
       />
       
       <div className="min-h-screen bg-background">
