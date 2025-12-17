@@ -23,4 +23,4 @@ User-agent: facebookexternalhit
 Allow: /
 
 # Sitemap location
-Sitemap: https://www.rpicamalert.xyz/sitemap.xml
+Sitemap: https://www.camerastream.live/sitemap.xml
