@@ -13,11 +13,12 @@ import { cn } from '@/lib/utils';
 // Helper to ensure camera has source field and extract deviceId for webcams
 const ensureCameraConfig = (camera: any): CameraConfig => {
   const isWebcam = camera.source === 'webcam' || camera.url?.startsWith('webcam://');
+  const isHomeAssistant = camera.source === 'homeassistant' || camera.haEntityId;
   const deviceId = camera.deviceId || (isWebcam && camera.url ? camera.url.replace('webcam://', '') : undefined);
   
   return {
     ...camera,
-    source: isWebcam ? 'webcam' : 'network',
+    source: isHomeAssistant ? 'homeassistant' : isWebcam ? 'webcam' : 'network',
     deviceId,
   };
 };

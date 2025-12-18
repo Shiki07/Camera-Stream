@@ -13,12 +13,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
-import { Camera, AlertTriangle, Webcam, Wifi } from 'lucide-react';
+import { Camera, AlertTriangle, Webcam, Wifi, Home, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useHomeAssistant } from '@/hooks/useHomeAssistant';
 
 export interface CameraConfig extends NetworkCameraConfig {
-  source: 'webcam' | 'network';
+  source: 'webcam' | 'network' | 'homeassistant';
   deviceId?: string;
+  haEntityId?: string;
 }
 
 interface AddCameraDialogProps {
@@ -28,7 +30,7 @@ interface AddCameraDialogProps {
 }
 
 export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogProps) => {
-  const [tab, setTab] = useState<'webcam' | 'network'>('webcam');
+  const [tab, setTab] = useState<'webcam' | 'network' | 'homeassistant'>('webcam');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [type, setType] = useState<'mjpeg' | 'rtsp' | 'hls'>('mjpeg');
@@ -39,6 +41,10 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [webcamLoading, setWebcamLoading] = useState(false);
   const [hasLoadedWebcams, setHasLoadedWebcams] = useState(false);
+  const [hasLoadedHACameras, setHasLoadedHACameras] = useState(false);
+  const [selectedHACamera, setSelectedHACamera] = useState<string>('');
+  
+  const { config: haConfig, cameras: haCameras, fetchCameras, loading: haLoading, getCameraProxyUrl } = useHomeAssistant();
 
   // Enumerate webcam devices
   const loadWebcamDevices = async () => {
@@ -61,6 +67,13 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     }
   };
 
+  // Load Home Assistant cameras
+  const loadHACameras = async () => {
+    if (hasLoadedHACameras || !haConfig.url || !haConfig.token) return;
+    await fetchCameras();
+    setHasLoadedHACameras(true);
+  };
+
   // Auto-load webcam devices when dialog opens (webcam is default tab)
   useEffect(() => {
     if (open && tab === 'webcam' && !hasLoadedWebcams) {
@@ -68,11 +81,14 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     }
   }, [open]);
 
-  // Load devices when tab changes to webcam
+  // Load devices when tab changes
   const handleTabChange = (value: string) => {
-    setTab(value as 'webcam' | 'network');
+    setTab(value as 'webcam' | 'network' | 'homeassistant');
     if (value === 'webcam' && !hasLoadedWebcams) {
       loadWebcamDevices();
+    }
+    if (value === 'homeassistant' && !hasLoadedHACameras) {
+      loadHACameras();
     }
   };
 
@@ -107,6 +123,24 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
       };
 
       onAdd(config);
+    } else if (tab === 'homeassistant') {
+      // Home Assistant camera
+      if (!selectedHACamera) {
+        setError('Please select a Home Assistant camera');
+        return;
+      }
+
+      const proxyUrl = getCameraProxyUrl(selectedHACamera);
+      
+      const config: CameraConfig = {
+        source: 'homeassistant',
+        name: name.trim(),
+        url: proxyUrl,
+        type: 'mjpeg',
+        haEntityId: selectedHACamera,
+      };
+
+      onAdd(config);
     } else {
       // Webcam
       if (!selectedDevice) {
@@ -132,13 +166,17 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     setUsername('');
     setPassword('');
     setSelectedDevice('');
+    setSelectedHACamera('');
   };
 
   const handleClose = () => {
     setError(null);
     setHasLoadedWebcams(false);
+    setHasLoadedHACameras(false);
     onOpenChange(false);
   };
+
+  const haConfigured = haConfig.url && haConfig.token;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -149,19 +187,23 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
             Add Camera
           </DialogTitle>
           <DialogDescription>
-            Add a webcam or network camera to your monitoring grid.
+            Add a webcam, network camera, or Home Assistant camera.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="webcam" className="flex items-center gap-2">
-              <Webcam className="h-4 w-4" />
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="webcam" className="flex items-center gap-1 text-xs">
+              <Webcam className="h-3 w-3" />
               Webcam
             </TabsTrigger>
-            <TabsTrigger value="network" className="flex items-center gap-2">
-              <Wifi className="h-4 w-4" />
-              Network Camera
+            <TabsTrigger value="network" className="flex items-center gap-1 text-xs">
+              <Wifi className="h-3 w-3" />
+              Network
+            </TabsTrigger>
+            <TabsTrigger value="homeassistant" className="flex items-center gap-1 text-xs">
+              <Home className="h-3 w-3" />
+              Home Assistant
             </TabsTrigger>
           </TabsList>
 
@@ -177,7 +219,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
               <Label htmlFor="name">Camera Name</Label>
               <Input
                 id="name"
-                placeholder={tab === 'webcam' ? 'My Webcam' : 'Front Door'}
+                placeholder={tab === 'webcam' ? 'My Webcam' : tab === 'homeassistant' ? 'Front Door (HA)' : 'Front Door'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -261,6 +303,51 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="homeassistant" className="space-y-4 mt-0">
+              {!haConfigured ? (
+                <div className="text-center py-4">
+                  <Home className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Home Assistant not configured
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Configure your Home Assistant URL and token in Settings → Home Assistant
+                  </p>
+                </div>
+              ) : haLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : haCameras.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-2">No cameras found in Home Assistant</p>
+                  <Button variant="outline" size="sm" onClick={loadHACameras}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Cameras
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="ha-camera">Select Camera</Label>
+                  <Select value={selectedHACamera} onValueChange={setSelectedHACamera}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a Home Assistant camera" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {haCameras.map((camera) => (
+                        <SelectItem key={camera.entity_id} value={camera.entity_id}>
+                          {camera.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Camera stream will be proxied through Home Assistant
+                  </p>
                 </div>
               )}
             </TabsContent>
