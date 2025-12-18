@@ -173,9 +173,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
     const emailData: any = {
-      from: "CamAlert <noreply@resend.dev>",
+      from: "Camera Stream <noreply@resend.dev>",
       to: [sanitizeInput(email)],
-      subject: "🚨 Motion Detected - CamAlert",
+      subject: "🚨 Motion Detected - Camera Stream",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
@@ -206,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-            This is an automated alert from your CamAlert system. To stop receiving these notifications, please disable motion detection in your camera settings.
+            This is an automated alert from your Camera Stream system. To stop receiving these notifications, please disable motion detection in your camera settings.
           </p>
         </div>
       `,

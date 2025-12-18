@@ -1,4 +1,4 @@
-# CamAlert - Smart Camera Monitoring System
+# Camera Stream - Smart Camera Monitoring System
 
 A powerful web-based camera monitoring system with motion detection, email alerts, and automatic recording storage to your Raspberry Pi's SD card.
 
@@ -80,8 +80,8 @@ If you're using a Raspberry Pi Camera Module:
 2. **Install Camera Streaming Service**:
    ```bash
    # Clone the pi-service repository to your Pi
-   git clone https://github.com/Shiki07/camalert.git
-   cd camalert/pi-service
+   git clone https://github.com/Shiki07/camera-stream.git
+   cd camera-stream/pi-service
    
    # Install dependencies
    npm install
@@ -190,19 +190,19 @@ If you're using a Raspberry Pi Camera Module:
 
 1. **Create Camera Stream Service** (if using Pi Camera):
    ```bash
-   sudo nano /etc/systemd/system/camalert-camera.service
+   sudo nano /etc/systemd/system/camera-stream.service
    ```
    
    Add:
    ```ini
    [Unit]
-   Description=CamAlert Camera Stream
+   Description=Camera Stream Service
    After=network.target
    
    [Service]
    Type=simple
    User=pi
-   WorkingDirectory=/home/pi/camalert/pi-service
+   WorkingDirectory=/home/pi/camera-stream/pi-service
    ExecStart=/usr/bin/python3 libcamera_stream.py
    Restart=always
    RestartSec=10
@@ -213,19 +213,19 @@ If you're using a Raspberry Pi Camera Module:
 
 2. **Create Pi Storage Service**:
    ```bash
-   sudo nano /etc/systemd/system/camalert-storage.service
+   sudo nano /etc/systemd/system/camera-stream-storage.service
    ```
    
    Add:
    ```ini
    [Unit]
-   Description=CamAlert Pi Storage Service
+   Description=Camera Stream Pi Storage Service
    After=network.target
    
    [Service]
    Type=simple
    User=pi
-   WorkingDirectory=/home/pi/camalert/pi-service
+   WorkingDirectory=/home/pi/camera-stream/pi-service
    ExecStart=/usr/bin/node server.js
    Restart=always
    RestartSec=10
@@ -237,16 +237,16 @@ If you're using a Raspberry Pi Camera Module:
 3. **Enable and Start Services**:
    ```bash
    # Enable auto-start
-   sudo systemctl enable camalert-camera.service   # If using Pi camera
-   sudo systemctl enable camalert-storage.service
+   sudo systemctl enable camera-stream.service   # If using Pi camera
+   sudo systemctl enable camera-stream-storage.service
    
    # Start services
-   sudo systemctl start camalert-camera.service    # If using Pi camera
-   sudo systemctl start camalert-storage.service
+   sudo systemctl start camera-stream.service    # If using Pi camera
+   sudo systemctl start camera-stream-storage.service
    
    # Check status
-   sudo systemctl status camalert-camera.service   # If using Pi camera
-   sudo systemctl status camalert-storage.service
+   sudo systemctl status camera-stream.service   # If using Pi camera
+   sudo systemctl status camera-stream-storage.service
    ```
 
 ### Step 7: Final Verification
@@ -267,10 +267,10 @@ If you're using a Raspberry Pi Camera Module:
 2. **View Service Logs** (if issues):
    ```bash
    # Camera service logs
-   sudo journalctl -u camalert-camera.service -f
+   sudo journalctl -u camera-stream.service -f
    
    # Storage service logs
-   sudo journalctl -u camalert-storage.service -f
+   sudo journalctl -u camera-stream-storage.service -f
    
    # System logs
    sudo journalctl -f
@@ -283,7 +283,7 @@ If you're using a Raspberry Pi Camera Module:
 ### Step 1: Configure Camera Source
 
 1. **Access the Webapp**:
-   - Open your CamAlert webapp
+   - Open your Camera Stream webapp
    - Login with your account
 
 2. **Add Camera Source**:
@@ -331,12 +331,12 @@ sudo netstat -tulpn | grep :8000  # Camera stream
 sudo netstat -tulpn | grep :3002  # Storage service
 
 # Check service status
-sudo systemctl status camalert-camera.service
-sudo systemctl status camalert-storage.service
+sudo systemctl status camera-stream.service
+sudo systemctl status camera-stream-storage.service
 
 # Restart services
-sudo systemctl restart camalert-camera.service
-sudo systemctl restart camalert-storage.service
+sudo systemctl restart camera-stream.service
+sudo systemctl restart camera-stream-storage.service
 ```
 
 ### Connection Test Failures
@@ -382,7 +382,7 @@ sudo systemctl restart camalert-storage.service
    cat /home/pi/Videos/upload_log.json
    
    # Check service logs
-   sudo journalctl -u camalert-storage.service -f
+   sudo journalctl -u camera-stream-storage.service -f
    ```
 
 3. **Test Manual Upload**:
@@ -407,7 +407,7 @@ The system now uses improved signal-based stopping for reliable recording termin
    ps aux | grep ffmpeg
    
    # Check service logs for stop attempts
-   sudo journalctl -u camalert-storage.service -f
+   sudo journalctl -u camera-stream-storage.service -f
    
    # Manually kill stuck FFmpeg process (if needed)
    sudo pkill -9 ffmpeg
@@ -434,7 +434,7 @@ The system now uses improved signal-based stopping for reliable recording termin
 
 ## 🎉 You're All Set!
 
-Your CamAlert system is now ready with:
+Your Camera Stream system is now ready with:
 - ✅ Pi camera streaming (if configured)
 - ✅ Automatic recording storage to Pi's SD card
 - ✅ Motion detection with email alerts
@@ -468,11 +468,11 @@ Your recordings are automatically saved to `/home/pi/Videos/` with filenames lik
 
 ## 🏠 Home Assistant Integration
 
-CamAlert integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection.
+Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection.
 
 ### What You Can Do
 
-- **View HA cameras** in the CamAlert webapp alongside your other cameras
+- **View HA cameras** in the Camera Stream webapp alongside your other cameras
 - **Motion detection** on HA camera feeds with email alerts
 - **Webhook notifications** to Home Assistant when motion is detected
 - **Trigger automations** in HA based on camera motion events
@@ -485,9 +485,9 @@ CamAlert integrates seamlessly with Home Assistant, allowing you to view your HA
 
 ---
 
-## 🔗 Connecting CamAlert Webapp to Home Assistant
+## 🔗 Connecting Camera Stream Webapp to Home Assistant
 
-Follow these steps to connect your CamAlert webapp to Home Assistant:
+Follow these steps to connect your Camera Stream webapp to Home Assistant:
 
 ### Step 1: Create a Long-Lived Access Token
 
@@ -495,14 +495,14 @@ Follow these steps to connect your CamAlert webapp to Home Assistant:
 2. Click on your **profile icon** (bottom left corner)
 3. Scroll down to **Long-Lived Access Tokens**
 4. Click **Create Token**
-5. Give it a name (e.g., "CamAlert")
+5. Give it a name (e.g., "Camera Stream")
 6. **Copy the token immediately** - it won't be shown again!
 
 > ⚠️ **Important**: Store this token securely. Anyone with this token can access your Home Assistant instance.
 
-### Step 2: Configure Home Assistant in CamAlert
+### Step 2: Configure Home Assistant in Camera Stream
 
-1. Open CamAlert webapp and log in
+1. Open Camera Stream webapp and log in
 2. Click the **Settings** icon (gear icon)
 3. Scroll to **Home Assistant Settings** section
 4. Toggle **Enable Home Assistant Integration**
@@ -515,23 +515,23 @@ Follow these steps to connect your CamAlert webapp to Home Assistant:
 8. Click **Test Connection** to verify everything works
 9. Click **Save Configuration**
 
-### Step 3: Add Home Assistant Cameras to CamAlert
+### Step 3: Add Home Assistant Cameras to Camera Stream
 
-1. In CamAlert, click **Add Camera** on your dashboard
+1. In Camera Stream, click **Add Camera** on your dashboard
 2. In the camera source selector, choose **Home Assistant**
 3. Click **Fetch Cameras** to discover your HA camera entities
 4. Select the camera you want to add from the list
 5. Click **Connect** to start viewing the camera feed
 
-Your Home Assistant cameras will now appear in CamAlert alongside any other cameras you've configured.
+Your Home Assistant cameras will now appear in Camera Stream alongside any other cameras you've configured.
 
 ### Step 4: Set Up Motion Detection Webhooks (Optional)
 
-CamAlert can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations like turning on lights, sending notifications, or recording video.
+Camera Stream can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations like turning on lights, sending notifications, or recording video.
 
-**Configure Webhook in CamAlert:**
-1. Go to **Home Assistant Settings** in CamAlert
-2. Enter a **Webhook ID** (e.g., `camalert_motion`)
+**Configure Webhook in Camera Stream:**
+1. Go to **Home Assistant Settings** in Camera Stream
+2. Enter a **Webhook ID** (e.g., `camera_stream_motion`)
 3. Motion events will automatically be sent to HA when detected
 
 **Create an Automation in Home Assistant:**
@@ -539,10 +539,10 @@ CamAlert can send webhooks to Home Assistant when motion is detected, allowing y
 Add this to your `automations.yaml` or create via the HA UI:
 ```yaml
 automation:
-  - alias: "CamAlert Motion Alert"
+  - alias: "Camera Stream Motion Alert"
     trigger:
       - platform: webhook
-        webhook_id: camalert_motion
+        webhook_id: camera_stream_motion
     action:
       - service: notify.mobile_app_your_phone
         data:

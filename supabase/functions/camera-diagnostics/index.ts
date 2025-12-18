@@ -212,7 +212,7 @@ serve(async (req) => {
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'CamAlert-Diagnostics/1.0'
+          'User-Agent': 'CameraStream-Diagnostics/1.0'
         }
       });
       
@@ -250,7 +250,7 @@ serve(async (req) => {
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'CamAlert-Diagnostics/1.0',
+          'User-Agent': 'CameraStream-Diagnostics/1.0',
           'Accept': 'image/jpeg, multipart/x-mixed-replace, */*'
         }
       });

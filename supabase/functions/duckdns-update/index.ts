@@ -231,7 +231,7 @@ serve(async (req) => {
         const response = await fetch(duckdnsUrl, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'CamAlert/1.0'
+            'User-Agent': 'CameraStream/1.0'
           }
         });
         

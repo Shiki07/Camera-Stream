@@ -157,7 +157,7 @@ const handler = async (req: Request): Promise<Response> => {
       const response = await fetch(`${normalizedEndpoint}/health`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'CamAlert-Cloud-Test/1.0'
+          'User-Agent': 'CameraStream-Cloud-Test/1.0'
         },
         signal: controller.signal
       });

@@ -33,12 +33,12 @@ const Index = () => {
             <p className="text-sm text-foreground">
               Need just one camera? Visit{' '}
               <a 
-                href="https://rpicamalert.xyz" 
+                href="https://camerastream.live" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 underline font-semibold"
               >
-                rpicamalert.xyz
+                camerastream.live
               </a>
             </p>
             <div className="hidden sm:block w-px h-4 bg-amber-500/50" />
