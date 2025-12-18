@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,25 +21,41 @@ export const HomeAssistantSettings = () => {
 
   const [showToken, setShowToken] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Update local config when hook config changes
-  useState(() => {
+  useEffect(() => {
     setLocalConfig(config);
-  });
+  }, [config]);
 
-  const handleSave = () => {
-    saveConfig(localConfig);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await saveConfig(localConfig);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTest = async () => {
     // Save first, then test
-    saveConfig(localConfig);
-    await testConnection();
+    setIsSaving(true);
+    try {
+      await saveConfig(localConfig);
+      await testConnection();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFetchCameras = async () => {
-    saveConfig(localConfig);
-    await fetchCameras();
+    setIsSaving(true);
+    try {
+      await saveConfig(localConfig);
+      await fetchCameras();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -153,19 +169,20 @@ export const HomeAssistantSettings = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleSave} variant="outline">
+          <Button onClick={handleSave} variant="outline" disabled={isSaving}>
+            {isSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save Settings
           </Button>
-          <Button onClick={handleTest} disabled={loading || !localConfig.url || !localConfig.token}>
-            {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <TestTube className="h-4 w-4 mr-2" />}
+          <Button onClick={handleTest} disabled={loading || isSaving || !localConfig.url || !localConfig.token}>
+            {loading || isSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <TestTube className="h-4 w-4 mr-2" />}
             Test Connection
           </Button>
           <Button 
             onClick={handleFetchCameras} 
             variant="secondary"
-            disabled={loading || !localConfig.url || !localConfig.token}
+            disabled={loading || isSaving || !localConfig.url || !localConfig.token}
           >
-            {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {loading || isSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             Fetch Cameras
           </Button>
         </div>
