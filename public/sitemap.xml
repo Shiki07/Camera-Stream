@@ -1,45 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Homepage - Highest Priority -->
   <url>
     <loc>https://www.camerastream.live/</loc>
-    <lastmod>2025-12-16</lastmod>
+    <lastmod>2025-12-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://www.camerastream.live/og-image.jpg</image:loc>
+      <image:title>Camera Stream - Privacy-Focused Security Camera System</image:title>
+      <image:caption>Professional camera monitoring dashboard with motion detection and real-time alerts</image:caption>
+    </image:image>
   </url>
+  
+  <!-- Landing Page -->
+  <url>
+    <loc>https://www.camerastream.live/landing</loc>
+    <lastmod>2025-12-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  
+  <!-- Dashboard - Main App -->
   <url>
     <loc>https://www.camerastream.live/dashboard</loc>
-    <lastmod>2025-12-16</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2025-12-18</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
+  
+  <!-- Authentication -->
   <url>
     <loc>https://www.camerastream.live/auth</loc>
-    <lastmod>2025-12-16</lastmod>
+    <lastmod>2025-12-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  
+  <!-- Documentation - Important for SEO -->
   <url>
     <loc>https://www.camerastream.live/documentation</loc>
-    <lastmod>2025-12-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2025-12-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
+  
+  <!-- Contact Page -->
   <url>
     <loc>https://www.camerastream.live/contact</loc>
-    <lastmod>2025-12-16</lastmod>
+    <lastmod>2025-12-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  
+  <!-- Privacy Policy -->
   <url>
     <loc>https://www.camerastream.live/privacy</loc>
-    <lastmod>2025-12-16</lastmod>
+    <lastmod>2025-12-18</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
+  
+  <!-- Terms of Service -->
   <url>
     <loc>https://www.camerastream.live/terms</loc>
-    <lastmod>2025-12-16</lastmod>
+    <lastmod>2025-12-18</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
+  
 </urlset>
