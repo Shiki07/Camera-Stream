@@ -233,7 +233,7 @@ const Documentation = () => {
               <a href="mailto:support@camerastream.live">
                 <Button>Contact Support</Button>
               </a>
-              <a href="https://github.com/Shiki07/cam-alert" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/Shiki07/Camera-Stream" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline">View on GitHub</Button>
               </a>
             </div>

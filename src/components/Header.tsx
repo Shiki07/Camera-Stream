@@ -36,8 +36,8 @@ const Header = () => {
             asChild
           >
             <a 
-              href="https://github.com/Shiki07/cam-alert" 
-              target="_blank" 
+              href="https://github.com/Shiki07/Camera-Stream" 
+              target="_blank"
               rel="noopener noreferrer"
             >
               <Github className="w-4 h-4 mr-2" />
