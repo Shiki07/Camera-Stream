@@ -80,8 +80,8 @@ If you're using a Raspberry Pi Camera Module:
 2. **Install Camera Streaming Service**:
    ```bash
    # Clone the pi-service repository to your Pi
-   git clone https://github.com/Shiki07/camera-stream.git
-   cd camera-stream/pi-service
+   git clone https://github.com/Shiki07/Camera-Stream.git
+   cd Camera-Stream/pi-service
    
    # Install dependencies
    npm install
