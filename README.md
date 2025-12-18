@@ -468,7 +468,14 @@ Your recordings are automatically saved to `/home/pi/Videos/` with filenames lik
 
 ## 🏠 Home Assistant Integration
 
-Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras and trigger automations based on motion detection.
+CamAlert integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection.
+
+### What You Can Do
+
+- **View HA cameras** in the CamAlert webapp alongside your other cameras
+- **Motion detection** on HA camera feeds with email alerts
+- **Webhook notifications** to Home Assistant when motion is detected
+- **Trigger automations** in HA based on camera motion events
 
 ### Prerequisites
 
@@ -476,50 +483,66 @@ Camera Stream integrates seamlessly with Home Assistant, allowing you to view yo
 - Long-Lived Access Token from Home Assistant
 - Camera entities configured in Home Assistant
 
+---
+
+## 🔗 Connecting CamAlert Webapp to Home Assistant
+
+Follow these steps to connect your CamAlert webapp to Home Assistant:
+
 ### Step 1: Create a Long-Lived Access Token
 
 1. Open your Home Assistant dashboard
-2. Click on your profile (bottom left)
+2. Click on your **profile icon** (bottom left corner)
 3. Scroll down to **Long-Lived Access Tokens**
 4. Click **Create Token**
-5. Give it a name (e.g., "Camera Stream")
+5. Give it a name (e.g., "CamAlert")
 6. **Copy the token immediately** - it won't be shown again!
 
-### Step 2: Configure Home Assistant in Camera Stream
+> ⚠️ **Important**: Store this token securely. Anyone with this token can access your Home Assistant instance.
 
-1. Open Camera Stream and go to Settings
-2. Navigate to **Home Assistant Settings**
-3. Enter your Home Assistant URL:
-   - **Local**: `http://homeassistant.local:8123` or `http://YOUR_HA_IP:8123`
-   - **Nabu Casa**: `https://YOUR_INSTANCE.ui.nabu.casa`
-4. Paste your Long-Lived Access Token
-5. Click **Test Connection** to verify
-6. Click **Save Configuration**
+### Step 2: Configure Home Assistant in CamAlert
 
-### Step 3: Add Home Assistant Cameras
+1. Open CamAlert webapp and log in
+2. Click the **Settings** icon (gear icon)
+3. Scroll to **Home Assistant Settings** section
+4. Toggle **Enable Home Assistant Integration**
+5. Enter your Home Assistant URL:
+   - **Local network**: `http://homeassistant.local:8123` or `http://YOUR_HA_IP:8123`
+   - **Nabu Casa cloud**: `https://YOUR_INSTANCE.ui.nabu.casa`
+   - **Custom domain**: `https://your-ha-domain.com`
+6. Paste your **Long-Lived Access Token**
+7. (Optional) Enter a **Webhook ID** for motion event automations
+8. Click **Test Connection** to verify everything works
+9. Click **Save Configuration**
 
-1. Click **Add Camera** in your dashboard
-2. Select **Home Assistant** as the camera source
-3. Your HA camera entities will be automatically discovered
-4. Select the camera you want to add
-5. Click **Connect**
+### Step 3: Add Home Assistant Cameras to CamAlert
+
+1. In CamAlert, click **Add Camera** on your dashboard
+2. In the camera source selector, choose **Home Assistant**
+3. Click **Fetch Cameras** to discover your HA camera entities
+4. Select the camera you want to add from the list
+5. Click **Connect** to start viewing the camera feed
+
+Your Home Assistant cameras will now appear in CamAlert alongside any other cameras you've configured.
 
 ### Step 4: Set Up Motion Detection Webhooks (Optional)
 
-Camera Stream can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations.
+CamAlert can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations like turning on lights, sending notifications, or recording video.
 
-**In Camera Stream:**
-1. Go to Home Assistant Settings
-2. Enter a **Webhook ID** (e.g., `camera_stream_motion`)
-3. Enable **Send Motion Events**
+**Configure Webhook in CamAlert:**
+1. Go to **Home Assistant Settings** in CamAlert
+2. Enter a **Webhook ID** (e.g., `camalert_motion`)
+3. Motion events will automatically be sent to HA when detected
 
-**In Home Assistant (automation.yaml or UI):**
+**Create an Automation in Home Assistant:**
+
+Add this to your `automations.yaml` or create via the HA UI:
 ```yaml
 automation:
-  - alias: "Camera Stream Motion Alert"
+  - alias: "CamAlert Motion Alert"
     trigger:
       - platform: webhook
-        webhook_id: camera_stream_motion
+        webhook_id: camalert_motion
     action:
       - service: notify.mobile_app_your_phone
         data:
