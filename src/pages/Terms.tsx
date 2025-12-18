@@ -10,7 +10,7 @@ const Terms = () => {
         title="Terms of Service - Camera Stream | User Agreement"
         description="Terms and conditions for using Camera Stream security camera monitoring service."
         keywords="camera stream terms of service, user agreement, terms and conditions"
-        canonical="https://www.rpicamalert.xyz/terms"
+        canonical="https://www.camerastream.live/terms"
       />
       
       <div className="min-h-screen bg-background">
