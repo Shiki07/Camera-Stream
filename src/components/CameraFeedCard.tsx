@@ -33,8 +33,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface CameraConfig extends NetworkCameraConfig {
-  source: 'webcam' | 'network';
+  source: 'webcam' | 'network' | 'homeassistant';
   deviceId?: string;
+  haEntityId?: string;
 }
 
 interface CameraFeedCardProps {

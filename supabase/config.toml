@@ -1,7 +1,10 @@
-project_id = "mlrouwmtqdrlbwhacmic"
+project_id = "pqxslnhcickmlkjlxndo"
 
 [functions.pi-recording]
 verify_jwt = true
 
 [functions.test-pi-connection]
 verify_jwt = true
+
+[functions.ha-camera-proxy]
+verify_jwt = false

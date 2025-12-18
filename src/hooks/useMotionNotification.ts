@@ -2,15 +2,18 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useHomeAssistant } from '@/hooks/useHomeAssistant';
 
 interface MotionNotificationOptions {
   email: string;
   enabled: boolean;
   includeAttachment?: boolean;
+  cameraName?: string;
 }
 
 export const useMotionNotification = (options: MotionNotificationOptions) => {
   const { toast } = useToast();
+  const { sendMotionEvent, config: haConfig } = useHomeAssistant();
 
   const captureFrameAsBase64 = useCallback((videoElement: HTMLVideoElement): string => {
     try {
@@ -73,6 +76,12 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
     motionLevel?: number,
     imageElement?: HTMLImageElement
   ) => {
+    // Send Home Assistant webhook if enabled
+    if (haConfig.enabled && haConfig.webhookId) {
+      console.log('Sending motion event to Home Assistant');
+      await sendMotionEvent(options.cameraName || 'Camera', motionLevel || 0);
+    }
+
     if (!options.enabled || !options.email) {
       console.log('Motion notifications disabled or no email provided');
       return;
@@ -147,7 +156,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
         variant: "destructive"
       });
     }
-  }, [options, captureFrameAsBase64, captureImageAsBase64, toast]);
+  }, [options, captureFrameAsBase64, captureImageAsBase64, toast, haConfig, sendMotionEvent]);
 
   return {
     sendMotionAlert

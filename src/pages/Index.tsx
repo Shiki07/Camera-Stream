@@ -9,6 +9,7 @@ import { MotionEventDashboard } from "@/components/MotionEventDashboard";
 import { CloudStorageSettings } from "@/components/CloudStorageSettings";
 import { FolderSettings } from "@/components/FolderSettings";
 import { PiServiceSettings } from "@/components/PiServiceSettings";
+import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useState } from "react";
@@ -108,6 +109,7 @@ const Index = () => {
                     onDateOrganizedTogglePi={setDateOrganizedFoldersPi}
                   />
                   <PiServiceSettings />
+                  <HomeAssistantSettings />
                 </div>
               </div>
             </TabsContent>
