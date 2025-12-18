@@ -36,6 +36,11 @@ export const useNetworkCamera = () => {
   const connectionAgeRef = useRef<number>(Date.now());
   const overlappingConnectionRef = useRef<AbortController | null>(null);
 
+  // Track tab visibility to handle reconnection when tab becomes visible
+  const wasHiddenRef = useRef(false);
+  const visibilityReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const visibilityCleanupRef = useRef<(() => void) | null>(null);
+
   // Connection stabilizer for proactive monitoring (disabled to prevent unnecessary reconnections)
   const connectionStabilizer = useConnectionStabilizer({
     enabled: false, // Disabled - let stream handle its own resilience
@@ -97,6 +102,12 @@ export const useNetworkCamera = () => {
   const softCleanupStream = useCallback(() => {
     console.log('useNetworkCamera: Soft cleanup - preserving current frame');
     
+    // Clean up visibility listener
+    if (visibilityCleanupRef.current) {
+      visibilityCleanupRef.current();
+      visibilityCleanupRef.current = null;
+    }
+    
     // Cancel any pending fetch operations gracefully
     if (fetchControllerRef.current) {
       try {
@@ -144,6 +155,12 @@ export const useNetworkCamera = () => {
     isConnectingRef.current = false;
     isConnectedRef.current = false;
     
+    // Clear visibility reconnect timeout
+    if (visibilityReconnectTimeoutRef.current) {
+      clearTimeout(visibilityReconnectTimeoutRef.current);
+      visibilityReconnectTimeoutRef.current = null;
+    }
+    
     // Do soft cleanup first
     softCleanupStream();
     
@@ -178,6 +195,12 @@ export const useNetworkCamera = () => {
   const startOverlappingConnection = useCallback(async (imgElement: HTMLImageElement, config: NetworkCameraConfig) => {
     console.log('useNetworkCamera: Executing seamless restart - preserving current frame');
     
+    // Prevent multiple simultaneous reconnection attempts
+    if (isConnectingRef.current) {
+      console.log('useNetworkCamera: Reconnection already in progress, skipping');
+      return;
+    }
+    
     // Don't clear the current image - keep showing the last frame
     // This prevents the black screen flash
     
@@ -185,6 +208,7 @@ export const useNetworkCamera = () => {
     frameCountRef.current = 0;
     setReconnectAttempts(0);
     connectionAgeRef.current = Date.now();
+    lastFrameTimeRef.current = Date.now(); // Reset to prevent immediate re-trigger
     
     // Cancel current fetch but don't clear the image
     if (fetchControllerRef.current) {
@@ -206,11 +230,12 @@ export const useNetworkCamera = () => {
       readerRef.current = null;
     }
     
-    // Small delay to let the abort complete, but keep showing current frame
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Slightly longer delay to let the abort complete fully, but keep showing current frame
+    await new Promise(resolve => setTimeout(resolve, 250));
     
     // Start new connection - the image will only update when new frames arrive
     if (isActiveRef.current) {
+      console.log('useNetworkCamera: Starting new stream connection');
       connectToMJPEGStream(imgElement, config);
     }
   }, []);
@@ -352,9 +377,46 @@ export const useNetworkCamera = () => {
         heartbeatRef.current = null;
       }
       
+      // Set up visibility change handler for this stream
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Tab is being hidden - mark it
+          wasHiddenRef.current = true;
+          console.log('useNetworkCamera: Tab hidden, stream will pause');
+        } else if (wasHiddenRef.current && isActiveRef.current) {
+          // Tab is becoming visible again and we were hidden
+          wasHiddenRef.current = false;
+          console.log('useNetworkCamera: Tab visible again, triggering seamless reconnect');
+          
+          // Reset the last frame time to prevent immediate stale detection
+          lastFrameTimeRef.current = Date.now();
+          
+          // Clear any pending visibility reconnect
+          if (visibilityReconnectTimeoutRef.current) {
+            clearTimeout(visibilityReconnectTimeoutRef.current);
+          }
+          
+          // Trigger seamless reconnection after a short delay
+          visibilityReconnectTimeoutRef.current = setTimeout(() => {
+            if (isActiveRef.current && isConnectedRef.current) {
+              console.log('useNetworkCamera: Executing visibility-triggered seamless reconnect');
+              startOverlappingConnection(imgElement, config);
+            }
+          }, 500);
+        }
+      };
+      
+      // Add visibility listener
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Store cleanup function in ref for later cleanup
+      visibilityCleanupRef.current = () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+      
       // Start heartbeat monitor to detect stale streams (frames stop arriving)
       // Increased threshold to reduce false positives - Pi streams can have gaps
-      const STALE_THRESHOLD_MS = 15000; // 15 seconds without frames = stale
+      const STALE_THRESHOLD_MS = 20000; // 20 seconds without frames = stale (increased from 15)
       const HEARTBEAT_CHECK_MS = 5000; // Check every 5 seconds (less aggressive)
       
       heartbeatRef.current = setInterval(() => {
