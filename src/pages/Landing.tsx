@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { 
   Camera, Shield, Bell, Smartphone, Cloud, Zap, 
-  Eye, Lock, Settings, Monitor, HardDrive, Wifi, HelpCircle
+  Eye, Lock, Settings, Monitor, HardDrive, Wifi, HelpCircle, Home
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 
@@ -21,7 +21,7 @@ const faqData = [
   },
   {
     question: "What types of cameras are supported?",
-    answer: "Camera Stream supports a wide range of cameras including USB webcams, IP cameras with RTSP/MJPEG streams, network cameras, and Raspberry Pi cameras. If your camera can output a video stream, it likely works with Camera Stream."
+    answer: "Camera Stream supports a wide range of cameras including USB webcams, IP cameras with RTSP/MJPEG streams, network cameras, Raspberry Pi cameras, and Home Assistant camera entities. If your camera can output a video stream, it likely works with Camera Stream."
   },
   {
     question: "Where are my recordings stored?",
@@ -157,6 +157,97 @@ const Landing = () => {
                 title="Multi-Camera Support"
                 description="Connect webcams, IP cameras, and network cameras. Manage everything from one dashboard."
               />
+              <FeatureCard
+                icon={<Home className="h-8 w-8" />}
+                title="Home Assistant Integration"
+                description="Connect your Home Assistant cameras directly. Trigger automations on motion detection events."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Home Assistant Integration Section */}
+        <section className="py-16 md:py-24 border-b border-border">
+          <div className="container mx-auto px-4">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
+                  <Home className="h-5 w-5" />
+                  <span className="font-semibold">Home Assistant Compatible</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                  Seamless Home Assistant Integration
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6">
+                  Already using Home Assistant for your smart home? Camera Stream integrates 
+                  directly with your HA instance, letting you view all your cameras in one 
+                  privacy-focused dashboard.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-start gap-3">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                      <Camera className="h-3 w-3 text-primary" />
+                    </div>
+                    <span>Stream any Home Assistant camera entity directly</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                      <Bell className="h-3 w-3 text-primary" />
+                    </div>
+                    <span>Send motion detection webhooks to trigger HA automations</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                      <Lock className="h-3 w-3 text-primary" />
+                    </div>
+                    <span>Secure connection using your HA Long-Lived Access Token</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                      <Zap className="h-3 w-3 text-primary" />
+                    </div>
+                    <span>Works with local HA or Nabu Casa cloud access</span>
+                  </li>
+                </ul>
+                <Link to="/documentation">
+                  <Button variant="outline" size="lg">
+                    View Setup Guide
+                  </Button>
+                </Link>
+              </div>
+              <div className="bg-muted/50 rounded-xl p-8 border border-border">
+                <h3 className="font-semibold text-lg mb-4">Quick Setup Steps</h3>
+                <ol className="space-y-4">
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">1</span>
+                    <div>
+                      <p className="font-medium">Create a Long-Lived Access Token</p>
+                      <p className="text-sm text-muted-foreground">In Home Assistant: Profile → Security → Create Token</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">2</span>
+                    <div>
+                      <p className="font-medium">Enter Your HA URL</p>
+                      <p className="text-sm text-muted-foreground">Add your Home Assistant URL (local or Nabu Casa)</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">3</span>
+                    <div>
+                      <p className="font-medium">Select Your Cameras</p>
+                      <p className="text-sm text-muted-foreground">Choose from your discovered camera entities</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">4</span>
+                    <div>
+                      <p className="font-medium">Optional: Add Webhook Automation</p>
+                      <p className="text-sm text-muted-foreground">Create HA automations triggered by motion events</p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
             </div>
           </div>
         </section>

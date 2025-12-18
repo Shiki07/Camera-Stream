@@ -466,6 +466,107 @@ Your recordings are automatically saved to `/home/pi/Videos/` with filenames lik
 
 ---
 
+## 🏠 Home Assistant Integration
+
+Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras and trigger automations based on motion detection.
+
+### Prerequisites
+
+- Home Assistant instance (local or Nabu Casa cloud)
+- Long-Lived Access Token from Home Assistant
+- Camera entities configured in Home Assistant
+
+### Step 1: Create a Long-Lived Access Token
+
+1. Open your Home Assistant dashboard
+2. Click on your profile (bottom left)
+3. Scroll down to **Long-Lived Access Tokens**
+4. Click **Create Token**
+5. Give it a name (e.g., "Camera Stream")
+6. **Copy the token immediately** - it won't be shown again!
+
+### Step 2: Configure Home Assistant in Camera Stream
+
+1. Open Camera Stream and go to Settings
+2. Navigate to **Home Assistant Settings**
+3. Enter your Home Assistant URL:
+   - **Local**: `http://homeassistant.local:8123` or `http://YOUR_HA_IP:8123`
+   - **Nabu Casa**: `https://YOUR_INSTANCE.ui.nabu.casa`
+4. Paste your Long-Lived Access Token
+5. Click **Test Connection** to verify
+6. Click **Save Configuration**
+
+### Step 3: Add Home Assistant Cameras
+
+1. Click **Add Camera** in your dashboard
+2. Select **Home Assistant** as the camera source
+3. Your HA camera entities will be automatically discovered
+4. Select the camera you want to add
+5. Click **Connect**
+
+### Step 4: Set Up Motion Detection Webhooks (Optional)
+
+Camera Stream can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations.
+
+**In Camera Stream:**
+1. Go to Home Assistant Settings
+2. Enter a **Webhook ID** (e.g., `camera_stream_motion`)
+3. Enable **Send Motion Events**
+
+**In Home Assistant (automation.yaml or UI):**
+```yaml
+automation:
+  - alias: "Camera Stream Motion Alert"
+    trigger:
+      - platform: webhook
+        webhook_id: camera_stream_motion
+    action:
+      - service: notify.mobile_app_your_phone
+        data:
+          title: "Motion Detected!"
+          message: "{{ trigger.json.camera_name }} detected motion at {{ trigger.json.timestamp }}"
+      # Add more actions: turn on lights, record video, etc.
+```
+
+**Webhook Payload Example:**
+```json
+{
+  "type": "motion_detected",
+  "camera_name": "Front Door Camera",
+  "motion_level": 75,
+  "timestamp": "2025-01-15T14:30:00.000Z"
+}
+```
+
+### Supported Home Assistant Camera Types
+
+- **Generic Camera** (any MJPEG/image-based camera)
+- **Frigate cameras**
+- **ONVIF cameras**
+- **RTSP cameras** (via HA camera component)
+- **Reolink, Amcrest, Hikvision** (via integrations)
+- **ESPHome cameras**
+- **Any camera entity in HA**
+
+### Troubleshooting Home Assistant Connection
+
+**"Connection Failed" Error:**
+- Verify your HA URL is correct (include `http://` or `https://`)
+- Check that your token hasn't expired
+- Ensure HA is accessible from where Camera Stream is running
+
+**Cameras Not Appearing:**
+- Make sure cameras are properly configured in HA
+- Check that camera entities are not disabled
+- Try refreshing the camera list
+
+**Webhook Not Triggering:**
+- Verify the webhook ID matches exactly in both systems
+- Check Home Assistant logs for incoming webhook requests
+- Ensure HA is accessible from Camera Stream's backend
+
+---
+
 ## Camera Compatibility Guide
 
 ### Supported Camera Types
@@ -473,12 +574,18 @@ Your recordings are automatically saved to `/home/pi/Videos/` with filenames lik
 - **MJPEG Streams** - Most IP cameras and Pi Camera (recommended)
 - **RTSP Streams** - Common for security cameras (partial support)
 - **USB Cameras** - Via MJPEG streaming software
+- **Home Assistant Cameras** - Any camera entity from your HA instance
 
 ### Common Camera Stream URLs
 
 **Raspberry Pi Camera:**
 ```
 http://yourname.duckdns.org:8000/stream.mjpg
+```
+
+**Home Assistant Camera:**
+```
+Configure via Home Assistant integration in settings
 ```
 
 **Generic IP Cameras:**
