@@ -93,13 +93,9 @@ export const useNetworkCamera = () => {
     return { url: originalUrl, headers: {} };
   }, []);
 
-  const cleanupStream = useCallback(() => {
-    console.log('useNetworkCamera: Cleaning up stream resources');
-    
-    // Mark stream as inactive
-    isActiveRef.current = false;
-    isConnectingRef.current = false;
-    isConnectedRef.current = false;
+  // Soft cleanup - stops streaming but preserves current frame (prevents black screen)
+  const softCleanupStream = useCallback(() => {
+    console.log('useNetworkCamera: Soft cleanup - preserving current frame');
     
     // Cancel any pending fetch operations gracefully
     if (fetchControllerRef.current) {
@@ -133,6 +129,24 @@ export const useNetworkCamera = () => {
       heartbeatRef.current = null;
     }
     
+    // Cancel overlapping connections
+    if (overlappingConnectionRef.current) {
+      overlappingConnectionRef.current.abort();
+      overlappingConnectionRef.current = null;
+    }
+  }, []);
+
+  const cleanupStream = useCallback(() => {
+    console.log('useNetworkCamera: Full cleanup - clearing all resources');
+    
+    // Mark stream as inactive
+    isActiveRef.current = false;
+    isConnectingRef.current = false;
+    isConnectedRef.current = false;
+    
+    // Do soft cleanup first
+    softCleanupStream();
+    
     // Cleanup all blob URLs
     blobUrlsRef.current.forEach(url => {
       try {
@@ -143,7 +157,7 @@ export const useNetworkCamera = () => {
     });
     blobUrlsRef.current.clear();
     
-    // Clean up image element
+    // Clean up image element - only on full cleanup
     if (videoRef.current && videoRef.current instanceof HTMLImageElement) {
       if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
         URL.revokeObjectURL(videoRef.current.src);
@@ -158,28 +172,47 @@ export const useNetworkCamera = () => {
     frameRateRef.current = 0;
     lastFrameRateCheckRef.current = Date.now();
     connectionAgeRef.current = Date.now();
-    
-    // Cancel overlapping connections
-    if (overlappingConnectionRef.current) {
-      overlappingConnectionRef.current.abort();
-      overlappingConnectionRef.current = null;
-    }
-  }, []);
+  }, [softCleanupStream]);
 
-  // Zero-delay instant restart for truly seamless experience
+  // Seamless restart that preserves the current frame while reconnecting
   const startOverlappingConnection = useCallback(async (imgElement: HTMLImageElement, config: NetworkCameraConfig) => {
-    console.log('useNetworkCamera: Executing zero-delay instant restart');
+    console.log('useNetworkCamera: Executing seamless restart - preserving current frame');
     
-    // Reset counters immediately
+    // Don't clear the current image - keep showing the last frame
+    // This prevents the black screen flash
+    
+    // Reset counters but don't touch the image element
     frameCountRef.current = 0;
     setReconnectAttempts(0);
     connectionAgeRef.current = Date.now();
     
-    // Start new connection with absolutely zero delay
+    // Cancel current fetch but don't clear the image
+    if (fetchControllerRef.current) {
+      try {
+        fetchControllerRef.current.abort();
+      } catch (error) {
+        // Ignore abort errors
+      }
+      fetchControllerRef.current = null;
+    }
+    
+    // Cancel reader without clearing image
+    if (readerRef.current) {
+      try {
+        readerRef.current.cancel();
+      } catch (error) {
+        // Ignore cancel errors
+      }
+      readerRef.current = null;
+    }
+    
+    // Small delay to let the abort complete, but keep showing current frame
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Start new connection - the image will only update when new frames arrive
     if (isActiveRef.current) {
       connectToMJPEGStream(imgElement, config);
     }
-    
   }, []);
 
   const connectToCamera = useCallback(async (config: NetworkCameraConfig) => {
@@ -320,31 +353,32 @@ export const useNetworkCamera = () => {
       }
       
       // Start heartbeat monitor to detect stale streams (frames stop arriving)
-      const STALE_THRESHOLD_MS = 10000; // 10 seconds without frames = stale
+      // Increased threshold to reduce false positives - Pi streams can have gaps
+      const STALE_THRESHOLD_MS = 15000; // 15 seconds without frames = stale
+      const HEARTBEAT_CHECK_MS = 5000; // Check every 5 seconds (less aggressive)
+      
       heartbeatRef.current = setInterval(() => {
+        // Skip checks when tab is hidden - stream naturally pauses
         if (!isActiveRef.current || document.hidden) return;
         if (!isConnectedRef.current) return;
         
         const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
-        if (timeSinceLastFrame > STALE_THRESHOLD_MS) {
-          console.log(`useNetworkCamera: Stream stale - no frames for ${Math.round(timeSinceLastFrame / 1000)}s, reconnecting...`);
-          
-          // Cancel current stream and reconnect
-          if (fetchControllerRef.current) {
-            fetchControllerRef.current.abort();
-          }
-          
-          // Reset and reconnect
-          setReconnectAttempts(0);
-          lastFrameTimeRef.current = Date.now(); // Prevent immediate re-trigger
-          
-          setTimeout(() => {
-            if (isActiveRef.current) {
-              connectToMJPEGStream(imgElement, config);
-            }
-          }, 500);
+        
+        // Only log if we're getting close to stale threshold
+        if (timeSinceLastFrame > STALE_THRESHOLD_MS / 2) {
+          console.log(`useNetworkCamera: Stream health check - ${Math.round(timeSinceLastFrame / 1000)}s since last frame`);
         }
-      }, 3000); // Check every 3 seconds
+        
+        if (timeSinceLastFrame > STALE_THRESHOLD_MS) {
+          console.log(`useNetworkCamera: Stream stale - no frames for ${Math.round(timeSinceLastFrame / 1000)}s, seamless reconnect...`);
+          
+          // Update last frame time BEFORE reconnecting to prevent race conditions
+          lastFrameTimeRef.current = Date.now();
+          
+          // Use seamless reconnection that preserves the current frame
+          startOverlappingConnection(imgElement, config);
+        }
+      }, HEARTBEAT_CHECK_MS);
 
       // Cancel any existing fetch operations
       if (fetchControllerRef.current) {
