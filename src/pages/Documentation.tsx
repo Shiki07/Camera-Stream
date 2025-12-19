@@ -14,7 +14,7 @@ const Documentation = () => {
         title="Documentation - Camera Stream | Setup Guide & User Manual"
         description="Learn how to set up and use Camera Stream for security monitoring. Step-by-step guides for webcams, IP cameras, motion detection, and alerts."
         keywords="camera stream documentation, setup guide, webcam setup, IP camera configuration, motion detection guide"
-        canonical="https://www.rpicamalert.xyz/documentation"
+        canonical="https://www.camerastream.live/documentation"
       />
       
       <div className="min-h-screen bg-background">

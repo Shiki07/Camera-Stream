@@ -460,6 +460,7 @@ const Landing = () => {
                 <h3 className="font-semibold mb-4">Resources</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><Link to="/documentation" className="hover:text-foreground">Documentation</Link></li>
+                  <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
                   <li><Link to="/contact" className="hover:text-foreground">Contact Us</Link></li>
                   <li><a href="mailto:support@camerastream.live" className="hover:text-foreground">Support</a></li>
                 </ul>
