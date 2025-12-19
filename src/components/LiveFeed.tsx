@@ -527,14 +527,21 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
   // Camera saving is now handled by useEncryptedCameras hook
 
   // Restart camera when quality changes to apply new settings
+  const qualityRef = useRef(quality);
   useEffect(() => {
+    // Skip on initial mount
+    if (qualityRef.current === quality) return;
+    qualityRef.current = quality;
+
     if (isConnected) {
       if (cameraSource === 'webcam') {
         stopCamera();
         setTimeout(() => startWebcam(), 500);
       } else if (cameraSource === 'network' && networkCamera.currentConfig) {
+        // Save config BEFORE stopping (stopCamera clears currentConfig)
+        const savedConfig = { ...networkCamera.currentConfig };
         stopCamera();
-        setTimeout(() => handleConnectNetworkCamera(networkCamera.currentConfig!), 500);
+        setTimeout(() => handleConnectNetworkCamera(savedConfig), 500);
       }
     }
   }, [quality]);
