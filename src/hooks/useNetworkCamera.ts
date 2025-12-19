@@ -205,22 +205,23 @@ export const useNetworkCamera = () => {
   // Seamless restart that preserves the current frame while reconnecting
   const startOverlappingConnection = useCallback(async (imgElement: HTMLImageElement, config: NetworkCameraConfig) => {
     console.log('useNetworkCamera: Executing seamless restart - preserving current frame');
-    
+
     // Prevent multiple simultaneous reconnection attempts
     if (isConnectingRef.current) {
       console.log('useNetworkCamera: Reconnection already in progress, skipping');
       return;
     }
-    
+    isConnectingRef.current = true; // lock until we either reconnect or fully fail
+
     // Don't clear the current image - keep showing the last frame
     // This prevents the black screen flash
-    
+
     // Reset counters but don't touch the image element
     frameCountRef.current = 0;
     setReconnectAttempts(0);
     connectionAgeRef.current = Date.now();
     lastFrameTimeRef.current = Date.now(); // Reset to prevent immediate re-trigger
-    
+
     // Cancel current fetch but don't clear the image
     if (fetchControllerRef.current) {
       try {
@@ -230,7 +231,7 @@ export const useNetworkCamera = () => {
       }
       fetchControllerRef.current = null;
     }
-    
+
     // Cancel reader without clearing image
     if (readerRef.current) {
       try {
@@ -240,14 +241,16 @@ export const useNetworkCamera = () => {
       }
       readerRef.current = null;
     }
-    
+
     // Slightly longer delay to let the abort complete fully, but keep showing current frame
     await new Promise(resolve => setTimeout(resolve, 250));
-    
+
     // Start new connection - the image will only update when new frames arrive
     if (isActiveRef.current) {
       console.log('useNetworkCamera: Starting new stream connection');
       connectToMJPEGStream(imgElement, config);
+    } else {
+      isConnectingRef.current = false;
     }
   }, []);
 
@@ -610,34 +613,21 @@ export const useNetworkCamera = () => {
                   
                   // Create new blob URL first
                   const newBlobUrl = URL.createObjectURL(blob);
-                  
-                  // Store old URL for cleanup AFTER setting new one
-                  const oldBlobUrl = currentBlobUrlRef.current;
-                  
+
                   // Update the image with new frame
                   imgElement.src = newBlobUrl;
                   currentBlobUrlRef.current = newBlobUrl;
-                  
-                  // Now safely revoke the old URL (after new one is displayed)
-                  if (oldBlobUrl) {
-                    // Small delay to ensure browser has switched to new frame
-                    setTimeout(() => {
-                      try {
-                        URL.revokeObjectURL(oldBlobUrl);
-                      } catch (e) {
-                        // Ignore revocation errors
-                      }
-                    }, 50);
-                  }
-                  
-                  // Track for emergency cleanup (limit to 5 as backup)
+
+                  // Keep a small rolling window of blob URLs and only revoke the oldest.
+                  // Revoking the "previous" URL too quickly can blank the frame on some browsers.
                   blobUrlsRef.current.push(newBlobUrl);
-                  while (blobUrlsRef.current.length > 5) {
+                  const MAX_BLOB_URLS = 30;
+                  while (blobUrlsRef.current.length > MAX_BLOB_URLS) {
                     const urlToRevoke = blobUrlsRef.current.shift();
                     if (urlToRevoke && urlToRevoke !== currentBlobUrlRef.current) {
                       try {
                         URL.revokeObjectURL(urlToRevoke);
-                      } catch (e) {
+                      } catch {
                         // Ignore
                       }
                     }
