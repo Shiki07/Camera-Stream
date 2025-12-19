@@ -183,10 +183,29 @@ export const CameraFeedCard = ({
     onMotionCleared: () => setMotionDetected(false),
   });
 
+  // Map quality setting to target constraints
+  const getVideoConstraintsForQuality = useCallback(() => {
+    switch (settings.quality) {
+      case 'high':
+        return { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+      case 'low':
+        return { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } };
+      case 'medium':
+      default:
+        return { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+    }
+  }, [settings.quality]);
+
   // Connect to webcam
   const connectToWebcam = useCallback(async () => {
     if (!config.deviceId) return;
-    
+
+    // Stop any existing stream before reconnecting (important for applying new resolution)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -195,9 +214,7 @@ export const CameraFeedCard = ({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: { exact: config.deviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
+          ...getVideoConstraintsForQuality(),
         },
         audio: true,
       });
@@ -213,7 +230,7 @@ export const CameraFeedCard = ({
     } finally {
       setIsConnecting(false);
     }
-  }, [config.deviceId]);
+  }, [config.deviceId, getVideoConstraintsForQuality]);
 
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
@@ -332,7 +349,23 @@ export const CameraFeedCard = ({
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
     };
-  }, [config.url, config.deviceId, isWebcam]);
+  }, [config.url, config.deviceId, isWebcam, connectToWebcam, connectToNetworkStream]);
+
+  // Refresh camera feed when resolution/quality changes
+  useEffect(() => {
+    if (!isConnected) return;
+
+    // Forcing a reconnect is the simplest reliable way to apply a new stream resolution immediately.
+    if (isWebcam) {
+      connectToWebcam();
+    } else {
+      // Stop current MJPEG read loop + request, then reconnect.
+      isActiveRef.current = false;
+      fetchControllerRef.current?.abort();
+      isActiveRef.current = true;
+      connectToNetworkStream();
+    }
+  }, [settings.quality, isConnected, isWebcam, connectToWebcam, connectToNetworkStream]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
