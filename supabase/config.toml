@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.camera-snapshot]
 verify_jwt = false
+
+[functions.ha-test-connection]
+verify_jwt = false
