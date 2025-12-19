@@ -127,7 +127,7 @@ export const useHomeAssistant = () => {
     }
   }, [toast]);
 
-  // Test connection to Home Assistant
+  // Test connection to Home Assistant via edge function (avoids CORS)
   const testConnection = useCallback(async (): Promise<boolean> => {
     if (!config.url || !config.token) {
       toast({
@@ -140,22 +140,30 @@ export const useHomeAssistant = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${config.url}/api/`, {
-        headers: {
-          Authorization: `Bearer ${config.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-test-connection',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: config.url,
+            token: config.token,
+            action: 'test',
+          }),
+        }
+      );
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setConnected(true);
         toast({
           title: 'Connected to Home Assistant',
-          description: 'Successfully connected to your Home Assistant instance',
+          description: data.message || 'Successfully connected to your Home Assistant instance',
         });
         return true;
       } else {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(data.error || `HTTP ${response.status}`);
       }
     } catch (error) {
       setConnected(false);
@@ -170,7 +178,7 @@ export const useHomeAssistant = () => {
     }
   }, [config.url, config.token, toast]);
 
-  // Fetch available cameras from Home Assistant
+  // Fetch available cameras from Home Assistant via edge function
   const fetchCameras = useCallback(async (): Promise<HACamera[]> => {
     if (!config.url || !config.token) {
       return [];
@@ -178,27 +186,27 @@ export const useHomeAssistant = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${config.url}/api/states`, {
-        headers: {
-          Authorization: `Bearer ${config.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-test-connection',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: config.url,
+            token: config.token,
+            action: 'fetch_cameras',
+          }),
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      const states = await response.json();
-      const cameraEntities = states
-        .filter((entity: any) => entity.entity_id.startsWith('camera.'))
-        .map((entity: any) => ({
-          entity_id: entity.entity_id,
-          name: entity.attributes.friendly_name || entity.entity_id,
-        }));
-
-      setCameras(cameraEntities);
-      return cameraEntities;
+      setCameras(data.cameras || []);
+      return data.cameras || [];
     } catch (error) {
       console.error('Failed to fetch cameras:', error);
       toast({
