@@ -558,7 +558,7 @@ export const CameraFeedCard = ({
 
         {/* Live Clock */}
         {isConnected && (
-          <div className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-mono flex items-center gap-1.5 backdrop-blur-sm">
+          <div className="absolute bottom-12 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-mono flex items-center gap-1.5 backdrop-blur-sm">
             <Clock className="w-3 h-3" />
             <span>{currentTime.toLocaleDateString()}</span>
             <span className="text-green-400">{currentTime.toLocaleTimeString()}</span>
