@@ -18,7 +18,8 @@ import {
   Download,
   Mail,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useImageMotionDetection } from '@/hooks/useImageMotionDetection';
@@ -61,6 +62,15 @@ export const CameraFeedCard = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [motionDetected, setMotionDetected] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Live clock update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
@@ -545,6 +555,15 @@ export const CameraFeedCard = ({
             {isWebcam ? 'Webcam' : 'Network'}
           </Badge>
         </div>
+
+        {/* Live Clock */}
+        {isConnected && (
+          <div className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-mono flex items-center gap-1.5 backdrop-blur-sm">
+            <Clock className="w-3 h-3" />
+            <span>{currentTime.toLocaleDateString()}</span>
+            <span className="text-green-400">{currentTime.toLocaleTimeString()}</span>
+          </div>
+        )}
 
         {/* Control Buttons - Top Right */}
         <div className="absolute top-2 right-2 flex gap-1">
