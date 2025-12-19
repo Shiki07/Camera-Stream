@@ -30,7 +30,8 @@ export const useNetworkCamera = () => {
   const lastFrameTimeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
   const bufferSizeRef = useRef<number>(0);
-  const blobUrlsRef = useRef<Set<string>>(new Set());
+  const blobUrlsRef = useRef<string[]>([]); // Changed to array for proper FIFO ordering
+  const currentBlobUrlRef = useRef<string | null>(null); // Track current displayed URL separately
   const frameRateRef = useRef<number>(0);
   const lastFrameRateCheckRef = useRef<number>(Date.now());
   const connectionAgeRef = useRef<number>(Date.now());
@@ -164,7 +165,7 @@ export const useNetworkCamera = () => {
     // Do soft cleanup first
     softCleanupStream();
     
-    // Cleanup all blob URLs
+    // Cleanup all blob URLs (including current)
     blobUrlsRef.current.forEach(url => {
       try {
         URL.revokeObjectURL(url);
@@ -172,7 +173,17 @@ export const useNetworkCamera = () => {
         console.log('useNetworkCamera: Error revoking blob URL:', error);
       }
     });
-    blobUrlsRef.current.clear();
+    blobUrlsRef.current = [];
+    
+    // Also revoke current blob URL
+    if (currentBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+      } catch (error) {
+        // Ignore
+      }
+      currentBlobUrlRef.current = null;
+    }
     
     // Clean up image element - only on full cleanup
     if (videoRef.current && videoRef.current instanceof HTMLImageElement) {
@@ -597,21 +608,39 @@ export const useNetworkCamera = () => {
                   const frameData = buffer.slice(startIdx, endIdx);
                   const blob = new Blob([frameData], { type: 'image/jpeg' });
                   
-                  // Revoke previous blob URL
-                  if (imgElement.src && imgElement.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(imgElement.src);
-                    blobUrlsRef.current.delete(imgElement.src);
+                  // Create new blob URL first
+                  const newBlobUrl = URL.createObjectURL(blob);
+                  
+                  // Store old URL for cleanup AFTER setting new one
+                  const oldBlobUrl = currentBlobUrlRef.current;
+                  
+                  // Update the image with new frame
+                  imgElement.src = newBlobUrl;
+                  currentBlobUrlRef.current = newBlobUrl;
+                  
+                  // Now safely revoke the old URL (after new one is displayed)
+                  if (oldBlobUrl) {
+                    // Small delay to ensure browser has switched to new frame
+                    setTimeout(() => {
+                      try {
+                        URL.revokeObjectURL(oldBlobUrl);
+                      } catch (e) {
+                        // Ignore revocation errors
+                      }
+                    }, 50);
                   }
                   
-                  const blobUrl = URL.createObjectURL(blob);
-                  imgElement.src = blobUrl;
-                  
-                  // Reduce blob URL buffer for Pi Zero memory optimization
-                  blobUrlsRef.current.add(blobUrl);
-                  if (blobUrlsRef.current.size > 3) { // Reduced from 10 to 3
-                    const oldestUrl = blobUrlsRef.current.values().next().value;
-                    URL.revokeObjectURL(oldestUrl);
-                    blobUrlsRef.current.delete(oldestUrl);
+                  // Track for emergency cleanup (limit to 5 as backup)
+                  blobUrlsRef.current.push(newBlobUrl);
+                  while (blobUrlsRef.current.length > 5) {
+                    const urlToRevoke = blobUrlsRef.current.shift();
+                    if (urlToRevoke && urlToRevoke !== currentBlobUrlRef.current) {
+                      try {
+                        URL.revokeObjectURL(urlToRevoke);
+                      } catch (e) {
+                        // Ignore
+                      }
+                    }
                   }
                   
                   frameCount++;
@@ -702,21 +731,36 @@ export const useNetworkCamera = () => {
         console.log('useNetworkCamera: Processing single JPEG image via fetch');
         const blob = await response.blob();
         
-        // Revoke previous blob URL
-        if (imgElement.src && imgElement.src.startsWith('blob:')) {
-          URL.revokeObjectURL(imgElement.src);
-          blobUrlsRef.current.delete(imgElement.src);
+        // Create new blob URL first
+        const newBlobUrl = URL.createObjectURL(blob);
+        const oldBlobUrl = currentBlobUrlRef.current;
+        
+        // Update image with new frame
+        imgElement.src = newBlobUrl;
+        currentBlobUrlRef.current = newBlobUrl;
+        
+        // Safely revoke old URL after new one is set
+        if (oldBlobUrl) {
+          setTimeout(() => {
+            try {
+              URL.revokeObjectURL(oldBlobUrl);
+            } catch (e) {
+              // Ignore
+            }
+          }, 50);
         }
         
-        const blobUrl = URL.createObjectURL(blob);
-        imgElement.src = blobUrl;
-        
-        // Track blob URL for cleanup
-        blobUrlsRef.current.add(blobUrl);
-        if (blobUrlsRef.current.size > 10) {
-          const oldestUrl = blobUrlsRef.current.values().next().value;
-          URL.revokeObjectURL(oldestUrl);
-          blobUrlsRef.current.delete(oldestUrl);
+        // Track for cleanup
+        blobUrlsRef.current.push(newBlobUrl);
+        while (blobUrlsRef.current.length > 10) {
+          const urlToRevoke = blobUrlsRef.current.shift();
+          if (urlToRevoke && urlToRevoke !== currentBlobUrlRef.current) {
+            try {
+              URL.revokeObjectURL(urlToRevoke);
+            } catch (e) {
+              // Ignore
+            }
+          }
         }
         
         console.log('useNetworkCamera: Single JPEG image loaded successfully');
