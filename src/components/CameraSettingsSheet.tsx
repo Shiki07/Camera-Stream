@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -16,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
 import { useDirectoryPicker } from '@/hooks/useDirectoryPicker';
-import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X } from 'lucide-react';
+import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X, Home } from 'lucide-react';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { ShareToHomeAssistant } from '@/components/ShareToHomeAssistant';
 
 interface CameraSettingsSheetProps {
   open: boolean;
@@ -44,6 +46,7 @@ export const CameraSettingsSheet = ({
   cameraId,
   onRemove,
 }: CameraSettingsSheetProps) => {
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const { settings, updateSetting, isLoading, isSaving } = useCameraInstanceSettings(cameraId);
   const { 
     directoryPath, 
@@ -385,6 +388,29 @@ export const CameraSettingsSheet = ({
           </div>
 
           <Separator />
+
+          {/* Home Assistant Integration */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Home className="h-4 w-4" />
+              <h3 className="font-medium">Home Assistant</h3>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              Export this camera to your Home Assistant instance for integration with automations.
+            </p>
+            
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Share to Home Assistant
+            </Button>
+          </div>
+
+          <Separator />
           <div className="space-y-4">
             <h3 className="font-medium text-destructive">Danger Zone</h3>
             
@@ -418,6 +444,13 @@ export const CameraSettingsSheet = ({
             <span className="text-xs text-muted-foreground">Saving...</span>
           </div>
         )}
+
+        <ShareToHomeAssistant
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          cameraId={cameraId}
+          cameraName={camera.name}
+        />
       </SheetContent>
     </Sheet>
   );
