@@ -534,6 +534,11 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
     qualityRef.current = quality;
 
     if (isConnected) {
+      toast({
+        title: "Changing Resolution",
+        description: `Switching to ${quality} quality...`,
+      });
+      
       if (cameraSource === 'webcam') {
         stopCamera();
         setTimeout(() => startWebcam(), 500);
