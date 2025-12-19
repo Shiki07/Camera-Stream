@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Camera, CameraOff, Video, Square, Wifi } from "lucide-react";
+import { Camera, CameraOff, Video, Square, Wifi, Clock } from "lucide-react";
 
 interface VideoDisplayProps {
   isConnected: boolean;
@@ -44,6 +44,16 @@ export const VideoDisplay = ({
   recordingDuration = 0,
   children
 }: VideoDisplayProps) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Live clock update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -100,9 +110,11 @@ export const VideoDisplay = ({
             )}
           </div>
           
-          {/* Timestamp */}
-          <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-            {new Date().toLocaleTimeString()}
+          {/* Live Clock */}
+          <div className="absolute bottom-4 right-4 bg-black bg-opacity-60 text-white px-3 py-1.5 rounded-lg text-sm font-mono flex items-center gap-2 backdrop-blur-sm">
+            <Clock className="w-4 h-4" />
+            <span>{currentTime.toLocaleDateString()}</span>
+            <span className="text-green-400">{currentTime.toLocaleTimeString()}</span>
           </div>
 
           {/* Camera Controls */}
