@@ -251,6 +251,7 @@ export const CameraFeedCard = ({
       let headers: HeadersInit;
       let shouldTestPi = true;
       let requiresSupabaseJwt = false;
+      let canUseNativeImg = false;
 
       let parsedUrl: URL | null = null;
       try {
@@ -268,10 +269,11 @@ export const CameraFeedCard = ({
       if (functionName === 'ha-camera-proxy') {
         streamUrl = config.url;
         headers = {
-          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
         };
         shouldTestPi = false;
-        console.log('CameraFeedCard: Using ha-camera-proxy directly');
+        canUseNativeImg = true;
+        console.log('CameraFeedCard: Using ha-camera-proxy directly (native img)');
       } else if (functionName === 'camera-proxy') {
         const inner = parsedUrl?.searchParams.get('url') || '';
         const decodedInner = inner ? safeDecode(inner) : '';
@@ -279,14 +281,15 @@ export const CameraFeedCard = ({
         if (decodedInner.includes('/functions/v1/ha-camera-proxy')) {
           streamUrl = decodedInner;
           headers = {
-            'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
           };
           shouldTestPi = false;
-          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
+          canUseNativeImg = true;
+          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy (native img)');
         } else {
           streamUrl = config.url;
           headers = {
-            'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
           };
           requiresSupabaseJwt = true;
           console.log('CameraFeedCard: Using camera-proxy directly');
@@ -296,9 +299,19 @@ export const CameraFeedCard = ({
         proxyUrl.searchParams.set('url', config.url);
         streamUrl = proxyUrl.toString();
         headers = {
-          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
         };
         requiresSupabaseJwt = true;
+      }
+
+      // Best-effort: for ha-camera-proxy we can let the browser handle MJPEG directly.
+      // This avoids fragile manual parsing and fixes devices that use unusual multipart boundaries.
+      if (canUseNativeImg && imgRef.current) {
+        setIsConnected(true);
+        setIsConnecting(false);
+        setError(null);
+        imgRef.current.src = streamUrl;
+        return;
       }
 
       // Only fetch session if we truly need a Supabase JWT (camera-proxy)
@@ -309,7 +322,7 @@ export const CameraFeedCard = ({
         }
         headers = {
           ...headers,
-          'Authorization': `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         };
       }
 
@@ -653,6 +666,7 @@ export const CameraFeedCard = ({
         {!isWebcam && (
           <img
             ref={imgRef}
+            crossOrigin="anonymous"
             className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
             alt={config.name}
           />
