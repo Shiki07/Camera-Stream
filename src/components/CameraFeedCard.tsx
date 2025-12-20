@@ -229,25 +229,150 @@ export const CameraFeedCard = ({
     fetchControllerRef.current = new AbortController();
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
+      const safeDecode = (value: string) => {
+        let out = value;
+        for (let i = 0; i < 3; i++) {
+          try {
+            const next = decodeURIComponent(out);
+            if (next === out) return out;
+            out = next;
+          } catch {
+            return out;
+          }
+        }
+        return out;
+      };
+
+      // Decide how to route the request:
+      // - ha-camera-proxy is public (verify_jwt=false) and already contains the HA token in query params
+      // - camera-proxy requires a valid Supabase JWT (Authorization header)
+      // - Some legacy saved configs may have ha-camera-proxy wrapped inside camera-proxy; unwrap it.
+      let streamUrl: string;
+      let headers: HeadersInit;
+      let shouldTestPi = true;
+      let requiresSupabaseJwt = false;
+      let isHomeAssistant = false;
+
+      let parsedUrl: URL | null = null;
+      try {
+        parsedUrl = new URL(config.url);
+      } catch {
+        parsedUrl = null;
       }
 
-      const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-      proxyUrl.searchParams.set('url', config.url);
+      const isSupabaseEdgeFunctionUrl =
+        !!parsedUrl && parsedUrl.hostname.endsWith('supabase.co') && parsedUrl.pathname.includes('/functions/v1/');
+      const functionName = isSupabaseEdgeFunctionUrl
+        ? parsedUrl!.pathname.split('/functions/v1/')[1]?.split('/')[0]
+        : null;
 
-      const response = await fetch(proxyUrl.toString(), {
+      if (functionName === 'ha-camera-proxy') {
+        streamUrl = config.url;
+        headers = {
+          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+        };
+        shouldTestPi = false;
+        isHomeAssistant = true;
+        console.log('CameraFeedCard: Using ha-camera-proxy with fetch-based MJPEG parsing');
+      } else if (functionName === 'camera-proxy') {
+        const inner = parsedUrl?.searchParams.get('url') || '';
+        const decodedInner = inner ? safeDecode(inner) : '';
+
+        if (decodedInner.includes('/functions/v1/ha-camera-proxy')) {
+          streamUrl = decodedInner;
+          headers = {
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+          };
+          shouldTestPi = false;
+          isHomeAssistant = true;
+          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
+        } else {
+          streamUrl = config.url;
+          headers = {
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+          };
+          requiresSupabaseJwt = true;
+          console.log('CameraFeedCard: Using camera-proxy directly');
+        }
+      } else {
+        const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
+        proxyUrl.searchParams.set('url', config.url);
+        streamUrl = proxyUrl.toString();
+        headers = {
+          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+        };
+        requiresSupabaseJwt = true;
+      }
+
+      // Track if this is an HA camera for auto-reconnect on stream end
+      const shouldAutoReconnect = isHomeAssistant;
+
+      // Only fetch session if we truly need a Supabase JWT (camera-proxy)
+      if (requiresSupabaseJwt) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Authentication required');
+        }
+        headers = {
+          ...headers,
+          Authorization: `Bearer ${session.access_token}`,
+        };
+      }
+
+      const response = await fetch(streamUrl, {
         method: 'GET',
         signal: fetchControllerRef.current.signal,
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-        },
+        headers,
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let details = '';
+        try {
+          details = await response.clone().text();
+        } catch {
+          // ignore
+        }
+        throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+
+      // Some HA camera integrations only provide a JPEG snapshot (not MJPEG).
+      // In that case, render the snapshot and poll to simulate a "live" feed.
+      if (contentType.includes('image/jpeg') && !contentType.includes('multipart')) {
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+
+        if (imgRef.current) {
+          const oldSrc = imgRef.current.src;
+          imgRef.current.src = url;
+          if (oldSrc.startsWith('blob:')) {
+            URL.revokeObjectURL(oldSrc);
+          }
+        }
+
+        setIsConnected(true);
+        setIsConnecting(false);
+
+        // Test Pi service connection (only for non-HA cameras)
+        if (shouldTestPi) {
+          piRecording.testPiConnection(config.url);
+        }
+
+        if (shouldAutoReconnect && isActiveRef.current) {
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, 2000);
+        }
+
+        return;
+      }
+
+      if (!contentType.includes('multipart') && !contentType.includes('image/jpeg')) {
+        throw new Error(`Unsupported stream content-type: ${contentType || 'unknown'}`);
       }
 
       const reader = response.body?.getReader();
@@ -255,37 +380,67 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
-      
-      // Test Pi service connection
-      piRecording.testPiConnection(config.url);
+
+      // Test Pi service connection (only for non-HA cameras)
+      if (shouldTestPi) {
+        piRecording.testPiConnection(config.url);
+      }
 
       // Process MJPEG stream
+      const streamStartedAt = Date.now();
       let buffer = new Uint8Array();
+      let frameCount = 0;
+      let streamEnded = false;
+      const firstFrameDeadline = Date.now() + 8000;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          streamEnded = true;
+          console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
+          break;
+        }
 
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
 
-        let startIdx = -1;
-        let endIdx = -1;
-        
-        for (let i = 0; i < buffer.length - 1; i++) {
-          if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
-            startIdx = i;
-          } else if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9 && startIdx !== -1) {
-            endIdx = i + 2;
-            break;
-          }
+        if (frameCount === 0 && Date.now() > firstFrameDeadline) {
+          throw new Error('No frames received from camera stream');
         }
 
-        if (startIdx !== -1 && endIdx !== -1) {
+        // Extract all complete JPEG frames from buffer
+        let framesExtracted = 0;
+        while (framesExtracted < 10) { // Limit iterations per read
+          let startIdx = -1;
+          let endIdx = -1;
+          
+          // Find JPEG start marker (0xFF 0xD8)
+          for (let i = 0; i < buffer.length - 1; i++) {
+            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
+              startIdx = i;
+              break; // Found first start marker
+            }
+          }
+          
+          if (startIdx === -1) break; // No start marker found
+          
+          // Find JPEG end marker (0xFF 0xD9) after start
+          for (let i = startIdx + 2; i < buffer.length - 1; i++) {
+            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+              endIdx = i + 2;
+              break; // Found end marker
+            }
+          }
+          
+          if (endIdx === -1) break; // No complete frame yet
+          
+          // Extract and display the frame
           const jpegData = buffer.slice(startIdx, endIdx);
           buffer = buffer.slice(endIdx);
+          framesExtracted++;
+          frameCount++;
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
@@ -297,11 +452,42 @@ export const CameraFeedCard = ({
               URL.revokeObjectURL(oldSrc);
             }
           }
+          
+          // Log first frame to confirm stream is working
+          if (frameCount === 1) {
+            console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
+          }
         }
 
+        // Prevent buffer from growing too large
         if (buffer.length > 5 * 1024 * 1024) {
+          console.warn(`CameraFeedCard: Buffer overflow for ${config.name}, resetting`);
           buffer = new Uint8Array();
         }
+      }
+
+      // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
+      if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
+        const livedMs = Date.now() - streamStartedAt;
+
+        // If it ended very quickly or without producing frames, don't tight-loop reconnect.
+        // Instead surface an error and let the slower global auto-retry handle it.
+        if (frameCount === 0 || livedMs < 5000) {
+          console.warn(
+            `CameraFeedCard: HA stream ended too quickly for ${config.name} (frames=${frameCount}, livedMs=${livedMs})`
+          );
+          setError('Camera stream ended unexpectedly');
+          setIsConnected(false);
+          return;
+        }
+
+        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
+        // Small delay to prevent rapid reconnection loops
+        setTimeout(() => {
+          if (isActiveRef.current) {
+            connectToNetworkStream();
+          }
+        }, 1000);
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -340,19 +526,38 @@ export const CameraFeedCard = ({
     // Initial connection
     connect();
     
-    // Listen for auth state changes to reconnect after login
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Use refs to get current state values, not stale closure values
-      if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
-        console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
-        // Delay to ensure session is fully propagated
-        setTimeout(() => {
-          if (!isConnectedRef.current && !isConnectingRef.current) {
-            connect();
-          }
-        }, 500);
-      }
-    });
+     // Listen for auth state changes to reconnect after login / stop on logout
+     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+       // IMPORTANT: keep this callback synchronous (no Supabase calls) to avoid auth deadlocks
+       if (event === 'SIGNED_OUT') {
+         console.log('Auth state changed to SIGNED_OUT, stopping camera stream');
+         isActiveRef.current = false;
+         isConnectedRef.current = false;
+         isConnectingRef.current = false;
+
+         try {
+           fetchControllerRef.current?.abort();
+         } catch {
+           // ignore
+         }
+
+         setIsConnected(false);
+         setIsConnecting(false);
+         setError(null);
+         return;
+       }
+
+       // Use refs to get current state values, not stale closure values
+       if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
+         console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
+         // Delay to ensure session is fully propagated
+         setTimeout(() => {
+           if (!isConnectedRef.current && !isConnectingRef.current) {
+             connect();
+           }
+         }, 500);
+       }
+     });
     authSubscription = subscription;
 
     return () => {
