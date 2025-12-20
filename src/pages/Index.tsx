@@ -27,6 +27,16 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Header />
         
+        {/* Under Construction Banner */}
+        <div className="bg-orange-500/20 border-b border-orange-500/40 py-3 px-4">
+          <div className="container mx-auto flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <p className="text-sm font-semibold text-foreground">
+              Under Construction - Some features may not work as expected
+            </p>
+          </div>
+        </div>
+        
         {/* Info Banners */}
         <div className="bg-amber-500/20 border-b border-amber-500/40 py-3 px-4">
           <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
