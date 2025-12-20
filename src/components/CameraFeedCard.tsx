@@ -342,6 +342,7 @@ export const CameraFeedCard = ({
 
       // Process MJPEG stream
       let buffer = new Uint8Array();
+      let frameCount = 0;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
@@ -352,21 +353,37 @@ export const CameraFeedCard = ({
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
 
-        let startIdx = -1;
-        let endIdx = -1;
-        
-        for (let i = 0; i < buffer.length - 1; i++) {
-          if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
-            startIdx = i;
-          } else if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9 && startIdx !== -1) {
-            endIdx = i + 2;
-            break;
+        // Extract all complete JPEG frames from buffer
+        let framesExtracted = 0;
+        while (framesExtracted < 10) { // Limit iterations per read
+          let startIdx = -1;
+          let endIdx = -1;
+          
+          // Find JPEG start marker (0xFF 0xD8)
+          for (let i = 0; i < buffer.length - 1; i++) {
+            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
+              startIdx = i;
+              break; // Found first start marker
+            }
           }
-        }
-
-        if (startIdx !== -1 && endIdx !== -1) {
+          
+          if (startIdx === -1) break; // No start marker found
+          
+          // Find JPEG end marker (0xFF 0xD9) after start
+          for (let i = startIdx + 2; i < buffer.length - 1; i++) {
+            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+              endIdx = i + 2;
+              break; // Found end marker
+            }
+          }
+          
+          if (endIdx === -1) break; // No complete frame yet
+          
+          // Extract and display the frame
           const jpegData = buffer.slice(startIdx, endIdx);
           buffer = buffer.slice(endIdx);
+          framesExtracted++;
+          frameCount++;
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
@@ -378,9 +395,16 @@ export const CameraFeedCard = ({
               URL.revokeObjectURL(oldSrc);
             }
           }
+          
+          // Log first frame to confirm stream is working
+          if (frameCount === 1) {
+            console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
+          }
         }
 
+        // Prevent buffer from growing too large
         if (buffer.length > 5 * 1024 * 1024) {
+          console.warn(`CameraFeedCard: Buffer overflow for ${config.name}, resetting`);
           buffer = new Uint8Array();
         }
       }
