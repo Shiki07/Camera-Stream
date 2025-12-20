@@ -387,6 +387,7 @@ export const CameraFeedCard = ({
       }
 
       // Process MJPEG stream
+      const streamStartedAt = Date.now();
       let buffer = new Uint8Array();
       let frameCount = 0;
       let streamEnded = false;
@@ -467,6 +468,19 @@ export const CameraFeedCard = ({
 
       // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
+        const livedMs = Date.now() - streamStartedAt;
+
+        // If it ended very quickly or without producing frames, don't tight-loop reconnect.
+        // Instead surface an error and let the slower global auto-retry handle it.
+        if (frameCount === 0 || livedMs < 5000) {
+          console.warn(
+            `CameraFeedCard: HA stream ended too quickly for ${config.name} (frames=${frameCount}, livedMs=${livedMs})`
+          );
+          setError('Camera stream ended unexpectedly');
+          setIsConnected(false);
+          return;
+        }
+
         console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
         // Small delay to prevent rapid reconnection loops
         setTimeout(() => {
