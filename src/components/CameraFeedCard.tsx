@@ -234,23 +234,58 @@ export const CameraFeedCard = ({
         throw new Error('Authentication required');
       }
 
-      // Check if URL is already an edge function proxy (e.g., ha-camera-proxy)
-      // These don't need double-proxying through camera-proxy
-      const isEdgeFunctionUrl = config.url.includes('supabase.co/functions/v1/');
-      
+      // Decide how to route the request:
+      // - ha-camera-proxy is public (verify_jwt=false) and already contains the HA token in query params
+      // - camera-proxy requires a valid Supabase JWT (Authorization header)
+      // - Some legacy saved configs may have ha-camera-proxy wrapped inside camera-proxy; unwrap it.
       let streamUrl: string;
       let headers: HeadersInit;
-      
-      if (isEdgeFunctionUrl) {
-        // HA cameras already use ha-camera-proxy, don't double-proxy
+      let shouldTestPi = true;
+
+      let parsedUrl: URL | null = null;
+      try {
+        parsedUrl = new URL(config.url);
+      } catch {
+        parsedUrl = null;
+      }
+
+      const isSupabaseEdgeFunctionUrl = !!parsedUrl && parsedUrl.hostname.endsWith('supabase.co') && parsedUrl.pathname.includes('/functions/v1/');
+      const functionName = isSupabaseEdgeFunctionUrl
+        ? parsedUrl!.pathname.split('/functions/v1/')[1]?.split('/')[0]
+        : null;
+
+      if (functionName === 'ha-camera-proxy') {
+        // Home Assistant cameras: call ha-camera-proxy directly
         streamUrl = config.url;
         headers = {
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
           'Cache-Control': 'no-cache',
         };
-        console.log('Using direct edge function URL (no double-proxy)');
+        shouldTestPi = false;
+        console.log('CameraFeedCard: Using ha-camera-proxy directly');
+      } else if (functionName === 'camera-proxy') {
+        // If camera-proxy is wrapping ha-camera-proxy (legacy), unwrap to avoid JWT issues.
+        const inner = parsedUrl?.searchParams.get('url');
+        const decodedInner = inner ? decodeURIComponent(inner) : '';
+
+        if (decodedInner.includes('/functions/v1/ha-camera-proxy')) {
+          streamUrl = decodedInner;
+          headers = {
+            'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+            'Cache-Control': 'no-cache',
+          };
+          shouldTestPi = false;
+          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
+        } else {
+          streamUrl = config.url;
+          headers = {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          };
+          console.log('CameraFeedCard: Using camera-proxy directly');
+        }
       } else {
-        // Regular cameras need the camera-proxy for CORS/auth
+        // Regular cameras: wrap with camera-proxy for CORS/auth
         const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
         proxyUrl.searchParams.set('url', config.url);
         streamUrl = proxyUrl.toString();
@@ -275,9 +310,9 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
-      
-      // Test Pi service connection (only for non-edge-function URLs)
-      if (!isEdgeFunctionUrl) {
+
+      // Test Pi service connection (only for non-HA cameras)
+      if (shouldTestPi) {
         piRecording.testPiConnection(config.url);
       }
 
