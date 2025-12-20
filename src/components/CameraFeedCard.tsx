@@ -313,13 +313,31 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
-  // Connect on mount
+  // Connect on mount and when auth state changes
   useEffect(() => {
-    if (isWebcam) {
-      connectToWebcam();
-    } else {
-      connectToNetworkStream();
-    }
+    let authSubscription: { unsubscribe: () => void } | null = null;
+    
+    const connect = () => {
+      if (isWebcam) {
+        connectToWebcam();
+      } else {
+        connectToNetworkStream();
+      }
+    };
+
+    // Initial connection
+    connect();
+    
+    // Listen for auth state changes to reconnect after login
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session && !isConnected && !isConnecting) {
+        // Small delay to ensure session is fully available
+        setTimeout(() => {
+          connect();
+        }, 500);
+      }
+    });
+    authSubscription = subscription;
 
     return () => {
       isActiveRef.current = false;
@@ -331,6 +349,7 @@ export const CameraFeedCard = ({
       }
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
+      authSubscription?.unsubscribe();
     };
   }, [config.url, config.deviceId, isWebcam]);
 
