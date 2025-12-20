@@ -229,10 +229,19 @@ export const CameraFeedCard = ({
     fetchControllerRef.current = new AbortController();
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
+      const safeDecode = (value: string) => {
+        let out = value;
+        for (let i = 0; i < 3; i++) {
+          try {
+            const next = decodeURIComponent(out);
+            if (next === out) return out;
+            out = next;
+          } catch {
+            return out;
+          }
+        }
+        return out;
+      };
 
       // Decide how to route the request:
       // - ha-camera-proxy is public (verify_jwt=false) and already contains the HA token in query params
@@ -241,6 +250,7 @@ export const CameraFeedCard = ({
       let streamUrl: string;
       let headers: HeadersInit;
       let shouldTestPi = true;
+      let requiresSupabaseJwt = false;
 
       let parsedUrl: URL | null = null;
       try {
@@ -249,13 +259,13 @@ export const CameraFeedCard = ({
         parsedUrl = null;
       }
 
-      const isSupabaseEdgeFunctionUrl = !!parsedUrl && parsedUrl.hostname.endsWith('supabase.co') && parsedUrl.pathname.includes('/functions/v1/');
+      const isSupabaseEdgeFunctionUrl =
+        !!parsedUrl && parsedUrl.hostname.endsWith('supabase.co') && parsedUrl.pathname.includes('/functions/v1/');
       const functionName = isSupabaseEdgeFunctionUrl
         ? parsedUrl!.pathname.split('/functions/v1/')[1]?.split('/')[0]
         : null;
 
       if (functionName === 'ha-camera-proxy') {
-        // Home Assistant cameras: call ha-camera-proxy directly
         streamUrl = config.url;
         headers = {
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
@@ -264,9 +274,8 @@ export const CameraFeedCard = ({
         shouldTestPi = false;
         console.log('CameraFeedCard: Using ha-camera-proxy directly');
       } else if (functionName === 'camera-proxy') {
-        // If camera-proxy is wrapping ha-camera-proxy (legacy), unwrap to avoid JWT issues.
-        const inner = parsedUrl?.searchParams.get('url');
-        const decodedInner = inner ? decodeURIComponent(inner) : '';
+        const inner = parsedUrl?.searchParams.get('url') || '';
+        const decodedInner = inner ? safeDecode(inner) : '';
 
         if (decodedInner.includes('/functions/v1/ha-camera-proxy')) {
           streamUrl = decodedInner;
@@ -279,19 +288,30 @@ export const CameraFeedCard = ({
         } else {
           streamUrl = config.url;
           headers = {
-            'Authorization': `Bearer ${session.access_token}`,
             'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
           };
+          requiresSupabaseJwt = true;
           console.log('CameraFeedCard: Using camera-proxy directly');
         }
       } else {
-        // Regular cameras: wrap with camera-proxy for CORS/auth
         const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
         proxyUrl.searchParams.set('url', config.url);
         streamUrl = proxyUrl.toString();
         headers = {
-          'Authorization': `Bearer ${session.access_token}`,
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+        };
+        requiresSupabaseJwt = true;
+      }
+
+      // Only fetch session if we truly need a Supabase JWT (camera-proxy)
+      if (requiresSupabaseJwt) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Authentication required');
+        }
+        headers = {
+          ...headers,
+          'Authorization': `Bearer ${session.access_token}`,
         };
       }
 
@@ -302,7 +322,13 @@ export const CameraFeedCard = ({
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let details = '';
+        try {
+          details = await response.clone().text();
+        } catch {
+          // ignore
+        }
+        throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
       }
 
       const reader = response.body?.getReader();
