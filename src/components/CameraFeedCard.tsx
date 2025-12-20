@@ -269,7 +269,6 @@ export const CameraFeedCard = ({
         streamUrl = config.url;
         headers = {
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-          'Cache-Control': 'no-cache',
         };
         shouldTestPi = false;
         console.log('CameraFeedCard: Using ha-camera-proxy directly');
@@ -281,7 +280,6 @@ export const CameraFeedCard = ({
           streamUrl = decodedInner;
           headers = {
             'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-            'Cache-Control': 'no-cache',
           };
           shouldTestPi = false;
           console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
