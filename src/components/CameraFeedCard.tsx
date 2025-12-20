@@ -80,7 +80,6 @@ export const CameraFeedCard = ({
   const streamRef = useRef<MediaStream | null>(null);
   const isTabVisible = useTabVisibility();
   const fetchControllerRef = useRef<AbortController | null>(null);
-  const connectInFlightRef = useRef(false);
   const isActiveRef = useRef(true);
   const { toast } = useToast();
   
@@ -89,11 +88,6 @@ export const CameraFeedCard = ({
   
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
-  const piRecordingRef = useRef(piRecording);
-  useEffect(() => {
-    piRecordingRef.current = piRecording;
-  }, [piRecording]);
-
   const browserRecording = useRecording();
   
   // Motion notification
@@ -224,10 +218,7 @@ export const CameraFeedCard = ({
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
     if (!imgRef.current) return;
-    if (connectInFlightRef.current) return;
-
-    connectInFlightRef.current = true;
-
+    
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -260,7 +251,7 @@ export const CameraFeedCard = ({
       let headers: HeadersInit;
       let shouldTestPi = true;
       let requiresSupabaseJwt = false;
-      let isHomeAssistant = false;
+      let canUseNativeImg = false;
 
       let parsedUrl: URL | null = null;
       try {
@@ -281,8 +272,8 @@ export const CameraFeedCard = ({
           Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
         };
         shouldTestPi = false;
-        isHomeAssistant = true;
-        console.log('CameraFeedCard: Using ha-camera-proxy with fetch-based MJPEG parsing');
+        canUseNativeImg = true;
+        console.log('CameraFeedCard: Using ha-camera-proxy directly (native img)');
       } else if (functionName === 'camera-proxy') {
         const inner = parsedUrl?.searchParams.get('url') || '';
         const decodedInner = inner ? safeDecode(inner) : '';
@@ -293,8 +284,8 @@ export const CameraFeedCard = ({
             Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
           };
           shouldTestPi = false;
-          isHomeAssistant = true;
-          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
+          canUseNativeImg = true;
+          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy (native img)');
         } else {
           streamUrl = config.url;
           headers = {
@@ -313,8 +304,15 @@ export const CameraFeedCard = ({
         requiresSupabaseJwt = true;
       }
 
-      // Track if this is an HA camera for auto-reconnect on stream end
-      const shouldAutoReconnect = isHomeAssistant;
+      // Best-effort: for ha-camera-proxy we can let the browser handle MJPEG directly.
+      // This avoids fragile manual parsing and fixes devices that use unusual multipart boundaries.
+      if (canUseNativeImg && imgRef.current) {
+        setIsConnected(true);
+        setIsConnecting(false);
+        setError(null);
+        imgRef.current.src = streamUrl;
+        return;
+      }
 
       // Only fetch session if we truly need a Supabase JWT (camera-proxy)
       if (requiresSupabaseJwt) {
@@ -344,77 +342,24 @@ export const CameraFeedCard = ({
         throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
       }
 
-      const contentType = response.headers.get('content-type') ?? '';
-
-      // Some HA camera integrations only provide a JPEG snapshot (not MJPEG).
-      // In that case, render the snapshot and poll to simulate a "live" feed.
-      if (contentType.includes('image/jpeg') && !contentType.includes('multipart')) {
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        const blob = new Blob([bytes], { type: 'image/jpeg' });
-        const url = URL.createObjectURL(blob);
-
-        if (imgRef.current) {
-          const oldSrc = imgRef.current.src;
-          imgRef.current.src = url;
-          if (oldSrc.startsWith('blob:')) {
-            URL.revokeObjectURL(oldSrc);
-          }
-        }
-
-        setIsConnected(true);
-        setIsConnecting(false);
-
-        // Test Pi service connection (only for non-HA cameras)
-        if (shouldTestPi) {
-          piRecordingRef.current.testPiConnection(config.url);
-        }
-
-        if (shouldAutoReconnect && isActiveRef.current) {
-          setTimeout(() => {
-            if (isActiveRef.current) {
-              connectToNetworkStream();
-            }
-          }, 2000);
-        }
-
-        return;
-      }
-
-      if (!contentType.includes('multipart') && !contentType.includes('image/jpeg')) {
-        throw new Error(`Unsupported stream content-type: ${contentType || 'unknown'}`);
-      }
-
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Failed to get reader');
 
-      // For MJPEG streams, don't mark as connected until we actually decode the first frame.
-      setIsConnecting(true);
-      setIsConnected(false);
+      setIsConnected(true);
+      setIsConnecting(false);
 
       // Test Pi service connection (only for non-HA cameras)
       if (shouldTestPi) {
-        piRecordingRef.current.testPiConnection(config.url);
+        piRecording.testPiConnection(config.url);
       }
 
       // Process MJPEG stream
-      const streamStartedAt = Date.now();
       let buffer = new Uint8Array();
       let frameCount = 0;
-      let streamEnded = false;
-      let markedConnected = false;
-      const firstFrameDeadline = Date.now() + 8000;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
-        if (done) {
-          streamEnded = true;
-          console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
-          break;
-        }
-
-        if (!markedConnected && Date.now() > firstFrameDeadline) {
-          throw new Error('No frames received from camera stream');
-        }
+        if (done) break;
 
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
@@ -466,9 +411,6 @@ export const CameraFeedCard = ({
           
           // Log first frame to confirm stream is working
           if (frameCount === 1) {
-            markedConnected = true;
-            setIsConnected(true);
-            setIsConnecting(false);
             console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
           }
         }
@@ -479,30 +421,6 @@ export const CameraFeedCard = ({
           buffer = new Uint8Array();
         }
       }
-
-      // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
-      if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
-        const livedMs = Date.now() - streamStartedAt;
-
-        // If it ended very quickly or without producing frames, don't tight-loop reconnect.
-        // Instead surface an error and let the slower global auto-retry handle it.
-        if (frameCount === 0 || livedMs < 5000) {
-          console.warn(
-            `CameraFeedCard: HA stream ended too quickly for ${config.name} (frames=${frameCount}, livedMs=${livedMs})`
-          );
-          setError('Camera stream ended unexpectedly');
-          setIsConnected(false);
-          return;
-        }
-
-        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
-        // Small delay to prevent rapid reconnection loops
-        setTimeout(() => {
-          if (isActiveRef.current) {
-            connectToNetworkStream();
-          }
-        }, 1000);
-      }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         setError(err instanceof Error ? err.message : 'Connection failed');
@@ -510,9 +428,8 @@ export const CameraFeedCard = ({
       }
     } finally {
       setIsConnecting(false);
-      connectInFlightRef.current = false;
     }
-  }, [config.url, config.name]);
+  }, [config.url, piRecording]);
 
   // Track connection state with refs for auth callback
   const isConnectedRef = useRef(isConnected);
@@ -749,6 +666,7 @@ export const CameraFeedCard = ({
         {!isWebcam && (
           <img
             ref={imgRef}
+            crossOrigin="anonymous"
             className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
             alt={config.name}
           />
