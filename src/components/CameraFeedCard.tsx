@@ -362,19 +362,38 @@ export const CameraFeedCard = ({
     // Initial connection
     connect();
     
-    // Listen for auth state changes to reconnect after login
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Use refs to get current state values, not stale closure values
-      if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
-        console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
-        // Delay to ensure session is fully propagated
-        setTimeout(() => {
-          if (!isConnectedRef.current && !isConnectingRef.current) {
-            connect();
-          }
-        }, 500);
-      }
-    });
+     // Listen for auth state changes to reconnect after login / stop on logout
+     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+       // IMPORTANT: keep this callback synchronous (no Supabase calls) to avoid auth deadlocks
+       if (event === 'SIGNED_OUT') {
+         console.log('Auth state changed to SIGNED_OUT, stopping camera stream');
+         isActiveRef.current = false;
+         isConnectedRef.current = false;
+         isConnectingRef.current = false;
+
+         try {
+           fetchControllerRef.current?.abort();
+         } catch {
+           // ignore
+         }
+
+         setIsConnected(false);
+         setIsConnecting(false);
+         setError(null);
+         return;
+       }
+
+       // Use refs to get current state values, not stale closure values
+       if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
+         console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
+         // Delay to ensure session is fully propagated
+         setTimeout(() => {
+           if (!isConnectedRef.current && !isConnectingRef.current) {
+             connect();
+           }
+         }, 500);
+       }
+     });
     authSubscription = subscription;
 
     return () => {
