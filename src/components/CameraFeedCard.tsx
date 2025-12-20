@@ -387,12 +387,13 @@ export const CameraFeedCard = ({
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Failed to get reader');
 
-      setIsConnected(true);
-      setIsConnecting(false);
+      // For MJPEG streams, don't mark as connected until we actually decode the first frame.
+      setIsConnecting(true);
+      setIsConnected(false);
 
       // Test Pi service connection (only for non-HA cameras)
       if (shouldTestPi) {
-        piRecording.testPiConnection(config.url);
+        piRecordingRef.current.testPiConnection(config.url);
       }
 
       // Process MJPEG stream
@@ -400,6 +401,7 @@ export const CameraFeedCard = ({
       let buffer = new Uint8Array();
       let frameCount = 0;
       let streamEnded = false;
+      let markedConnected = false;
       const firstFrameDeadline = Date.now() + 8000;
       
       while (isActiveRef.current) {
@@ -410,14 +412,14 @@ export const CameraFeedCard = ({
           break;
         }
 
+        if (!markedConnected && Date.now() > firstFrameDeadline) {
+          throw new Error('No frames received from camera stream');
+        }
+
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
-
-        if (frameCount === 0 && Date.now() > firstFrameDeadline) {
-          throw new Error('No frames received from camera stream');
-        }
 
         // Extract all complete JPEG frames from buffer
         let framesExtracted = 0;
@@ -464,6 +466,9 @@ export const CameraFeedCard = ({
           
           // Log first frame to confirm stream is working
           if (frameCount === 1) {
+            markedConnected = true;
+            setIsConnected(true);
+            setIsConnecting(false);
             console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
           }
         }
