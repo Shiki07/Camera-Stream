@@ -80,6 +80,7 @@ export const CameraFeedCard = ({
   const streamRef = useRef<MediaStream | null>(null);
   const isTabVisible = useTabVisibility();
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const connectInFlightRef = useRef(false);
   const isActiveRef = useRef(true);
   const { toast } = useToast();
   
@@ -88,6 +89,11 @@ export const CameraFeedCard = ({
   
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
+  const piRecordingRef = useRef(piRecording);
+  useEffect(() => {
+    piRecordingRef.current = piRecording;
+  }, [piRecording]);
+
   const browserRecording = useRecording();
   
   // Motion notification
@@ -218,7 +224,10 @@ export const CameraFeedCard = ({
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
     if (!imgRef.current) return;
-    
+    if (connectInFlightRef.current) return;
+
+    connectInFlightRef.current = true;
+
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -357,7 +366,7 @@ export const CameraFeedCard = ({
 
         // Test Pi service connection (only for non-HA cameras)
         if (shouldTestPi) {
-          piRecording.testPiConnection(config.url);
+          piRecordingRef.current.testPiConnection(config.url);
         }
 
         if (shouldAutoReconnect && isActiveRef.current) {
@@ -496,8 +505,9 @@ export const CameraFeedCard = ({
       }
     } finally {
       setIsConnecting(false);
+      connectInFlightRef.current = false;
     }
-  }, [config.url, piRecording]);
+  }, [config.url, config.name]);
 
   // Track connection state with refs for auth callback
   const isConnectedRef = useRef(isConnected);
