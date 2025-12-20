@@ -234,16 +234,36 @@ export const CameraFeedCard = ({
         throw new Error('Authentication required');
       }
 
-      const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-      proxyUrl.searchParams.set('url', config.url);
-
-      const response = await fetch(proxyUrl.toString(), {
-        method: 'GET',
-        signal: fetchControllerRef.current.signal,
-        headers: {
+      // Check if URL is already an edge function proxy (e.g., ha-camera-proxy)
+      // These don't need double-proxying through camera-proxy
+      const isEdgeFunctionUrl = config.url.includes('supabase.co/functions/v1/');
+      
+      let streamUrl: string;
+      let headers: HeadersInit;
+      
+      if (isEdgeFunctionUrl) {
+        // HA cameras already use ha-camera-proxy, don't double-proxy
+        streamUrl = config.url;
+        headers = {
+          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          'Cache-Control': 'no-cache',
+        };
+        console.log('Using direct edge function URL (no double-proxy)');
+      } else {
+        // Regular cameras need the camera-proxy for CORS/auth
+        const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
+        proxyUrl.searchParams.set('url', config.url);
+        streamUrl = proxyUrl.toString();
+        headers = {
           'Authorization': `Bearer ${session.access_token}`,
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-        },
+        };
+      }
+
+      const response = await fetch(streamUrl, {
+        method: 'GET',
+        signal: fetchControllerRef.current.signal,
+        headers,
       });
 
       if (!response.ok) {
@@ -256,8 +276,10 @@ export const CameraFeedCard = ({
       setIsConnected(true);
       setIsConnecting(false);
       
-      // Test Pi service connection
-      piRecording.testPiConnection(config.url);
+      // Test Pi service connection (only for non-edge-function URLs)
+      if (!isEdgeFunctionUrl) {
+        piRecording.testPiConnection(config.url);
+      }
 
       // Process MJPEG stream
       let buffer = new Uint8Array();
