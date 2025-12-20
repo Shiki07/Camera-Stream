@@ -335,6 +335,46 @@ export const CameraFeedCard = ({
         throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
       }
 
+      const contentType = response.headers.get('content-type') ?? '';
+
+      // Some HA camera integrations only provide a JPEG snapshot (not MJPEG).
+      // In that case, render the snapshot and poll to simulate a "live" feed.
+      if (contentType.includes('image/jpeg') && !contentType.includes('multipart')) {
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+
+        if (imgRef.current) {
+          const oldSrc = imgRef.current.src;
+          imgRef.current.src = url;
+          if (oldSrc.startsWith('blob:')) {
+            URL.revokeObjectURL(oldSrc);
+          }
+        }
+
+        setIsConnected(true);
+        setIsConnecting(false);
+
+        // Test Pi service connection (only for non-HA cameras)
+        if (shouldTestPi) {
+          piRecording.testPiConnection(config.url);
+        }
+
+        if (shouldAutoReconnect && isActiveRef.current) {
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, 2000);
+        }
+
+        return;
+      }
+
+      if (!contentType.includes('multipart') && !contentType.includes('image/jpeg')) {
+        throw new Error(`Unsupported stream content-type: ${contentType || 'unknown'}`);
+      }
+
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Failed to get reader');
 
@@ -350,6 +390,7 @@ export const CameraFeedCard = ({
       let buffer = new Uint8Array();
       let frameCount = 0;
       let streamEnded = false;
+      const firstFrameDeadline = Date.now() + 8000;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
@@ -363,6 +404,10 @@ export const CameraFeedCard = ({
         newBuffer.set(buffer);
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
+
+        if (frameCount === 0 && Date.now() > firstFrameDeadline) {
+          throw new Error('No frames received from camera stream');
+        }
 
         // Extract all complete JPEG frames from buffer
         let framesExtracted = 0;
