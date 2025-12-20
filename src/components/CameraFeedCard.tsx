@@ -251,7 +251,7 @@ export const CameraFeedCard = ({
       let headers: HeadersInit;
       let shouldTestPi = true;
       let requiresSupabaseJwt = false;
-      let canUseNativeImg = false;
+      let isHomeAssistant = false;
 
       let parsedUrl: URL | null = null;
       try {
@@ -272,8 +272,8 @@ export const CameraFeedCard = ({
           Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
         };
         shouldTestPi = false;
-        canUseNativeImg = true;
-        console.log('CameraFeedCard: Using ha-camera-proxy directly (native img)');
+        isHomeAssistant = true;
+        console.log('CameraFeedCard: Using ha-camera-proxy with fetch-based MJPEG parsing');
       } else if (functionName === 'camera-proxy') {
         const inner = parsedUrl?.searchParams.get('url') || '';
         const decodedInner = inner ? safeDecode(inner) : '';
@@ -284,8 +284,8 @@ export const CameraFeedCard = ({
             Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
           };
           shouldTestPi = false;
-          canUseNativeImg = true;
-          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy (native img)');
+          isHomeAssistant = true;
+          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
         } else {
           streamUrl = config.url;
           headers = {
@@ -304,15 +304,8 @@ export const CameraFeedCard = ({
         requiresSupabaseJwt = true;
       }
 
-      // Best-effort: for ha-camera-proxy we can let the browser handle MJPEG directly.
-      // This avoids fragile manual parsing and fixes devices that use unusual multipart boundaries.
-      if (canUseNativeImg && imgRef.current) {
-        setIsConnected(true);
-        setIsConnecting(false);
-        setError(null);
-        imgRef.current.src = streamUrl;
-        return;
-      }
+      // Track if this is an HA camera for auto-reconnect on stream end
+      const shouldAutoReconnect = isHomeAssistant;
 
       // Only fetch session if we truly need a Supabase JWT (camera-proxy)
       if (requiresSupabaseJwt) {
@@ -356,10 +349,15 @@ export const CameraFeedCard = ({
       // Process MJPEG stream
       let buffer = new Uint8Array();
       let frameCount = 0;
+      let streamEnded = false;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          streamEnded = true;
+          console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
+          break;
+        }
 
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
@@ -420,6 +418,17 @@ export const CameraFeedCard = ({
           console.warn(`CameraFeedCard: Buffer overflow for ${config.name}, resetting`);
           buffer = new Uint8Array();
         }
+      }
+
+      // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
+      if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
+        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
+        // Small delay to prevent rapid reconnection loops
+        setTimeout(() => {
+          if (isActiveRef.current) {
+            connectToNetworkStream();
+          }
+        }, 1000);
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -666,7 +675,6 @@ export const CameraFeedCard = ({
         {!isWebcam && (
           <img
             ref={imgRef}
-            crossOrigin="anonymous"
             className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
             alt={config.name}
           />
