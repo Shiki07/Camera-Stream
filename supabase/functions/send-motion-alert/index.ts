@@ -44,11 +44,13 @@ const sanitizeInput = (input: string): string => {
 };
 
 interface MotionAlertRequest {
-  email: string;
+  // email is now optional - we prefer using the authenticated user's email
+  email?: string;
   attachmentData?: string; // base64 encoded image/video
   attachmentType?: 'image' | 'video';
   timestamp: string;
   motionLevel?: number;
+  useAuthEmail?: boolean; // If true, use the authenticated user's email
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -117,13 +119,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, attachmentData, attachmentType, timestamp, motionLevel }: MotionAlertRequest = await req.json();
+    const { email: providedEmail, attachmentData, attachmentType, timestamp, motionLevel, useAuthEmail }: MotionAlertRequest = await req.json();
     
-    // Enhanced input validation
-    if (!validateEmail(email)) {
-      console.warn('Invalid email format provided');
+    // SECURITY: Prefer using the authenticated user's email to prevent email harvesting
+    // Only use provided email if useAuthEmail is explicitly false and email is valid
+    let targetEmail: string;
+    
+    if (useAuthEmail !== false && user.email) {
+      // Use the authenticated user's verified email (more secure)
+      targetEmail = user.email;
+      console.log('Using authenticated user email for notification');
+    } else if (providedEmail && validateEmail(providedEmail)) {
+      // Fallback to provided email if explicitly requested
+      targetEmail = providedEmail;
+      console.log('Using provided email for notification');
+    } else if (user.email) {
+      // Default to auth email if no valid email provided
+      targetEmail = user.email;
+      console.log('Falling back to authenticated user email');
+    } else {
+      console.warn('No valid email available');
       return new Response(
-        JSON.stringify({ error: 'Invalid email address' }),
+        JSON.stringify({ error: 'No valid email address available' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -169,12 +186,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Sanitize email for logging (security)
-    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedEmail = sanitizeInput(targetEmail);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
     const emailData: any = {
       from: "Camera Stream <noreply@resend.dev>",
-      to: [sanitizeInput(email)],
+      to: [sanitizeInput(targetEmail)],
       subject: "🚨 Motion Detected - Camera Stream",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
