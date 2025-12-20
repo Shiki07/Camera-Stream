@@ -313,6 +313,18 @@ export const CameraFeedCard = ({
     }
   }, [config.url, piRecording]);
 
+  // Track connection state with refs for auth callback
+  const isConnectedRef = useRef(isConnected);
+  const isConnectingRef = useRef(isConnecting);
+  
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+  
+  useEffect(() => {
+    isConnectingRef.current = isConnecting;
+  }, [isConnecting]);
+
   // Connect on mount and when auth state changes
   useEffect(() => {
     let authSubscription: { unsubscribe: () => void } | null = null;
@@ -330,10 +342,14 @@ export const CameraFeedCard = ({
     
     // Listen for auth state changes to reconnect after login
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session && !isConnected && !isConnecting) {
-        // Small delay to ensure session is fully available
+      // Use refs to get current state values, not stale closure values
+      if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
+        console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
+        // Delay to ensure session is fully propagated
         setTimeout(() => {
-          connect();
+          if (!isConnectedRef.current && !isConnectingRef.current) {
+            connect();
+          }
         }, 500);
       }
     });
