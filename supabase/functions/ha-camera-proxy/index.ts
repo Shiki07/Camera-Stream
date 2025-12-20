@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
 };
 
 // Validate that a URL is a legitimate Home Assistant camera URL
@@ -131,49 +132,94 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log('Proxying Home Assistant camera stream:', decodedUrl.substring(0, 50) + '...');
 
-    // Fetch from Home Assistant with auth
-    const response = await fetch(decodedUrl, {
-      headers: {
-        'Authorization': `Bearer ${decodeURIComponent(token)}`,
-      },
-    });
+    // Create AbortController for long-running streams with extended timeout
+    const controller = new AbortController();
+    const STREAM_TIMEOUT_MS = 300000; // 5 minutes for MJPEG streams
+    const timeoutId = setTimeout(() => {
+      console.log('HA camera proxy: Stream timeout after 5 minutes, aborting');
+      controller.abort();
+    }, STREAM_TIMEOUT_MS);
 
-    if (!response.ok) {
-      console.error('Home Assistant returned error:', response.status);
-      return new Response(
-        JSON.stringify({ error: `Home Assistant error: ${response.status}` }),
-        { 
-          status: response.status, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    try {
+      // Fetch from Home Assistant with auth and keep-alive settings
+      const response = await fetch(decodedUrl, {
+        headers: {
+          'Authorization': `Bearer ${decodeURIComponent(token)}`,
+          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Keep-Alive': 'timeout=300, max=1000',
+        },
+        signal: controller.signal,
+        keepalive: true,
+      });
 
-    // Get content type from response
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
+      if (!response.ok) {
+        clearTimeout(timeoutId);
+        console.error('Home Assistant returned error:', response.status);
+        return new Response(
+          JSON.stringify({ error: `Home Assistant error: ${response.status}` }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
 
-    // For MJPEG streams, we need to stream the response
-    if (contentType.includes('multipart')) {
-      // Stream the MJPEG response
-      return new Response(response.body, {
+      // Get content type from response
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      console.log('HA camera proxy: Content-Type:', contentType);
+
+      // Build response headers for streaming
+      const responseHeaders: Record<string, string> = {
+        ...corsHeaders,
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      };
+
+      // For MJPEG streams, stream the response with proper handling
+      if (contentType.includes('multipart')) {
+        console.log('HA camera proxy: Streaming multipart MJPEG response');
+        
+        // Stream the MJPEG response - the timeout will be cleared when the stream ends naturally
+        // or aborted after 5 minutes to allow client-side reconnection
+        return new Response(response.body, {
+          status: 200,
+          headers: responseHeaders,
+        });
+      }
+
+      // For single images (snapshot), clear timeout and return the image data
+      clearTimeout(timeoutId);
+      const imageData = await response.arrayBuffer();
+      
+      return new Response(imageData, {
+        status: 200,
         headers: {
           ...corsHeaders,
           'Content-Type': contentType,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-cache',
         },
       });
+    } catch (fetchError: unknown) {
+      clearTimeout(timeoutId);
+      const err = fetchError as Error & { name?: string };
+      
+      if (err.name === 'AbortError') {
+        console.log('HA camera proxy: Stream aborted (timeout or client disconnect)');
+        return new Response(
+          JSON.stringify({ error: 'Stream timeout - please reconnect' }),
+          { 
+            status: 408, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      throw fetchError;
     }
-
-    // For single images (snapshot), return the image data
-    const imageData = await response.arrayBuffer();
-    
-    return new Response(imageData, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache',
-      },
-    });
   } catch (error) {
     console.error('HA camera proxy error:', error);
     return new Response(
