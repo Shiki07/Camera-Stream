@@ -82,8 +82,8 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
       await sendMotionEvent(options.cameraName || 'Camera', motionLevel || 0);
     }
 
-    if (!options.enabled || !options.email) {
-      console.log('Motion notifications disabled or no email provided');
+    if (!options.enabled) {
+      console.log('Motion notifications disabled');
       return;
     }
 
@@ -109,9 +109,14 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
         console.log('Failed to capture attachment, sending email without image');
       }
 
+      // SECURITY: Use authenticated user's email by default to prevent email harvesting
+      // Only pass custom email if explicitly provided, otherwise edge function uses auth email
       const { data, error } = await supabase.functions.invoke('send-motion-alert', {
         body: {
-          email: options.email,
+          // Only include email if user explicitly set a custom notification email
+          email: options.email || undefined,
+          // Tell the edge function to prefer the authenticated user's email
+          useAuthEmail: !options.email,
           attachmentData,
           attachmentType,
           timestamp: new Date().toISOString(),
@@ -145,7 +150,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
       console.log('Motion alert sent successfully');
       toast({
         title: "Motion alert sent",
-        description: `Email notification sent to ${options.email}`,
+        description: "Email notification sent successfully",
       });
 
     } catch (error) {
