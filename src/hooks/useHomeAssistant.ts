@@ -222,16 +222,8 @@ export const useHomeAssistant = () => {
 
   // Generate proxy URL for a camera
   const getCameraProxyUrl = useCallback((entityId: string): string => {
-    // Normalize HA base URL to origin (prevents accidental paths like /profile/security)
-    let haOrigin = config.url;
-    try {
-      haOrigin = new URL(config.url).origin;
-    } catch {
-      // fall back to raw config.url; downstream validation will fail gracefully
-    }
-
     // Use edge function to proxy the stream with auth
-    const encodedUrl = encodeURIComponent(`${haOrigin}/api/camera_proxy_stream/${entityId}`);
+    const encodedUrl = encodeURIComponent(`${config.url}/api/camera_proxy_stream/${entityId}`);
     const encodedToken = encodeURIComponent(config.token);
     return `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-camera-proxy?url=${encodedUrl}&token=${encodedToken}`;
   }, [config.url, config.token]);

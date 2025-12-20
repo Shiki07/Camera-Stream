@@ -229,117 +229,25 @@ export const CameraFeedCard = ({
     fetchControllerRef.current = new AbortController();
 
     try {
-      const safeDecode = (value: string) => {
-        let out = value;
-        for (let i = 0; i < 3; i++) {
-          try {
-            const next = decodeURIComponent(out);
-            if (next === out) return out;
-            out = next;
-          } catch {
-            return out;
-          }
-        }
-        return out;
-      };
-
-      // Decide how to route the request:
-      // - ha-camera-proxy is public (verify_jwt=false) and already contains the HA token in query params
-      // - camera-proxy requires a valid Supabase JWT (Authorization header)
-      // - Some legacy saved configs may have ha-camera-proxy wrapped inside camera-proxy; unwrap it.
-      let streamUrl: string;
-      let headers: HeadersInit;
-      let shouldTestPi = true;
-      let requiresSupabaseJwt = false;
-      let canUseNativeImg = false;
-
-      let parsedUrl: URL | null = null;
-      try {
-        parsedUrl = new URL(config.url);
-      } catch {
-        parsedUrl = null;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Authentication required');
       }
 
-      const isSupabaseEdgeFunctionUrl =
-        !!parsedUrl && parsedUrl.hostname.endsWith('supabase.co') && parsedUrl.pathname.includes('/functions/v1/');
-      const functionName = isSupabaseEdgeFunctionUrl
-        ? parsedUrl!.pathname.split('/functions/v1/')[1]?.split('/')[0]
-        : null;
+      const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
+      proxyUrl.searchParams.set('url', config.url);
 
-      if (functionName === 'ha-camera-proxy') {
-        streamUrl = config.url;
-        headers = {
-          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-        };
-        shouldTestPi = false;
-        canUseNativeImg = true;
-        console.log('CameraFeedCard: Using ha-camera-proxy directly (native img)');
-      } else if (functionName === 'camera-proxy') {
-        const inner = parsedUrl?.searchParams.get('url') || '';
-        const decodedInner = inner ? safeDecode(inner) : '';
-
-        if (decodedInner.includes('/functions/v1/ha-camera-proxy')) {
-          streamUrl = decodedInner;
-          headers = {
-            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-          };
-          shouldTestPi = false;
-          canUseNativeImg = true;
-          console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy (native img)');
-        } else {
-          streamUrl = config.url;
-          headers = {
-            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-          };
-          requiresSupabaseJwt = true;
-          console.log('CameraFeedCard: Using camera-proxy directly');
-        }
-      } else {
-        const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-        proxyUrl.searchParams.set('url', config.url);
-        streamUrl = proxyUrl.toString();
-        headers = {
-          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-        };
-        requiresSupabaseJwt = true;
-      }
-
-      // Best-effort: for ha-camera-proxy we can let the browser handle MJPEG directly.
-      // This avoids fragile manual parsing and fixes devices that use unusual multipart boundaries.
-      if (canUseNativeImg && imgRef.current) {
-        setIsConnected(true);
-        setIsConnecting(false);
-        setError(null);
-        imgRef.current.src = streamUrl;
-        return;
-      }
-
-      // Only fetch session if we truly need a Supabase JWT (camera-proxy)
-      if (requiresSupabaseJwt) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('Authentication required');
-        }
-        headers = {
-          ...headers,
-          Authorization: `Bearer ${session.access_token}`,
-        };
-      }
-
-      const response = await fetch(streamUrl, {
+      const response = await fetch(proxyUrl.toString(), {
         method: 'GET',
         signal: fetchControllerRef.current.signal,
-        headers,
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+        },
       });
 
       if (!response.ok) {
-        let details = '';
-        try {
-          details = await response.clone().text();
-        } catch {
-          // ignore
-        }
-        throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const reader = response.body?.getReader();
@@ -347,15 +255,12 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
-
-      // Test Pi service connection (only for non-HA cameras)
-      if (shouldTestPi) {
-        piRecording.testPiConnection(config.url);
-      }
+      
+      // Test Pi service connection
+      piRecording.testPiConnection(config.url);
 
       // Process MJPEG stream
       let buffer = new Uint8Array();
-      let frameCount = 0;
       
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
@@ -366,37 +271,21 @@ export const CameraFeedCard = ({
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
 
-        // Extract all complete JPEG frames from buffer
-        let framesExtracted = 0;
-        while (framesExtracted < 10) { // Limit iterations per read
-          let startIdx = -1;
-          let endIdx = -1;
-          
-          // Find JPEG start marker (0xFF 0xD8)
-          for (let i = 0; i < buffer.length - 1; i++) {
-            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
-              startIdx = i;
-              break; // Found first start marker
-            }
+        let startIdx = -1;
+        let endIdx = -1;
+        
+        for (let i = 0; i < buffer.length - 1; i++) {
+          if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
+            startIdx = i;
+          } else if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9 && startIdx !== -1) {
+            endIdx = i + 2;
+            break;
           }
-          
-          if (startIdx === -1) break; // No start marker found
-          
-          // Find JPEG end marker (0xFF 0xD9) after start
-          for (let i = startIdx + 2; i < buffer.length - 1; i++) {
-            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
-              endIdx = i + 2;
-              break; // Found end marker
-            }
-          }
-          
-          if (endIdx === -1) break; // No complete frame yet
-          
-          // Extract and display the frame
+        }
+
+        if (startIdx !== -1 && endIdx !== -1) {
           const jpegData = buffer.slice(startIdx, endIdx);
           buffer = buffer.slice(endIdx);
-          framesExtracted++;
-          frameCount++;
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
@@ -408,16 +297,9 @@ export const CameraFeedCard = ({
               URL.revokeObjectURL(oldSrc);
             }
           }
-          
-          // Log first frame to confirm stream is working
-          if (frameCount === 1) {
-            console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
-          }
         }
 
-        // Prevent buffer from growing too large
         if (buffer.length > 5 * 1024 * 1024) {
-          console.warn(`CameraFeedCard: Buffer overflow for ${config.name}, resetting`);
           buffer = new Uint8Array();
         }
       }
@@ -458,38 +340,19 @@ export const CameraFeedCard = ({
     // Initial connection
     connect();
     
-     // Listen for auth state changes to reconnect after login / stop on logout
-     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-       // IMPORTANT: keep this callback synchronous (no Supabase calls) to avoid auth deadlocks
-       if (event === 'SIGNED_OUT') {
-         console.log('Auth state changed to SIGNED_OUT, stopping camera stream');
-         isActiveRef.current = false;
-         isConnectedRef.current = false;
-         isConnectingRef.current = false;
-
-         try {
-           fetchControllerRef.current?.abort();
-         } catch {
-           // ignore
-         }
-
-         setIsConnected(false);
-         setIsConnecting(false);
-         setError(null);
-         return;
-       }
-
-       // Use refs to get current state values, not stale closure values
-       if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
-         console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
-         // Delay to ensure session is fully propagated
-         setTimeout(() => {
-           if (!isConnectedRef.current && !isConnectingRef.current) {
-             connect();
-           }
-         }, 500);
-       }
-     });
+    // Listen for auth state changes to reconnect after login
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Use refs to get current state values, not stale closure values
+      if (event === 'SIGNED_IN' && session && !isConnectedRef.current && !isConnectingRef.current) {
+        console.log('Auth state changed to SIGNED_IN, reconnecting camera...');
+        // Delay to ensure session is fully propagated
+        setTimeout(() => {
+          if (!isConnectedRef.current && !isConnectingRef.current) {
+            connect();
+          }
+        }, 500);
+      }
+    });
     authSubscription = subscription;
 
     return () => {
@@ -666,7 +529,6 @@ export const CameraFeedCard = ({
         {!isWebcam && (
           <img
             ref={imgRef}
-            crossOrigin="anonymous"
             className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
             alt={config.name}
           />
