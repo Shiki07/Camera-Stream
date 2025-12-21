@@ -135,15 +135,8 @@ export interface EncryptedCameraConfig {
   type: 'rtsp' | 'mjpeg' | 'hls';
   name: string;
   quality?: 'high' | 'medium' | 'low';
-
-  // Non-sensitive metadata we still want to persist
-  source?: 'webcam' | 'network' | 'homeassistant';
-  deviceId?: string;
-  haEntityId?: string;
-
   encryptedUsername?: string;
   encryptedPassword?: string;
-
   // Keep for backward compatibility detection
   username?: never;
   password?: never;
@@ -154,12 +147,6 @@ export interface DecryptedCameraConfig {
   type: 'rtsp' | 'mjpeg' | 'hls';
   name: string;
   quality?: 'high' | 'medium' | 'low';
-
-  // Non-sensitive metadata
-  source?: 'webcam' | 'network' | 'homeassistant';
-  deviceId?: string;
-  haEntityId?: string;
-
   username?: string;
   password?: string;
 }
@@ -172,19 +159,16 @@ export async function encryptCameraCredentials(
     type: config.type,
     name: config.name,
     quality: config.quality,
-    source: config.source,
-    deviceId: config.deviceId,
-    haEntityId: config.haEntityId,
   };
-
+  
   if (config.username) {
     encrypted.encryptedUsername = await encryptValue(config.username);
   }
-
+  
   if (config.password) {
     encrypted.encryptedPassword = await encryptValue(config.password);
   }
-
+  
   return encrypted;
 }
 
@@ -199,33 +183,27 @@ export async function decryptCameraCredentials(
       type: legacyConfig.type,
       name: legacyConfig.name,
       quality: legacyConfig.quality,
-      source: legacyConfig.source,
-      deviceId: legacyConfig.deviceId,
-      haEntityId: legacyConfig.haEntityId,
       username: legacyConfig.username,
       password: legacyConfig.password,
     };
   }
-
+  
   const encryptedConfig = config as EncryptedCameraConfig;
   const decrypted: DecryptedCameraConfig = {
     url: encryptedConfig.url,
     type: encryptedConfig.type,
     name: encryptedConfig.name,
     quality: encryptedConfig.quality,
-    source: encryptedConfig.source,
-    deviceId: encryptedConfig.deviceId,
-    haEntityId: encryptedConfig.haEntityId,
   };
-
+  
   if (encryptedConfig.encryptedUsername) {
     decrypted.username = await decryptValue(encryptedConfig.encryptedUsername);
   }
-
+  
   if (encryptedConfig.encryptedPassword) {
     decrypted.password = await decryptValue(encryptedConfig.encryptedPassword);
   }
-
+  
   return decrypted;
 }
 

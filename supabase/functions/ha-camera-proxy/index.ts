@@ -134,9 +134,9 @@ serve(async (req: Request): Promise<Response> => {
 
     // Create AbortController for long-running streams with extended timeout
     const controller = new AbortController();
-    const STREAM_TIMEOUT_MS = 900000; // 15 minutes for MJPEG streams
+    const STREAM_TIMEOUT_MS = 300000; // 5 minutes for MJPEG streams
     const timeoutId = setTimeout(() => {
-      console.log('HA camera proxy: Stream timeout after 15 minutes, aborting');
+      console.log('HA camera proxy: Stream timeout after 5 minutes, aborting');
       controller.abort();
     }, STREAM_TIMEOUT_MS);
 
@@ -156,18 +156,12 @@ serve(async (req: Request): Promise<Response> => {
 
       if (!response.ok) {
         clearTimeout(timeoutId);
-        let details = '';
-        try {
-          details = (await response.clone().text()).substring(0, 200);
-        } catch {
-          // ignore
-        }
-        console.error('Home Assistant returned error:', response.status, details);
+        console.error('Home Assistant returned error:', response.status);
         return new Response(
-          JSON.stringify({ error: `Home Assistant error: ${response.status}`, details }),
-          {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          JSON.stringify({ error: `Home Assistant error: ${response.status}` }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
@@ -211,37 +205,28 @@ serve(async (req: Request): Promise<Response> => {
       });
     } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
-      const err = fetchError as Error & { name?: string; cause?: unknown };
-
+      const err = fetchError as Error & { name?: string };
+      
       if (err.name === 'AbortError') {
         console.log('HA camera proxy: Stream aborted (timeout or client disconnect)');
         return new Response(
           JSON.stringify({ error: 'Stream timeout - please reconnect' }),
-          {
-            status: 408,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          { 
+            status: 408, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
-
-      const message = err?.message || 'Proxy fetch failed';
-      console.error('HA camera proxy fetch error:', message);
-      return new Response(
-        JSON.stringify({ error: 'Proxy fetch failed', details: message.substring(0, 200) }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      
+      throw fetchError;
     }
   } catch (error) {
-    const err = error as Error;
-    console.error('HA camera proxy error:', err?.message || error);
+    console.error('HA camera proxy error:', error);
     return new Response(
-      JSON.stringify({ error: 'Proxy error', details: (err?.message || 'unknown').substring(0, 200) }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      JSON.stringify({ error: 'Proxy error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }

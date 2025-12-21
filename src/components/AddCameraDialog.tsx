@@ -44,14 +44,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
   const [hasLoadedHACameras, setHasLoadedHACameras] = useState(false);
   const [selectedHACamera, setSelectedHACamera] = useState<string>('');
   
-  const {
-    config: haConfig,
-    cameras: haCameras,
-    fetchCameras,
-    loading: haLoading,
-    getCameraProxyUrl,
-    isInitialized: haInitialized,
-  } = useHomeAssistant();
+  const { config: haConfig, cameras: haCameras, fetchCameras, loading: haLoading, getCameraProxyUrl } = useHomeAssistant();
 
   // Enumerate webcam devices
   const loadWebcamDevices = async () => {
@@ -76,10 +69,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
 
   // Load Home Assistant cameras
   const loadHACameras = async () => {
-    if (hasLoadedHACameras) return;
-    if (!haInitialized) return;
-    if (!haConfig.url || !haConfig.token) return;
-
+    if (hasLoadedHACameras || !haConfig.url || !haConfig.token) return;
     await fetchCameras();
     setHasLoadedHACameras(true);
   };
@@ -89,18 +79,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     if (open && tab === 'webcam' && !hasLoadedWebcams) {
       loadWebcamDevices();
     }
-  }, [open, tab, hasLoadedWebcams]);
-
-  // Auto-load Home Assistant cameras once config finishes decrypting/loading
-  useEffect(() => {
-    if (!open) return;
-    if (tab !== 'homeassistant') return;
-    if (hasLoadedHACameras) return;
-    if (!haInitialized) return;
-    if (!haConfig.url || !haConfig.token) return;
-
-    loadHACameras();
-  }, [open, tab, hasLoadedHACameras, haInitialized, haConfig.url, haConfig.token]);
+  }, [open]);
 
   // Load devices when tab changes
   const handleTabChange = (value: string) => {
@@ -197,7 +176,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
     onOpenChange(false);
   };
 
-  const haConfigured = haInitialized && !!haConfig.url && !!haConfig.token;
+  const haConfigured = haConfig.url && haConfig.token;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -329,11 +308,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
             </TabsContent>
 
             <TabsContent value="homeassistant" className="space-y-4 mt-0">
-              {!haInitialized ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : !haConfigured ? (
+              {!haConfigured ? (
                 <div className="text-center py-4">
                   <Home className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground mb-2">
