@@ -221,7 +221,10 @@ export const CameraFeedCard = ({
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
     if (!imgRef.current) return;
-    
+
+    // Reset frame timer for stall detection on each connect attempt
+    lastFrameAtRef.current = 0;
+
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -605,7 +608,19 @@ export const CameraFeedCard = ({
     if (isWebcam || !isHomeAssistantCamera) return;
     if (!isTabVisible) return;
 
-    // If we haven't received any frame yet, let the normal connect path run.
+    // Run a quick check immediately when the tab becomes visible
+    const immediateLastFrameAt = lastFrameAtRef.current;
+    const immediateStaleForMs = immediateLastFrameAt ? Date.now() - immediateLastFrameAt : Number.POSITIVE_INFINITY;
+    if (!isConnecting) {
+      if (!isConnected) {
+        console.warn(`CameraFeedCard: HA camera not connected for ${config.name}, reconnecting on visibility...`);
+        connectToNetworkStream();
+      } else if (immediateStaleForMs > 30_000) {
+        console.warn(`CameraFeedCard: HA stream stale for ${config.name} on visibility (staleForMs=${immediateStaleForMs}), reconnecting...`);
+        connectToNetworkStream();
+      }
+    }
+
     const watchdog = setInterval(() => {
       if (!isActiveRef.current) return;
       if (isConnecting) return;
