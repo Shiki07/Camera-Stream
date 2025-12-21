@@ -82,6 +82,8 @@ export const CameraFeedCard = ({
   const fetchControllerRef = useRef<AbortController | null>(null);
   const isActiveRef = useRef(true);
   const lastFrameAtRef = useRef<number>(0);
+  const connectInFlightRef = useRef(false);
+  const haReconnectAttemptRef = useRef(0);
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -222,6 +224,10 @@ export const CameraFeedCard = ({
   const connectToNetworkStream = useCallback(async () => {
     if (!imgRef.current) return;
 
+    // Prevent overlapping connect attempts (common source of abort loops)
+    if (connectInFlightRef.current) return;
+    connectInFlightRef.current = true;
+
     // Reset frame timer for stall detection on each connect attempt
     lastFrameAtRef.current = 0;
 
@@ -361,6 +367,7 @@ export const CameraFeedCard = ({
 
         setIsConnected(true);
         setIsConnecting(false);
+        haReconnectAttemptRef.current = 0;
 
         // Test Pi service connection (only for non-HA cameras)
         if (shouldTestPi) {
@@ -368,11 +375,15 @@ export const CameraFeedCard = ({
         }
 
         if (shouldAutoReconnect && isActiveRef.current) {
+          const attempt = haReconnectAttemptRef.current;
+          const delayMs = Math.min(30_000, 1000 * Math.pow(2, attempt));
+          haReconnectAttemptRef.current = Math.min(attempt + 1, 6);
+
           setTimeout(() => {
-            if (isActiveRef.current) {
+            if (isActiveRef.current && isTabVisible) {
               connectToNetworkStream();
             }
-          }, 2000);
+          }, delayMs);
         }
 
         return;
@@ -387,6 +398,7 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
+      haReconnectAttemptRef.current = 0;
 
       // Test Pi service connection (only for non-HA cameras)
       if (shouldTestPi) {
@@ -475,27 +487,29 @@ export const CameraFeedCard = ({
       }
 
       // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
-      if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
+      if (streamEnded && isActiveRef.current && shouldAutoReconnect && isTabVisible) {
         const livedMs = Date.now() - streamStartedAt;
 
         // If it ended very quickly or without producing frames, don't tight-loop reconnect.
-        // Instead surface an error and let the slower global auto-retry handle it.
+        // Instead surface an error and use exponential backoff.
         if (frameCount === 0 || livedMs < 5000) {
           console.warn(
             `CameraFeedCard: HA stream ended too quickly for ${config.name} (frames=${frameCount}, livedMs=${livedMs})`
           );
           setError('Camera stream ended unexpectedly');
           setIsConnected(false);
-          return;
         }
 
-        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
-        // Small delay to prevent rapid reconnection loops
+        const attempt = haReconnectAttemptRef.current;
+        const delayMs = Math.min(30_000, 1000 * Math.pow(2, attempt));
+        haReconnectAttemptRef.current = Math.min(attempt + 1, 6);
+
+        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} in ${delayMs}ms (attempt=${attempt + 1})...`);
         setTimeout(() => {
-          if (isActiveRef.current) {
+          if (isActiveRef.current && isTabVisible) {
             connectToNetworkStream();
           }
-        }, 1000);
+        }, delayMs);
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -503,9 +517,10 @@ export const CameraFeedCard = ({
         setIsConnected(false);
       }
     } finally {
+      connectInFlightRef.current = false;
       setIsConnecting(false);
     }
-  }, [config.url, piRecording]);
+  }, [config.url, piRecording, isTabVisible]);
 
   // Track connection state with refs for auth callback
   const isConnectedRef = useRef(isConnected);
