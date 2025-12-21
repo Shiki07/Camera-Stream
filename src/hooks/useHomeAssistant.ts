@@ -297,6 +297,7 @@ export const useHomeAssistant = () => {
     cameras,
     loading,
     connected,
+    isInitialized,
     testConnection,
     fetchCameras,
     getCameraProxyUrl,
