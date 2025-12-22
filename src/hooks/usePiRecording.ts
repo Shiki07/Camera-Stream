@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { loadPiServiceApiKey } from '@/utils/piServiceKeyEncryption';
 
 export interface PiRecordingOptions {
   piUrl: string;
@@ -20,15 +19,6 @@ export const usePiRecording = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const piApiKeyRef = useRef<string>('');
-
-  // Load encrypted Pi API key on mount
-  useEffect(() => {
-    const loadKey = async () => {
-      piApiKeyRef.current = await loadPiServiceApiKey();
-    };
-    loadKey();
-  }, []);
 
   const startRecording = useCallback(async (options: PiRecordingOptions) => {
     if (!user) {
@@ -61,17 +51,11 @@ export const usePiRecording = () => {
       const isLocalNetwork = /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(options.piUrl);
 
       let result;
-      
-      // Get PI_SERVICE_API_KEY from encrypted storage
-      const piApiKey = piApiKeyRef.current;
 
       if (isLocalNetwork) {
         // Direct call to Pi service (local network, no port forwarding needed)
         console.log('Using direct Pi service call (local network)');
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (piApiKey) {
-          headers['X-API-Key'] = piApiKey;
-        }
         const response = await fetch(`${options.piUrl}/recording/start`, {
           method: 'POST',
           headers,
@@ -196,9 +180,6 @@ export const usePiRecording = () => {
 
       let result;
 
-      // Get PI_SERVICE_API_KEY from encrypted storage
-      const piApiKey = piApiKeyRef.current;
-
       if (isLocalNetwork) {
         // Direct call to Pi service (local network) with timeout
         console.log('Using direct Pi service call (local network)');
@@ -207,9 +188,6 @@ export const usePiRecording = () => {
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (piApiKey) {
-          headers['X-API-Key'] = piApiKey;
-        }
         
         try {
           const response = await fetch(`${piUrl}/recording/stop`, {
