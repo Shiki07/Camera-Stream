@@ -191,29 +191,74 @@ export const CameraFeedCard = ({
     setError(null);
     isActiveRef.current = true;
 
+    // Clean up any existing stream first
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: { exact: config.deviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-        audio: true,
-      });
+      // First try with exact deviceId
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { exact: config.deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: true,
+        });
+      } catch (exactErr) {
+        // If exact deviceId fails (stale after browser restart), try with ideal preference
+        console.log('Exact deviceId failed, trying with ideal preference:', exactErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { ideal: config.deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: true,
+        });
+      }
+
+      if (!isActiveRef.current) {
+        // Component unmounted during async operation
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+        
+        // Listen for track ended events (e.g., user revokes permission)
+        stream.getVideoTracks().forEach(track => {
+          track.onended = () => {
+            console.log('Webcam track ended, attempting reconnect...');
+            if (isActiveRef.current) {
+              setIsConnected(false);
+              setError('Webcam disconnected');
+            }
+          };
+        });
+        
         setIsConnected(true);
+        console.log(`Webcam connected: ${config.name}`);
       }
     } catch (err) {
+      console.error('Webcam connection failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to access webcam');
       setIsConnected(false);
     } finally {
       setIsConnecting(false);
     }
-  }, [config.deviceId]);
+  }, [config.deviceId, config.name]);
 
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
