@@ -103,21 +103,38 @@ const Auth = () => {
   const handleResend = async () => {
     setIsLoading(true);
     setError('');
+    
+    const trimmedEmail = email.toLowerCase().trim();
+    console.log('Resending confirmation email to:', trimmedEmail);
+    
     try {
-      const { error } = await supabase.auth.resend({
+      const { data, error } = await supabase.auth.resend({
         type: 'signup',
-        email: email.toLowerCase().trim(),
-        options: { emailRedirectTo: `${window.location.origin}/dashboard` }
-      } as any);
+        email: trimmedEmail,
+        options: {
+          emailRedirectTo: 'https://camerastream.live/dashboard'
+        }
+      });
+      
+      console.log('Resend response:', { data, error });
+      
       if (error) {
-        setError(error.message || 'Could not resend verification email. Please try again.');
+        console.error('Resend error:', error);
+        if (error.message.includes('rate') || error.message.includes('limit')) {
+          setError('Please wait a moment before requesting another verification email.');
+        } else if (error.message.includes('already confirmed')) {
+          setError('This email is already verified. Please sign in instead.');
+        } else {
+          setError(error.message || 'Could not resend verification email. Please try again.');
+        }
       } else {
         toast({
           title: 'Verification email resent',
-          description: `We’ve resent the verification link to ${email}.`,
+          description: `We've resent the verification link to ${trimmedEmail}. Check your inbox and spam folder.`,
         });
       }
     } catch (err: any) {
+      console.error('Resend exception:', err);
       setError('Unexpected error while resending verification email.');
     }
     setIsLoading(false);
@@ -135,7 +152,7 @@ const Auth = () => {
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: 'https://camerastream.live/auth',
       });
       
       if (error) {
@@ -263,8 +280,13 @@ const Auth = () => {
                   Please click the verification link in your email to activate your account and access your camera control system.
                 </AlertDescription>
               </Alert>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <p className="text-sm text-muted-foreground">
-                Didn't receive the email? Check your spam folder or try signing up again.
+                Didn't receive the email? Check your spam folder or click the button below.
               </p>
             </div>
           </CardContent>
@@ -279,7 +301,10 @@ const Auth = () => {
             <Button 
               variant="outline" 
               className="w-full" 
-              onClick={() => setShowEmailSent(false)}
+              onClick={() => {
+                setShowEmailSent(false);
+                setError('');
+              }}
             >
               Back to Sign Up
             </Button>
