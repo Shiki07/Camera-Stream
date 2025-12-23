@@ -144,22 +144,47 @@ serve(async (req) => {
       );
     }
 
-    // Upsert the encrypted token into user_tokens table
-    const { error: upsertError } = await supabase
+    // First try to find existing token
+    const { data: existingToken, error: fetchError } = await supabase
       .from('user_tokens')
-      .upsert({
-        user_id: user.id,
-        token_type: 'duckdns',
-        encrypted_token: encryptedToken,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,token_type'
-      });
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('token_type', 'duckdns')
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error checking existing token:', fetchError.message);
+    }
+
+    let upsertError;
+    if (existingToken) {
+      // Update existing record
+      const { error } = await supabase
+        .from('user_tokens')
+        .update({
+          encrypted_token: encryptedToken,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingToken.id);
+      upsertError = error;
+    } else {
+      // Insert new record
+      const { error } = await supabase
+        .from('user_tokens')
+        .insert({
+          user_id: user.id,
+          token_type: 'duckdns',
+          encrypted_token: encryptedToken,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      upsertError = error;
+    }
 
     if (upsertError) {
       console.error('Error saving encrypted token:', upsertError.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to save token' }),
+        JSON.stringify({ error: 'Failed to save token', details: upsertError.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
