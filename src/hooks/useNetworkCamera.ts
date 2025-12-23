@@ -429,9 +429,9 @@ export const useNetworkCamera = () => {
       };
       
       // Start heartbeat monitor to detect stale streams (frames stop arriving)
-      // Increased threshold to reduce false positives - Pi streams can have gaps
-      const STALE_THRESHOLD_MS = 20000; // 20 seconds without frames = stale (increased from 15)
-      const HEARTBEAT_CHECK_MS = 5000; // Check every 5 seconds (less aggressive)
+      // Increased threshold significantly for Pi Zero which can have longer gaps
+      const STALE_THRESHOLD_MS = 30000; // 30 seconds without frames = stale
+      const HEARTBEAT_CHECK_MS = 8000; // Check every 8 seconds (less aggressive)
       
       heartbeatRef.current = setInterval(() => {
         // Skip checks when tab is hidden - stream naturally pauses
@@ -529,9 +529,21 @@ export const useNetworkCamera = () => {
 
 
         const processStream = async () => {
+          // Timeout for individual read operations - prevents hanging on stalled streams
+          const READ_TIMEOUT_MS = 15000; // 15 seconds max wait for a chunk
+          
+          const readWithTimeout = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+            return Promise.race([
+              reader.read(),
+              new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+                setTimeout(() => reject(new Error('Read timeout - stream stalled')), READ_TIMEOUT_MS);
+              })
+            ]);
+          };
+          
           while (isActiveRef.current) {
             try {
-              const { done, value } = await reader.read();
+              const { done, value } = await readWithTimeout();
               
               if (done) {
                 const connectionAge = Date.now() - connectionAgeRef.current;
@@ -618,10 +630,10 @@ export const useNetworkCamera = () => {
                   imgElement.src = newBlobUrl;
                   currentBlobUrlRef.current = newBlobUrl;
 
-                  // Keep a small rolling window of blob URLs and only revoke the oldest.
-                  // Revoking the "previous" URL too quickly can blank the frame on some browsers.
+                  // Keep a smaller rolling window of blob URLs to reduce memory pressure
+                  // Revoking URLs too quickly can blank the frame on some browsers
                   blobUrlsRef.current.push(newBlobUrl);
-                  const MAX_BLOB_URLS = 30;
+                  const MAX_BLOB_URLS = 15; // Reduced from 30 to lower memory usage
                   while (blobUrlsRef.current.length > MAX_BLOB_URLS) {
                     const urlToRevoke = blobUrlsRef.current.shift();
                     if (urlToRevoke && urlToRevoke !== currentBlobUrlRef.current) {
@@ -664,9 +676,10 @@ export const useNetworkCamera = () => {
                 buffer = buffer.slice(endIdx);
               }
 
-              // Tighter buffer limits to reduce scanning overhead
-              if (buffer.length > 2 * 1024 * 1024) {
-                buffer = buffer.slice(-1 * 1024 * 1024); // keep last 1MB
+              // Tighter buffer limits to reduce memory and scanning overhead
+              if (buffer.length > 1.5 * 1024 * 1024) {
+                console.log('useNetworkCamera: Buffer overflow, trimming to 512KB');
+                buffer = buffer.slice(-512 * 1024); // keep last 512KB only
               }
               
             } catch (readError: any) {
@@ -674,6 +687,17 @@ export const useNetworkCamera = () => {
                 console.log('useNetworkCamera: Stream read aborted');
                 break;
               }
+              
+              // Handle read timeout - stream stalled, trigger seamless reconnect
+              if (readError.message?.includes('Read timeout')) {
+                console.log('useNetworkCamera: Read timeout detected, triggering seamless reconnect');
+                lastFrameTimeRef.current = Date.now(); // Prevent double-trigger from heartbeat
+                if (isActiveRef.current) {
+                  startOverlappingConnection(imgElement, config);
+                }
+                break;
+              }
+              
               throw readError;
             }
           }
