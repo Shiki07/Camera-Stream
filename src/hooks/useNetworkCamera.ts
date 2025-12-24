@@ -855,7 +855,7 @@ export const useNetworkCamera = () => {
         // Exponential backoff retry logic for failed attempts
         const delay = Math.min(1000 * (reconnectAttempts + 1), 5000);
         console.log(`useNetworkCamera: Retrying fetch-based connection (${reconnectAttempts + 1}/3)`);
-        
+
         if (reconnectAttempts < 3 && isActiveRef.current) {
           setReconnectAttempts(prev => prev + 1);
           setTimeout(() => {
@@ -864,22 +864,46 @@ export const useNetworkCamera = () => {
             }
           }, delay);
         } else {
-          setConnectionError(`Camera connection failed after multiple attempts. If this is a local IP, enable DuckDNS and forward port 8000, then use your DuckDNS URL.`);
+          // IMPORTANT: Do NOT mark stream inactive on transient network failures.
+          // Keep last frame visible and continue retrying periodically.
+          console.log('useNetworkCamera: Max immediate retries reached; entering keep-alive retry mode');
+          setConnectionError('Camera stream interrupted. Reconnecting...');
           isConnectedRef.current = false;
           setIsConnected(false);
           setIsConnecting(false);
-          isActiveRef.current = false;
           isConnectingRef.current = false;
+
+          // Schedule a slower retry loop (prevents permanent freeze state)
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (isActiveRef.current) {
+              setReconnectAttempts(0);
+              connectToMJPEGStream(imgElement, config);
+            }
+          }, 10000);
         }
       }
     } catch (error) {
       console.error('useNetworkCamera: connectToMJPEGStream error:', error);
-      setConnectionError('Failed to establish camera connection');
+
+      // Keep last frame, and keep trying periodically instead of freezing permanently
+      setConnectionError('Camera stream error. Reconnecting...');
       isConnectedRef.current = false;
       setIsConnected(false);
       setIsConnecting(false);
-      isActiveRef.current = false;
       isConnectingRef.current = false;
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (isActiveRef.current) {
+          setReconnectAttempts(0);
+          connectToMJPEGStream(imgElement, config);
+        }
+      }, 10000);
     }
   }, [getProxiedUrl, reconnectAttempts, startOverlappingConnection]);
 
