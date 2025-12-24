@@ -313,12 +313,12 @@ export const useDuckDNS = () => {
       }
     }, 15000);
 
-    // Regular checks every 5 minutes
+    // Regular checks every 15 minutes (reduced from 5 to avoid excessive refreshing)
     const interval = setInterval(() => {
       // Skip when tab is hidden or already updating
       if (document.hidden || isUpdating || updatePromise) return;
       checkAndUpdateIP();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
 
     return () => {
       clearTimeout(initialTimeout);

@@ -154,12 +154,12 @@ export const DuckDNSSettings = () => {
                       className="bg-gray-600 border-gray-500 hover:bg-gray-500"
                     >
                       <Copy className="w-3 h-3 mr-1" />
-                      Copy
+                      Copy URL
                     </Button>
                   </div>
-                  <code className="text-xs text-blue-300 break-all block">
-                    {getCameraUrlWithDuckDNS(8000)}
-                  </code>
+                  <p className="text-xs text-gray-400">
+                    URL hidden for privacy • Click "Copy URL" to get the full address
+                  </p>
                 </div>
                 <p className="text-xs text-yellow-400">
                   ⚠️ Note: These URLs use HTTP and will be proxied through HTTPS when accessed from this site
@@ -236,10 +236,10 @@ export const DuckDNSSettings = () => {
             </div>
 
             <div className="text-xs text-gray-400 space-y-1">
-              <p>• IP is checked every 5 minutes automatically</p>
+              <p>• IP is checked every 15 minutes automatically</p>
               <p>• Use your DuckDNS domain in camera URLs for external access</p>
               <p>• HTTP URLs are automatically proxied through HTTPS for security</p>
-              <p>• All tokens are stored securely on the server</p>
+              <p>• All tokens and URLs are kept private for your security</p>
             </div>
           </>
         )}
