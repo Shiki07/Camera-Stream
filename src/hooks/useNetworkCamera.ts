@@ -531,14 +531,26 @@ export const useNetworkCamera = () => {
         const processStream = async () => {
           // Timeout for individual read operations - prevents hanging on stalled streams
           const READ_TIMEOUT_MS = 15000; // 15 seconds max wait for a chunk
-          
-          const readWithTimeout = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-            return Promise.race([
-              reader.read(),
-              new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
-                setTimeout(() => reject(new Error('Read timeout - stream stalled')), READ_TIMEOUT_MS);
-              })
-            ]);
+
+          const readWithTimeout = (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+            return new Promise((resolve, reject) => {
+              const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
+                const err = new Error('Read timeout - stream stalled');
+                (err as any).name = 'ReadTimeoutError';
+                reject(err);
+              }, READ_TIMEOUT_MS);
+
+              reader
+                .read()
+                .then((result) => {
+                  clearTimeout(timeoutId);
+                  resolve(result);
+                })
+                .catch((err) => {
+                  clearTimeout(timeoutId);
+                  reject(err);
+                });
+            });
           };
           
           while (isActiveRef.current) {
@@ -689,7 +701,7 @@ export const useNetworkCamera = () => {
               }
               
               // Handle read timeout - stream stalled, trigger seamless reconnect
-              if (readError.message?.includes('Read timeout')) {
+              if (readError?.name === 'ReadTimeoutError') {
                 console.log('useNetworkCamera: Read timeout detected, triggering seamless reconnect');
                 lastFrameTimeRef.current = Date.now(); // Prevent double-trigger from heartbeat
                 if (isActiveRef.current) {
