@@ -81,6 +81,8 @@ export const CameraFeedCard = ({
   const isTabVisible = useTabVisibility();
   const fetchControllerRef = useRef<AbortController | null>(null);
   const isActiveRef = useRef(true);
+  const lastFrameTimeRef = useRef<number>(Date.now());
+  const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -264,12 +266,20 @@ export const CameraFeedCard = ({
   const connectToNetworkStream = useCallback(async () => {
     if (!imgRef.current) return;
     
+    const STALL_TIMEOUT_MS = 8000;
+    const STALL_CHECK_INTERVAL_MS = 2000;
+    
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
+    lastFrameTimeRef.current = Date.now();
 
     if (fetchControllerRef.current) {
       fetchControllerRef.current.abort();
+    }
+    if (stallCheckIntervalRef.current) {
+      clearInterval(stallCheckIntervalRef.current);
+      stallCheckIntervalRef.current = null;
     }
     fetchControllerRef.current = new AbortController();
 
@@ -435,20 +445,36 @@ export const CameraFeedCard = ({
       let buffer = new Uint8Array();
       let frameCount = 0;
       let streamEnded = false;
-      const firstFrameDeadline = Date.now() + 8000;
-      const READ_TIMEOUT_MS = 12000;
-
-      const readWithTimeout = async () => {
-        return await Promise.race([
-          reader.read(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Stream stalled (read timeout)')), READ_TIMEOUT_MS)
-          ),
-        ]);
-      };
+      
+      // Initialize frame time tracking
+      lastFrameTimeRef.current = Date.now();
+      
+      // Start stall detection interval
+      stallCheckIntervalRef.current = setInterval(() => {
+        const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
+        if (timeSinceLastFrame > STALL_TIMEOUT_MS && isActiveRef.current) {
+          console.log(`CameraFeedCard: Stream stalled for ${config.name} (${Math.round(timeSinceLastFrame / 1000)}s since last frame), restarting...`);
+          
+          // Abort the frozen connection
+          try { fetchControllerRef.current?.abort(); } catch {}
+          
+          // Clear the interval to prevent multiple reconnects
+          if (stallCheckIntervalRef.current) {
+            clearInterval(stallCheckIntervalRef.current);
+            stallCheckIntervalRef.current = null;
+          }
+          
+          // Start a new connection immediately
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, 100);
+        }
+      }, STALL_CHECK_INTERVAL_MS);
 
       while (isActiveRef.current) {
-        const { done, value } = await readWithTimeout();
+        const { done, value } = await reader.read();
         if (done) {
           streamEnded = true;
           console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
@@ -459,10 +485,6 @@ export const CameraFeedCard = ({
         newBuffer.set(buffer);
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
-
-        if (frameCount === 0 && Date.now() > firstFrameDeadline) {
-          throw new Error('No frames received from camera stream');
-        }
 
         // Extract all complete JPEG frames from buffer
         let framesExtracted = 0;
@@ -507,6 +529,9 @@ export const CameraFeedCard = ({
             }
           }
 
+          // Update last frame time for stall detection
+          lastFrameTimeRef.current = Date.now();
+
           // Log first frame to confirm stream is working
           if (frameCount === 1) {
             console.log(
@@ -521,11 +546,16 @@ export const CameraFeedCard = ({
           buffer = new Uint8Array();
         }
       }
+      
+      // Clean up stall detection interval
+      if (stallCheckIntervalRef.current) {
+        clearInterval(stallCheckIntervalRef.current);
+        stallCheckIntervalRef.current = null;
+      }
 
       // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
         console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
-        // Small delay to prevent rapid reconnection loops
         setTimeout(() => {
           if (isActiveRef.current) {
             connectToNetworkStream();
@@ -535,31 +565,21 @@ export const CameraFeedCard = ({
     } catch (err) {
       const e = err as Error;
 
-      // For stalled reads, do a fast reconnect without surfacing a scary error.
-      if (e?.message?.includes('Stream stalled') && isActiveRef.current) {
-        console.warn(`CameraFeedCard: ${config.name} stalled, reconnecting...`);
-        try {
-          fetchControllerRef.current?.abort();
-        } catch {
-          // ignore
-        }
-        setIsConnected(false);
-        setIsConnecting(false);
-        setError(null);
-        setTimeout(() => {
-          if (isActiveRef.current) connectToNetworkStream();
-        }, 1000);
-        return;
+      // Clean up stall detection on error
+      if (stallCheckIntervalRef.current) {
+        clearInterval(stallCheckIntervalRef.current);
+        stallCheckIntervalRef.current = null;
       }
 
       if (e?.name !== 'AbortError') {
+        console.error(`CameraFeedCard: Connection error for ${config.name}:`, e.message);
         setError(e instanceof Error ? e.message : 'Connection failed');
         setIsConnected(false);
       }
     } finally {
       setIsConnecting(false);
     }
-  }, [config.url, piRecording]);
+  }, [config.url, config.name, piRecording]);
 
   // Track connection state with refs for auth callback
   const isConnectedRef = useRef(isConnected);
@@ -626,6 +646,10 @@ export const CameraFeedCard = ({
       isActiveRef.current = false;
       if (fetchControllerRef.current) {
         fetchControllerRef.current.abort();
+      }
+      if (stallCheckIntervalRef.current) {
+        clearInterval(stallCheckIntervalRef.current);
+        stallCheckIntervalRef.current = null;
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
