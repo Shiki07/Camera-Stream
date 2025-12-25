@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
 import { useDirectoryPicker } from '@/hooks/useDirectoryPicker';
-import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X, Home } from 'lucide-react';
+import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X, Home, Wifi } from 'lucide-react';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +104,42 @@ export const CameraSettingsSheet = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Connection Mode - Only for network cameras */}
+          {camera.type === 'mjpeg' && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Wifi className="h-4 w-4" />
+                  <h3 className="font-medium">Connection Mode</h3>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="direct-connection">Direct Local Connection</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Bypass proxy for lower latency (requires same network)
+                    </p>
+                  </div>
+                  <Switch
+                    id="direct-connection"
+                    checked={settings.direct_connection}
+                    onCheckedChange={(v) => updateSetting('direct_connection', v)}
+                  />
+                </div>
+                
+                {settings.direct_connection && (
+                  <Alert className="py-2">
+                    <Wifi className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Direct mode connects straight to your Pi. Only works when you're on the same local network. Falls back to proxy if connection fails.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Storage Settings */}
           <div className="space-y-4">
