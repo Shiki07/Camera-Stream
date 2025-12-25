@@ -18,11 +18,11 @@ try:
     from picamera2 import Picamera2
     from libcamera import controls
 except ImportError as e:
-    print(f"❌ Missing required dependency: {e}")
+    print("[ERROR] Missing required dependency: {}".format(str(e)))
     print("Install with: sudo apt install python3-picamera2 python3-opencv python3-numpy")
     sys.exit(1)
 
-# Configure logging
+# Configure logging with ASCII-safe format
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -95,13 +95,13 @@ class StreamingHandler(BaseHTTPRequestHandler):
                 
                 frame_count += 1
                 if frame_count % 300 == 0:  # Log every ~10 seconds at 30fps
-                    logger.debug(f"Streamed {frame_count} frames")
+                    logger.debug("Streamed %d frames", frame_count)
                 
                 # Control frame rate (~30 FPS)
                 time.sleep(0.033)
                 
         except Exception as e:
-            logger.info(f'Client {self.client_address} disconnected: {str(e)}')
+            logger.info("Client %s disconnected: %s", self.client_address, str(e))
 
     def _serve_health_check(self):
         """Serve a simple health check endpoint"""
@@ -131,46 +131,46 @@ def create_camera_handler(picam2):
 
 def check_system_requirements():
     """Check if system meets requirements"""
-    logger.info("🔍 Checking system requirements...")
+    logger.info("[CHECK] Checking system requirements...")
     
     # Check if we're on a Raspberry Pi
     try:
         with open('/proc/device-tree/model', 'r') as f:
             model = f.read().strip()
-            logger.info(f"📱 Device: {model}")
+            logger.info("[DEVICE] %s", model)
     except FileNotFoundError:
-        logger.warning("⚠️  Not running on a Raspberry Pi")
+        logger.warning("[WARN] Not running on a Raspberry Pi")
     
     # Check camera support in firmware
     import subprocess
     try:
         result = subprocess.run(['vcgencmd', 'get_camera'], 
                               capture_output=True, text=True, timeout=5)
-        logger.info(f"🎥 Camera firmware: {result.stdout.strip()}")
+        logger.info("[CAMERA] Firmware: %s", result.stdout.strip())
         
         if 'detected=0' in result.stdout:
-            logger.warning("⚠️  No camera detected by firmware")
+            logger.warning("[WARN] No camera detected by firmware")
             return False
             
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        logger.warning("⚠️  Could not check camera firmware status")
+        logger.warning("[WARN] Could not check camera firmware status")
     
     return True
 
 def initialize_camera():
     """Initialize camera with comprehensive error handling"""
     try:
-        logger.info("🚀 Initializing Raspberry Pi Camera...")
+        logger.info("[INIT] Initializing Raspberry Pi Camera...")
         
         # Check available cameras first
         cameras = Picamera2.global_camera_info()
-        logger.info(f"📷 Found {len(cameras)} camera(s)")
+        logger.info("[CAMERA] Found %d camera(s)", len(cameras))
         
         if len(cameras) == 0:
             raise RuntimeError(
                 "No cameras detected. Troubleshooting steps:\n"
                 "1. Check camera ribbon cable connection\n"
-                "2. Enable camera: sudo raspi-config → Interface Options → Camera\n"
+                "2. Enable camera: sudo raspi-config -> Interface Options -> Camera\n"
                 "3. Add to /boot/firmware/config.txt:\n"
                 "   dtparam=i2c_arm=on\n"
                 "   camera_auto_detect=0\n"
@@ -181,7 +181,7 @@ def initialize_camera():
         
         # Log camera details
         for i, camera in enumerate(cameras):
-            logger.info(f"📷 Camera {i}: {camera}")
+            logger.info("[CAMERA] Camera %d: %s", i, camera)
         
         # Create Picamera2 instance for first camera
         picam2 = Picamera2(camera_num=0)
@@ -193,7 +193,7 @@ def initialize_camera():
             buffer_count=2  # Reduce memory usage
         )
         
-        logger.info(f"⚙️  Camera config: {config}")
+        logger.info("[CONFIG] Camera config: %s", config)
         picam2.configure(config)
         
         # Set camera controls for better image quality
@@ -206,26 +206,26 @@ def initialize_camera():
         }
         
         picam2.set_controls(controls_dict)
-        logger.info(f"🎛️  Applied controls: {controls_dict}")
+        logger.info("[CONTROLS] Applied: %s", controls_dict)
         
         # Start camera
         picam2.start()
-        logger.info("✅ Camera started successfully")
+        logger.info("[OK] Camera started successfully")
         
         # Allow camera to stabilize
         time.sleep(2)
         
         # Test capture
         test_frame = picam2.capture_array()
-        logger.info(f"📸 Test capture: {test_frame.shape} {test_frame.dtype}")
+        logger.info("[TEST] Capture: %s %s", test_frame.shape, test_frame.dtype)
         
         return picam2
         
     except Exception as e:
-        logger.error(f"❌ Camera initialization failed: {str(e)}")
-        logger.error("💡 Common solutions:")
+        logger.error("[ERROR] Camera initialization failed: %s", str(e))
+        logger.error("[TIP] Common solutions:")
         logger.error("   - Check physical camera connection")
-        logger.error("   - Run: sudo raspi-config → Interface Options → Camera → Enable")
+        logger.error("   - Run: sudo raspi-config -> Interface Options -> Camera -> Enable")
         logger.error("   - Verify /boot/firmware/config.txt camera settings")
         logger.error("   - Reboot after configuration changes")
         logger.error("   - Test with: rpicam-hello --timeout 5000")
@@ -252,7 +252,7 @@ StandardError=journal
 WantedBy=multi-user.target
 """
     
-    logger.info("📝 Systemd service file content:")
+    logger.info("[SERVICE] Systemd service file content:")
     logger.info("Save to: /etc/systemd/system/camera-stream.service")
     logger.info("Enable with: sudo systemctl enable camera-stream.service")
     logger.info("Start with: sudo systemctl start camera-stream.service")
@@ -262,11 +262,11 @@ WantedBy=multi-user.target
 
 def main():
     """Main function to start the camera stream server"""
-    logger.info("🎬 Starting Raspberry Pi Camera Stream Server")
+    logger.info("[START] Raspberry Pi Camera Stream Server")
     
     # Check system requirements
     if not check_system_requirements():
-        logger.warning("⚠️  System requirements check failed, continuing anyway...")
+        logger.warning("[WARN] System requirements check failed, continuing anyway...")
     
     try:
         # Initialize camera
@@ -277,28 +277,28 @@ def main():
         handler_class = create_camera_handler(picam2)
         httpd = ThreadingServer(server_address, handler_class)
         
-        logger.info("🌐 Camera stream server started")
-        logger.info(f"📺 Stream URL: http://YOUR_PI_IP:8000/stream.mjpg")
-        logger.info(f"❤️  Health check: http://YOUR_PI_IP:8000/health")
-        logger.info("🛑 Press Ctrl+C to stop")
+        logger.info("[SERVER] Camera stream server started")
+        logger.info("[STREAM] URL: http://YOUR_PI_IP:8000/stream.mjpg")
+        logger.info("[HEALTH] Check: http://YOUR_PI_IP:8000/health")
+        logger.info("[STOP] Press Ctrl+C to stop")
         
         # Option to create systemd service
         import os
         if os.geteuid() != 0:  # Not running as root
-            logger.info("💡 Run with --service flag to see systemd service setup")
+            logger.info("[TIP] Run with --service flag to see systemd service setup")
         
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            logger.info("🛑 Stopping camera stream server...")
+            logger.info("[STOP] Stopping camera stream server...")
         finally:
-            logger.info("🧹 Cleaning up...")
+            logger.info("[CLEANUP] Cleaning up...")
             picam2.stop()
             httpd.shutdown()
-            logger.info("✅ Camera stream server stopped cleanly")
+            logger.info("[OK] Camera stream server stopped cleanly")
             
     except Exception as e:
-        logger.error(f"❌ Failed to start camera stream: {str(e)}")
+        logger.error("[ERROR] Failed to start camera stream: %s", str(e))
         return 1
     
     return 0
