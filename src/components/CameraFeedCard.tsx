@@ -359,8 +359,8 @@ export const CameraFeedCard = ({
         requiresSupabaseJwt = true;
       }
 
-      // Track if this is an HA camera for auto-reconnect on stream end
-      const shouldAutoReconnect = isHomeAssistant;
+      // Auto-reconnect ALL network cameras when stream ends (proxy timeout, server restart, etc.)
+      const shouldAutoReconnect = true;
 
       // Only fetch session if we truly need a Supabase JWT (camera-proxy)
       if (requiresSupabaseJwt) {
