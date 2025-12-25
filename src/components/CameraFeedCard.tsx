@@ -378,13 +378,24 @@ export const CameraFeedCard = ({
           console.log('CameraFeedCard: Using camera-proxy directly');
         }
       } else {
-        const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-        proxyUrl.searchParams.set('url', config.url);
-        streamUrl = proxyUrl.toString();
-        headers = {
-          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-        };
-        requiresSupabaseJwt = true;
+        // Check if direct connection is enabled (bypasses proxy for local network)
+        if (settings.direct_connection) {
+          streamUrl = config.url;
+          headers = {
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+          };
+          requiresSupabaseJwt = false;
+          console.log('CameraFeedCard: Using DIRECT local connection (no proxy)');
+        } else {
+          const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
+          proxyUrl.searchParams.set('url', config.url);
+          streamUrl = proxyUrl.toString();
+          headers = {
+            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+          };
+          requiresSupabaseJwt = true;
+          console.log('CameraFeedCard: Using camera-proxy');
+        }
       }
 
       // Auto-reconnect ALL network cameras when stream ends (proxy timeout, server restart, etc.)
@@ -1027,6 +1038,11 @@ export const CameraFeedCard = ({
           <Badge variant="secondary" className="text-xs">
             {isWebcam ? 'Webcam' : 'Network'}
           </Badge>
+          {!isWebcam && settings.direct_connection && (
+            <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs">
+              Direct
+            </Badge>
+          )}
         </div>
 
         {/* Live Clock */}
