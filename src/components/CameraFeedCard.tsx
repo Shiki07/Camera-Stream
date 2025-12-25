@@ -601,7 +601,7 @@ export const CameraFeedCard = ({
           if (isActiveRef.current) {
             connectToNetworkStream();
           }
-        }, 1200);
+        }, 300);
       } else {
         setIsConnecting(false);
       }
