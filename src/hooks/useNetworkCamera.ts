@@ -30,6 +30,8 @@ export const useNetworkCamera = () => {
   const lastFrameTimeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
   const configRef = useRef<NetworkCameraConfig | null>(null);
+  const connectionAgeRef = useRef<number>(Date.now());
+  const blobUrlsRef = useRef<Set<string>>(new Set());
 
   const connectionStabilizer = useConnectionStabilizer({
     enabled: false,
@@ -105,6 +107,12 @@ export const useNetworkCamera = () => {
       stallCheckIntervalRef.current = null;
     }
     
+    // Cleanup all tracked blob URLs to prevent memory leaks
+    blobUrlsRef.current.forEach(url => {
+      try { URL.revokeObjectURL(url); } catch {}
+    });
+    blobUrlsRef.current.clear();
+    
     if (videoRef.current && videoRef.current instanceof HTMLImageElement) {
       if (videoRef.current.src?.startsWith('blob:')) URL.revokeObjectURL(videoRef.current.src);
       videoRef.current.src = '';
@@ -112,6 +120,7 @@ export const useNetworkCamera = () => {
     
     frameCountRef.current = 0;
     lastFrameTimeRef.current = Date.now();
+    connectionAgeRef.current = Date.now();
   }, []);
 
   // Seamless restart on stall - starts new connection without showing loading state
@@ -185,8 +194,24 @@ export const useNetworkCamera = () => {
             const frameData = buffer.slice(startIdx, endIdx);
             const blob = new Blob([frameData], { type: 'image/jpeg' });
 
-            if (imgElement.src?.startsWith('blob:')) URL.revokeObjectURL(imgElement.src);
-            imgElement.src = URL.createObjectURL(blob);
+            // Track and cleanup old blob URLs
+            if (imgElement.src?.startsWith('blob:')) {
+              URL.revokeObjectURL(imgElement.src);
+              blobUrlsRef.current.delete(imgElement.src);
+            }
+            
+            const blobUrl = URL.createObjectURL(blob);
+            imgElement.src = blobUrl;
+            blobUrlsRef.current.add(blobUrl);
+            
+            // Limit blob URL storage to prevent memory leaks
+            if (blobUrlsRef.current.size > 5) {
+              const oldestUrl = blobUrlsRef.current.values().next().value;
+              if (oldestUrl) {
+                URL.revokeObjectURL(oldestUrl);
+                blobUrlsRef.current.delete(oldestUrl);
+              }
+            }
 
             lastFrameTimeRef.current = Date.now();
             frameCountRef.current++;
@@ -257,9 +282,10 @@ export const useNetworkCamera = () => {
         let buffer = new Uint8Array();
         const BASE_THROTTLE_MS = config.quality === 'low' ? 90 : config.quality === 'medium' ? 75 : 60;
         
-        // Initialize frame time tracking
+        // Initialize frame time and connection age tracking
         lastFrameTimeRef.current = Date.now();
         frameCountRef.current = 0;
+        connectionAgeRef.current = Date.now();
 
         // Start stall detection interval
         stallCheckIntervalRef.current = setInterval(() => {
@@ -318,8 +344,24 @@ export const useNetworkCamera = () => {
               const frameData = buffer.slice(startIdx, endIdx);
               const blob = new Blob([frameData], { type: 'image/jpeg' });
 
-              if (imgElement.src?.startsWith('blob:')) URL.revokeObjectURL(imgElement.src);
-              imgElement.src = URL.createObjectURL(blob);
+              // Track and cleanup old blob URLs
+              if (imgElement.src?.startsWith('blob:')) {
+                URL.revokeObjectURL(imgElement.src);
+                blobUrlsRef.current.delete(imgElement.src);
+              }
+              
+              const blobUrl = URL.createObjectURL(blob);
+              imgElement.src = blobUrl;
+              blobUrlsRef.current.add(blobUrl);
+              
+              // Limit blob URL storage to prevent memory leaks
+              if (blobUrlsRef.current.size > 5) {
+                const oldestUrl = blobUrlsRef.current.values().next().value;
+                if (oldestUrl) {
+                  URL.revokeObjectURL(oldestUrl);
+                  blobUrlsRef.current.delete(oldestUrl);
+                }
+              }
 
               frameCountRef.current++;
               lastFrameTimeRef.current = now;
@@ -330,6 +372,7 @@ export const useNetworkCamera = () => {
                 setIsConnecting(false);
                 setReconnectAttempts(0);
                 setConnectionQuality('good');
+                connectionAgeRef.current = Date.now();
               }
               
               buffer = buffer.slice(endIdx);
@@ -344,16 +387,47 @@ export const useNetworkCamera = () => {
             stallCheckIntervalRef.current = null;
           }
           
-          // Auto-reconnect when stream ends gracefully
+          // Auto-reconnect when stream ends - distinguish natural cycle vs error
           if (streamEnded && isActiveRef.current && configRef.current) {
-            console.log('useNetworkCamera: Auto-reconnecting after stream end...');
-            setIsConnected(false);
-            setIsConnecting(true);
-            setTimeout(() => {
+            const connectionAge = Date.now() - connectionAgeRef.current;
+            const framesProcessed = frameCountRef.current;
+            
+            console.log(`useNetworkCamera: Stream ended. Age: ${connectionAge}ms, Frames: ${framesProcessed}`);
+            
+            // Distinguish between natural cycling and actual errors
+            if (connectionAge < 10000 && framesProcessed < 5) {
+              // Less than 10 seconds and very few frames = ERROR - use backoff
+              console.log('useNetworkCamera: Connection error detected, reconnecting with delay...');
+              if (reconnectAttempts < 3) {
+                setReconnectAttempts(prev => prev + 1);
+                const delay = Math.min(3000 * (reconnectAttempts + 1), 10000);
+                setIsConnected(false);
+                setIsConnecting(true);
+                setTimeout(() => {
+                  if (isActiveRef.current && configRef.current) {
+                    frameCountRef.current = 0;
+                    connectionAgeRef.current = Date.now();
+                    startOverlappingConnection(imgElement, configRef.current);
+                  }
+                }, delay);
+              } else {
+                setConnectionError('Connection failed after multiple attempts');
+                setIsConnected(false);
+                setIsConnecting(false);
+              }
+            } else {
+              // NATURAL stream cycling - immediate seamless restart
+              console.log('useNetworkCamera: Natural stream cycle detected, immediate seamless restart...');
+              setReconnectAttempts(0);
+              setIsConnected(false);
+              setIsConnecting(true);
+              frameCountRef.current = 0;
+              connectionAgeRef.current = Date.now();
+              // Zero-delay restart for natural cycles
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
               }
-            }, 500);
+            }
           }
         };
 
