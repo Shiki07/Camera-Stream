@@ -351,16 +351,22 @@ export const useNetworkCamera = () => {
 
         readerRef.current = reader;
         processStream().catch(err => {
+          // Abort errors are expected during seamless restarts
+          if ((err as any)?.name === 'AbortError') {
+            return;
+          }
+
           console.error('Stream processing error:', err);
+
           // Clean up stall detection on error
           if (stallCheckIntervalRef.current) {
             clearInterval(stallCheckIntervalRef.current);
             stallCheckIntervalRef.current = null;
           }
-          
+
           setIsConnected(false);
-          
-          // Auto-reconnect on error too
+
+          // Auto-reconnect on error (non-abort)
           if (isActiveRef.current && configRef.current) {
             console.log('useNetworkCamera: Reconnecting after stream error...');
             setIsConnecting(true);
