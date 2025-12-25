@@ -76,8 +76,16 @@ export const useNetworkCamera = () => {
   };
 
   const getProxiedUrl = useCallback(async (originalUrl: string) => {
-    // Always use proxy for HTTP cameras on HTTPS sites to handle CORS
-    const shouldUseProxy = originalUrl.startsWith('http://') && window.location.protocol === 'https:';
+    // IMPORTANT: Camera streams (like Pi cameras) only serve HTTP, not HTTPS.
+    // Always normalize to HTTP - the proxy handles HTTPS for browser security.
+    let normalizedUrl = originalUrl;
+    if (normalizedUrl.startsWith('https://')) {
+      console.log('useNetworkCamera: Converting HTTPS to HTTP for camera stream (cameras only serve HTTP)');
+      normalizedUrl = normalizedUrl.replace('https://', 'http://');
+    }
+    
+    // Always use proxy when on HTTPS site to handle mixed content
+    const shouldUseProxy = window.location.protocol === 'https:';
     
     if (shouldUseProxy) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -87,8 +95,10 @@ export const useNetworkCamera = () => {
       
       // Include the auth token as a URL parameter for img elements
       const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-      proxyUrl.searchParams.set('url', originalUrl);
+      proxyUrl.searchParams.set('url', normalizedUrl);
       // token sent via Authorization header instead of query param
+      
+      console.log('useNetworkCamera: Using proxy with HTTP URL:', normalizedUrl);
       
       return { 
         url: proxyUrl.toString(),
@@ -96,7 +106,7 @@ export const useNetworkCamera = () => {
       };
     }
     
-    return { url: originalUrl, headers: {} };
+    return { url: normalizedUrl, headers: {} };
   }, []);
 
   // Soft cleanup - stops streaming but preserves current frame (prevents black screen)
@@ -294,6 +304,12 @@ export const useNetworkCamera = () => {
         // Build the stream URL (quality will be handled client-side for MJPEG)
         let streamUrl = config.url;
         
+        // CRITICAL: Always use HTTP for camera streams - Pi cameras don't serve HTTPS
+        if (streamUrl.startsWith('https://')) {
+          console.log('useNetworkCamera: Converting HTTPS to HTTP (cameras only serve HTTP)');
+          streamUrl = streamUrl.replace('https://', 'http://');
+        }
+        
         // Fix malformed URLs where port appears in path instead of hostname
         if (streamUrl.includes('/8000.stream.mjpg')) {
           streamUrl = streamUrl.replace('/8000.stream.mjpg', ':8000/stream.mjpg');
@@ -304,7 +320,7 @@ export const useNetworkCamera = () => {
         console.log('useNetworkCamera: Quality will be handled client-side for MJPEG streams');
         
         if (config.username && config.password) {
-          streamUrl = config.url.replace('://', `://${config.username}:${config.password}@`);
+          streamUrl = streamUrl.replace('://', `://${config.username}:${config.password}@`);
           console.log('useNetworkCamera: Stream URL with auth (hidden for security)');
         }
 
