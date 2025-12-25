@@ -83,6 +83,7 @@ export const CameraFeedCard = ({
   const isActiveRef = useRef(true);
   const lastFrameTimeRef = useRef<number>(Date.now());
   const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -280,6 +281,10 @@ export const CameraFeedCard = ({
     if (stallCheckIntervalRef.current) {
       clearInterval(stallCheckIntervalRef.current);
       stallCheckIntervalRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     fetchControllerRef.current = new AbortController();
 
@@ -573,30 +578,36 @@ export const CameraFeedCard = ({
         stallCheckIntervalRef.current = null;
       }
 
-      // Don't log abort errors (intentional disconnects)
+      // Abort errors are expected (we abort to restart on stall / on unmount)
       if (e?.name === 'AbortError') {
-        console.log(`CameraFeedCard: Connection aborted for ${config.name}, will reconnect if active`);
-      } else {
-        console.error(`CameraFeedCard: Connection error for ${config.name}:`, e.message);
-        setError(e instanceof Error ? e.message : 'Connection failed');
+        setIsConnected(false);
+        setIsConnecting(false);
+        return;
       }
-      
+
+      console.error(`CameraFeedCard: Connection error for ${config.name}:`, e.message);
+      setError(e instanceof Error ? e.message : 'Connection failed');
       setIsConnected(false);
-      
-      // Auto-reconnect on any error (including abort) if component is still active
+
+      // Ensure we only have one pending reconnect timer
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
       if (isActiveRef.current) {
-        console.log(`CameraFeedCard: Reconnecting ${config.name} after error...`);
         setIsConnecting(true);
-        setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
           if (isActiveRef.current) {
             connectToNetworkStream();
           }
-        }, 1000);
-      }
-    } finally {
-      if (!isActiveRef.current) {
+        }, 1200);
+      } else {
         setIsConnecting(false);
       }
+    } finally {
+      // keep existing state handling (connectToNetworkStream sets isConnecting=false on success)
+      if (!isActiveRef.current) setIsConnecting(false);
     }
   }, [config.url, config.name, piRecording]);
 
@@ -665,6 +676,10 @@ export const CameraFeedCard = ({
       isActiveRef.current = false;
       if (fetchControllerRef.current) {
         fetchControllerRef.current.abort();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (stallCheckIntervalRef.current) {
         clearInterval(stallCheckIntervalRef.current);
