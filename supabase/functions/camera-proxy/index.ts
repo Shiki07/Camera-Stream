@@ -322,8 +322,9 @@ serve(async (req) => {
       console.log(`Camera proxy: Attempt ${attempt}/${maxRetries} to ${req.method} ${targetUrl}`);
       
       // Create AbortController for timeout per attempt
+      // For MJPEG streams, use a much longer timeout (30 minutes) since they're continuous
       const controller = new AbortController();
-      const timeout = req.method === 'HEAD' ? 10000 : 300000; // 5 minute timeout for streaming requests
+      const timeout = req.method === 'HEAD' ? 10000 : 1800000; // 30 minute timeout for streaming requests
       const timeoutId = setTimeout(() => {
         console.log(`Camera proxy: Timeout on attempt ${attempt} after ${timeout}ms`);
         controller.abort();

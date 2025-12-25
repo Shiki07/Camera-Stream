@@ -429,22 +429,22 @@ export const useNetworkCamera = () => {
       };
       
       // Start heartbeat monitor to detect stale streams (frames stop arriving)
-      // Increased threshold significantly for Pi Zero which can have longer gaps
-      const STALE_THRESHOLD_MS = 30000; // 30 seconds without frames = stale
-      const HEARTBEAT_CHECK_MS = 8000; // Check every 8 seconds (less aggressive)
+      // More aggressive detection to prevent long freezes
+      const STALE_THRESHOLD_MS = 15000; // 15 seconds without frames = stale (reduced from 30s)
+      const HEARTBEAT_CHECK_MS = 5000; // Check every 5 seconds (increased frequency)
       
       heartbeatRef.current = setInterval(() => {
         // Skip checks when tab is hidden - stream naturally pauses
         if (!isActiveRef.current || document.hidden) return;
-        if (!isConnectedRef.current) return;
         
         const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
         
-        // Only log if we're getting close to stale threshold
-        if (timeSinceLastFrame > STALE_THRESHOLD_MS / 2) {
-          console.log(`useNetworkCamera: Stream health check - ${Math.round(timeSinceLastFrame / 1000)}s since last frame`);
+        // Log health status periodically
+        if (timeSinceLastFrame > 5000) {
+          console.log(`useNetworkCamera: Stream health - ${Math.round(timeSinceLastFrame / 1000)}s since last frame, connected: ${isConnectedRef.current}`);
         }
         
+        // If stale, trigger seamless reconnect
         if (timeSinceLastFrame > STALE_THRESHOLD_MS) {
           console.log(`useNetworkCamera: Stream stale - no frames for ${Math.round(timeSinceLastFrame / 1000)}s, seamless reconnect...`);
           
@@ -530,7 +530,7 @@ export const useNetworkCamera = () => {
 
         const processStream = async () => {
           // Timeout for individual read operations - prevents hanging on stalled streams
-          const READ_TIMEOUT_MS = 15000; // 15 seconds max wait for a chunk
+          const READ_TIMEOUT_MS = 10000; // 10 seconds max wait for a chunk (reduced from 15s)
 
           const readWithTimeout = (): Promise<ReadableStreamReadResult<Uint8Array>> => {
             return new Promise((resolve, reject) => {
