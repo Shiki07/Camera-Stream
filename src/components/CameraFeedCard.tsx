@@ -436,9 +436,19 @@ export const CameraFeedCard = ({
       let frameCount = 0;
       let streamEnded = false;
       const firstFrameDeadline = Date.now() + 8000;
-      
+      const READ_TIMEOUT_MS = 12000;
+
+      const readWithTimeout = async () => {
+        return await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Stream stalled (read timeout)')), READ_TIMEOUT_MS)
+          ),
+        ]);
+      };
+
       while (isActiveRef.current) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readWithTimeout();
         if (done) {
           streamEnded = true;
           console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
@@ -456,30 +466,30 @@ export const CameraFeedCard = ({
 
         // Extract all complete JPEG frames from buffer
         let framesExtracted = 0;
-        while (framesExtracted < 10) { // Limit iterations per read
+        while (framesExtracted < 10) {
           let startIdx = -1;
           let endIdx = -1;
-          
+
           // Find JPEG start marker (0xFF 0xD8)
           for (let i = 0; i < buffer.length - 1; i++) {
-            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) {
+            if (buffer[i] === 0xff && buffer[i + 1] === 0xd8) {
               startIdx = i;
-              break; // Found first start marker
+              break;
             }
           }
-          
-          if (startIdx === -1) break; // No start marker found
-          
+
+          if (startIdx === -1) break;
+
           // Find JPEG end marker (0xFF 0xD9) after start
           for (let i = startIdx + 2; i < buffer.length - 1; i++) {
-            if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+            if (buffer[i] === 0xff && buffer[i + 1] === 0xd9) {
               endIdx = i + 2;
-              break; // Found end marker
+              break;
             }
           }
-          
-          if (endIdx === -1) break; // No complete frame yet
-          
+
+          if (endIdx === -1) break;
+
           // Extract and display the frame
           const jpegData = buffer.slice(startIdx, endIdx);
           buffer = buffer.slice(endIdx);
@@ -488,7 +498,7 @@ export const CameraFeedCard = ({
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
-          
+
           if (imgRef.current) {
             const oldSrc = imgRef.current.src;
             imgRef.current.src = url;
@@ -496,10 +506,12 @@ export const CameraFeedCard = ({
               URL.revokeObjectURL(oldSrc);
             }
           }
-          
+
           // Log first frame to confirm stream is working
           if (frameCount === 1) {
-            console.log(`CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`);
+            console.log(
+              `CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`
+            );
           }
         }
 
@@ -521,8 +533,27 @@ export const CameraFeedCard = ({
         }, 1000);
       }
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        setError(err instanceof Error ? err.message : 'Connection failed');
+      const e = err as Error;
+
+      // For stalled reads, do a fast reconnect without surfacing a scary error.
+      if (e?.message?.includes('Stream stalled') && isActiveRef.current) {
+        console.warn(`CameraFeedCard: ${config.name} stalled, reconnecting...`);
+        try {
+          fetchControllerRef.current?.abort();
+        } catch {
+          // ignore
+        }
+        setIsConnected(false);
+        setIsConnecting(false);
+        setError(null);
+        setTimeout(() => {
+          if (isActiveRef.current) connectToNetworkStream();
+        }, 1000);
+        return;
+      }
+
+      if (e?.name !== 'AbortError') {
+        setError(e instanceof Error ? e.message : 'Connection failed');
         setIsConnected(false);
       }
     } finally {

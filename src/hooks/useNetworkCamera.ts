@@ -182,8 +182,21 @@ export const useNetworkCamera = () => {
         const BASE_THROTTLE_MS = config.quality === 'low' ? 90 : config.quality === 'medium' ? 75 : 60;
 
         const processStream = async () => {
+          const FIRST_FRAME_TIMEOUT_MS = 8000;
+          const READ_TIMEOUT_MS = 12000;
+          const firstFrameDeadline = Date.now() + FIRST_FRAME_TIMEOUT_MS;
+
+          const readWithTimeout = async () => {
+            return await Promise.race([
+              reader.read(),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Stream stalled (read timeout)')), READ_TIMEOUT_MS)
+              ),
+            ]);
+          };
+
           while (isActiveRef.current) {
-            const { done, value } = await reader.read();
+            const { done, value } = await readWithTimeout();
             if (done) break;
 
             // Append to buffer
@@ -193,13 +206,20 @@ export const useNetworkCamera = () => {
             buffer = newBuffer;
 
             // Find JPEG markers (FF D8 start, FF D9 end)
-            let startIdx = -1, endIdx = -1;
+            let startIdx = -1,
+              endIdx = -1;
             for (let i = 0; i < buffer.length - 1; i++) {
-              if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8) { startIdx = i; break; }
+              if (buffer[i] === 0xff && buffer[i + 1] === 0xd8) {
+                startIdx = i;
+                break;
+              }
             }
             if (startIdx !== -1) {
               for (let i = startIdx + 2; i < buffer.length - 1; i++) {
-                if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) { endIdx = i + 2; break; }
+                if (buffer[i] === 0xff && buffer[i + 1] === 0xd9) {
+                  endIdx = i + 2;
+                  break;
+                }
               }
             }
 
@@ -208,15 +228,15 @@ export const useNetworkCamera = () => {
               if ((now - lastFrameTime) >= BASE_THROTTLE_MS) {
                 const frameData = buffer.slice(startIdx, endIdx);
                 const blob = new Blob([frameData], { type: 'image/jpeg' });
-                
+
                 if (imgElement.src?.startsWith('blob:')) URL.revokeObjectURL(imgElement.src);
                 const blobUrl = URL.createObjectURL(blob);
                 imgElement.src = blobUrl;
-                
+
                 frameCount++;
                 lastFrameTime = now;
                 lastFrameTimeRef.current = now;
-                
+
                 if (!isConnected) {
                   setIsConnected(true);
                   setConnectionError(null);
@@ -226,6 +246,8 @@ export const useNetworkCamera = () => {
                 }
               }
               buffer = buffer.slice(endIdx);
+            } else if (frameCount === 0 && Date.now() > firstFrameDeadline) {
+              throw new Error('No frames received from camera stream');
             }
 
             // Prevent buffer from growing too large
