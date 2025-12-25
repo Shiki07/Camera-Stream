@@ -12,6 +12,7 @@ export interface NetworkCameraConfig {
 }
 
 const MAX_RECONNECT_ATTEMPTS = 3;
+const FRONTEND_CONNECTION_TIMEOUT_MS = 20000; // 20 second timeout for initial connection
 
 export const useNetworkCamera = () => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -276,9 +277,18 @@ export const useNetworkCamera = () => {
 
       const controller = new AbortController();
       fetchControllerRef.current = controller;
+      
+      // Set frontend connection timeout - fail fast if proxy doesn't respond
+      const connectionTimeoutId = setTimeout(() => {
+        console.log('useNetworkCamera: Frontend connection timeout');
+        controller.abort();
+      }, FRONTEND_CONNECTION_TIMEOUT_MS);
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Authentication session required');
+      if (!session) {
+        clearTimeout(connectionTimeoutId);
+        throw new Error('Authentication session required');
+      }
       
       const response = await fetch(proxiedUrl, {
         method: 'GET',
@@ -291,10 +301,25 @@ export const useNetworkCamera = () => {
         },
         credentials: 'omit'
       });
+      
+      // Clear the connection timeout on successful response
+      clearTimeout(connectionTimeoutId);
 
       if (!response.ok) {
         let details = '';
-        try { const data = await response.clone().json(); details = data?.error || JSON.stringify(data); } catch {}
+        try { 
+          const data = await response.clone().json(); 
+          details = data?.error || JSON.stringify(data); 
+        } catch {}
+        
+        // Provide user-friendly error messages
+        if (response.status === 504) {
+          throw new Error('Connection timed out - camera may be offline');
+        } else if (response.status === 429) {
+          throw new Error('Too many requests - please wait a moment');
+        } else if (response.status === 502) {
+          throw new Error('Camera connection failed - check camera is online');
+        }
         throw new Error(`HTTP ${response.status}: ${details || response.statusText}`);
       }
 
