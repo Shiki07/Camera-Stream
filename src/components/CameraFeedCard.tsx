@@ -84,11 +84,6 @@ export const CameraFeedCard = ({
   const lastFrameTimeRef = useRef<number>(Date.now());
   const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const connectionAgeRef = useRef<number>(Date.now());
-  const frameCountRef = useRef<number>(0);
-  const blobUrlsRef = useRef<Set<string>>(new Set());
-  const reconnectAttemptsRef = useRef<number>(0);
-  const MAX_RECONNECT_ATTEMPTS = 3;
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -278,10 +273,6 @@ export const CameraFeedCard = ({
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
-    
-    // Initialize connection tracking
-    connectionAgeRef.current = Date.now();
-    frameCountRef.current = 0;
     lastFrameTimeRef.current = Date.now();
 
     if (fetchControllerRef.current) {
@@ -467,19 +458,20 @@ export const CameraFeedCard = ({
       stallCheckIntervalRef.current = setInterval(() => {
         const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
         if (timeSinceLastFrame > STALL_TIMEOUT_MS && isActiveRef.current) {
-          console.log(`CameraFeedCard: Stream stalled for ${config.name} (${Math.round(timeSinceLastFrame / 1000)}s since last frame), seamless restart...`);
+          console.log(`CameraFeedCard: Stream stalled for ${config.name} (${Math.round(timeSinceLastFrame / 1000)}s since last frame), restarting...`);
           
-          // Clear the interval first to prevent multiple triggers
+          // Abort the frozen connection
+          try { fetchControllerRef.current?.abort(); } catch {}
+          
+          // Clear the interval to prevent multiple reconnects
           if (stallCheckIntervalRef.current) {
             clearInterval(stallCheckIntervalRef.current);
             stallCheckIntervalRef.current = null;
           }
           
-          // Abort the frozen connection
-          try { fetchControllerRef.current?.abort(); } catch {}
-          
-          // Stalls are treated like natural cycles - immediate seamless restart
-          reconnectAttemptsRef.current = 0;
+          // Start a new connection immediately
+          setIsConnected(false);
+          setIsConnecting(true);
           setTimeout(() => {
             if (isActiveRef.current) {
               connectToNetworkStream();
@@ -491,11 +483,8 @@ export const CameraFeedCard = ({
       while (isActiveRef.current) {
         const { done, value } = await reader.read();
         if (done) {
-          const connectionAge = Date.now() - connectionAgeRef.current;
-          const framesProcessed = frameCountRef.current;
-          
-          console.log(`CameraFeedCard: Stream ended for ${config.name}. Age: ${connectionAge}ms, Frames: ${framesProcessed}`);
           streamEnded = true;
+          console.log(`CameraFeedCard: Stream ended gracefully for ${config.name}`);
           break;
         }
 
@@ -535,29 +524,15 @@ export const CameraFeedCard = ({
           buffer = buffer.slice(endIdx);
           framesExtracted++;
           frameCount++;
-          frameCountRef.current = frameCount;
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
-          
-          // Track and cleanup blob URLs to prevent memory leaks
+          const url = URL.createObjectURL(blob);
+
           if (imgRef.current) {
             const oldSrc = imgRef.current.src;
-            if (oldSrc?.startsWith('blob:')) {
-              blobUrlsRef.current.delete(oldSrc);
+            imgRef.current.src = url;
+            if (oldSrc.startsWith('blob:')) {
               URL.revokeObjectURL(oldSrc);
-            }
-            
-            const blobUrl = URL.createObjectURL(blob);
-            imgRef.current.src = blobUrl;
-            blobUrlsRef.current.add(blobUrl);
-            
-            // Limit blob URL storage to prevent memory leaks
-            if (blobUrlsRef.current.size > 3) {
-              const oldestUrl = blobUrlsRef.current.values().next().value;
-              if (oldestUrl) {
-                URL.revokeObjectURL(oldestUrl);
-                blobUrlsRef.current.delete(oldestUrl);
-              }
             }
           }
 
@@ -566,9 +541,6 @@ export const CameraFeedCard = ({
 
           // Log first frame to confirm stream is working
           if (frameCount === 1) {
-            // Reset reconnect attempts on successful first frame
-            reconnectAttemptsRef.current = 0;
-            connectionAgeRef.current = Date.now();
             console.log(
               `CameraFeedCard: First frame received for ${config.name}, size: ${jpegData.length} bytes`
             );
@@ -588,41 +560,16 @@ export const CameraFeedCard = ({
         stallCheckIntervalRef.current = null;
       }
 
-      // Auto-reconnect if stream ended - distinguish natural cycle vs error
+      // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
-        const connectionAge = Date.now() - connectionAgeRef.current;
-        const framesProcessed = frameCountRef.current;
-        
-        if (connectionAge < 10000 && framesProcessed < 5) {
-          // Less than 10 seconds and very few frames = ERROR
-          console.log(`CameraFeedCard: Connection error detected for ${config.name}, reconnecting with backoff...`);
-          if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttemptsRef.current++;
-            const delay = Math.min(3000 * reconnectAttemptsRef.current, 10000);
-            setIsConnected(false);
-            setIsConnecting(true);
-            setTimeout(() => {
-              if (isActiveRef.current) {
-                connectToNetworkStream();
-              }
-            }, delay);
-          } else {
-            console.log(`CameraFeedCard: Max reconnect attempts reached for ${config.name}`);
-            setError('Connection failed after multiple attempts');
-            setIsConnected(false);
-            setIsConnecting(false);
+        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream end...`);
+        setIsConnected(false);
+        setIsConnecting(true);
+        setTimeout(() => {
+          if (isActiveRef.current) {
+            connectToNetworkStream();
           }
-        } else {
-          // NATURAL stream cycling - immediate seamless restart
-          console.log(`CameraFeedCard: Natural stream cycle for ${config.name}, immediate seamless restart...`);
-          reconnectAttemptsRef.current = 0;
-          // Don't show loading state for natural cycles
-          setTimeout(() => {
-            if (isActiveRef.current) {
-              connectToNetworkStream();
-            }
-          }, 50);
-        }
+        }, 500);
       }
     } catch (err) {
       const e = err as Error;
@@ -634,8 +581,10 @@ export const CameraFeedCard = ({
       }
 
       // Abort errors are expected (we abort to restart on stall / on unmount)
+      // Don't set isConnecting=false here - the stall detection or unmount will handle state
       if (e?.name === 'AbortError') {
-        // Don't change state - the reconnect logic handles it
+        setIsConnected(false);
+        // Don't set isConnecting(false) - let the reconnect logic handle it
         return;
       }
 
@@ -649,25 +598,18 @@ export const CameraFeedCard = ({
         reconnectTimeoutRef.current = null;
       }
 
-      // Reconnect with backoff on errors
-      if (isActiveRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-        reconnectAttemptsRef.current++;
-        const delay = Math.min(1000 * reconnectAttemptsRef.current, 5000);
-        console.log(`CameraFeedCard: Reconnecting ${config.name} after error (attempt ${reconnectAttemptsRef.current})...`);
+      if (isActiveRef.current) {
         setIsConnecting(true);
         reconnectTimeoutRef.current = setTimeout(() => {
           if (isActiveRef.current) {
             connectToNetworkStream();
           }
-        }, delay);
-      } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-        setError('Connection failed after multiple attempts');
-        setIsConnecting(false);
+        }, 300);
       } else {
         setIsConnecting(false);
       }
     } finally {
-      // keep existing state handling
+      // keep existing state handling (connectToNetworkStream sets isConnecting=false on success)
       if (!isActiveRef.current) setIsConnecting(false);
     }
   }, [config.url, config.name, piRecording]);
