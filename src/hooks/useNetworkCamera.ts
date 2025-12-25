@@ -280,9 +280,15 @@ export const useNetworkCamera = () => {
         }, STALL_CHECK_INTERVAL_MS);
 
         const processStream = async () => {
+          let streamEnded = false;
+          
           while (isActiveRef.current) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              streamEnded = true;
+              console.log('useNetworkCamera: Stream ended (done=true), will auto-reconnect');
+              break;
+            }
 
             const newBuffer = new Uint8Array(buffer.length + value.length);
             newBuffer.set(buffer);
@@ -323,12 +329,41 @@ export const useNetworkCamera = () => {
 
             if (buffer.length > 2 * 1024 * 1024) buffer = buffer.slice(-1024 * 1024);
           }
+          
+          // Clean up stall detection
+          if (stallCheckIntervalRef.current) {
+            clearInterval(stallCheckIntervalRef.current);
+            stallCheckIntervalRef.current = null;
+          }
+          
+          // Auto-reconnect when stream ends gracefully
+          if (streamEnded && isActiveRef.current && configRef.current) {
+            console.log('useNetworkCamera: Auto-reconnecting after stream end...');
+            setTimeout(() => {
+              if (isActiveRef.current && configRef.current) {
+                startOverlappingConnection(imgElement, configRef.current);
+              }
+            }, 500);
+          }
         };
 
         readerRef.current = reader;
         processStream().catch(err => {
           console.error('Stream processing error:', err);
-          // Stall detection will handle reconnection
+          // Clean up stall detection on error
+          if (stallCheckIntervalRef.current) {
+            clearInterval(stallCheckIntervalRef.current);
+            stallCheckIntervalRef.current = null;
+          }
+          // Auto-reconnect on error too
+          if (isActiveRef.current && configRef.current) {
+            console.log('useNetworkCamera: Reconnecting after stream error...');
+            setTimeout(() => {
+              if (isActiveRef.current && configRef.current) {
+                startOverlappingConnection(imgElement, configRef.current);
+              }
+            }, 1000);
+          }
         });
       }
     } catch (error) {

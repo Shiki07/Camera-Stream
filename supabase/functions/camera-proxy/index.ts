@@ -111,10 +111,8 @@ serve(async (req) => {
 
     console.log(`Camera proxy: Proxying to ${targetUrl}`);
 
-    // 5 minute timeout for streaming connections
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000);
-
+    // NO hard timeout - the stream will stay open as long as data flows
+    // Client-side stall detection handles frozen streams
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: {
@@ -123,11 +121,8 @@ serve(async (req) => {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       },
-      signal: controller.signal,
       keepalive: true
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.log(`Camera proxy: Upstream error ${response.status}`);
