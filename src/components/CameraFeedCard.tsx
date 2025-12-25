@@ -974,8 +974,8 @@ export const CameraFeedCard = ({
             variant={isRecording ? "destructive" : "ghost"}
             className={cn("h-7 w-7", !isRecording && "bg-background/50 hover:bg-background/80")}
             onClick={handleRecordingToggle}
-            disabled={!isConnected || isProcessing || (!isWebcam && !piRecording.piServiceConnected)}
-            title={isRecording ? 'Stop recording' : 'Start recording'}
+            disabled={!isConnected || isProcessing}
+            title={isRecording ? 'Stop recording' : (piRecording.piServiceConnected === false ? 'Pi service offline - click to retry' : 'Start recording')}
           >
             {isProcessing ? (
               <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
