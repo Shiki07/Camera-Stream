@@ -555,12 +555,14 @@ export const CameraFeedCard = ({
 
       // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
-        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream timeout...`);
+        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream end...`);
+        setIsConnected(false);
+        setIsConnecting(true);
         setTimeout(() => {
           if (isActiveRef.current) {
             connectToNetworkStream();
           }
-        }, 1000);
+        }, 500);
       }
     } catch (err) {
       const e = err as Error;
@@ -571,13 +573,30 @@ export const CameraFeedCard = ({
         stallCheckIntervalRef.current = null;
       }
 
-      if (e?.name !== 'AbortError') {
+      // Don't log abort errors (intentional disconnects)
+      if (e?.name === 'AbortError') {
+        console.log(`CameraFeedCard: Connection aborted for ${config.name}, will reconnect if active`);
+      } else {
         console.error(`CameraFeedCard: Connection error for ${config.name}:`, e.message);
         setError(e instanceof Error ? e.message : 'Connection failed');
-        setIsConnected(false);
+      }
+      
+      setIsConnected(false);
+      
+      // Auto-reconnect on any error (including abort) if component is still active
+      if (isActiveRef.current) {
+        console.log(`CameraFeedCard: Reconnecting ${config.name} after error...`);
+        setIsConnecting(true);
+        setTimeout(() => {
+          if (isActiveRef.current) {
+            connectToNetworkStream();
+          }
+        }, 1000);
       }
     } finally {
-      setIsConnecting(false);
+      if (!isActiveRef.current) {
+        setIsConnecting(false);
+      }
     }
   }, [config.url, config.name, piRecording]);
 

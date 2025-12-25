@@ -339,6 +339,8 @@ export const useNetworkCamera = () => {
           // Auto-reconnect when stream ends gracefully
           if (streamEnded && isActiveRef.current && configRef.current) {
             console.log('useNetworkCamera: Auto-reconnecting after stream end...');
+            setIsConnected(false);
+            setIsConnecting(true);
             setTimeout(() => {
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
@@ -355,9 +357,13 @@ export const useNetworkCamera = () => {
             clearInterval(stallCheckIntervalRef.current);
             stallCheckIntervalRef.current = null;
           }
+          
+          setIsConnected(false);
+          
           // Auto-reconnect on error too
           if (isActiveRef.current && configRef.current) {
             console.log('useNetworkCamera: Reconnecting after stream error...');
+            setIsConnecting(true);
             setTimeout(() => {
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
@@ -372,6 +378,17 @@ export const useNetworkCamera = () => {
       setIsConnected(false);
       setIsConnecting(false);
       setConnectionQuality('disconnected');
+      
+      // Auto-reconnect on connection failure
+      if (isActiveRef.current && configRef.current) {
+        console.log('useNetworkCamera: Reconnecting after connection failure...');
+        setTimeout(() => {
+          if (isActiveRef.current && configRef.current) {
+            setIsConnecting(true);
+            startOverlappingConnection(imgElement, configRef.current);
+          }
+        }, 2000);
+      }
     }
   }, [getProxiedUrl, isConnected, startOverlappingConnection]);
 
