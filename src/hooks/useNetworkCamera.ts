@@ -374,7 +374,7 @@ export const useNetworkCamera = () => {
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
               }
-            }, 1000);
+            }, 300);
           }
         });
       }
@@ -393,7 +393,7 @@ export const useNetworkCamera = () => {
             setIsConnecting(true);
             startOverlappingConnection(imgElement, configRef.current);
           }
-        }, 2000);
+        }, 500);
       }
     }
   }, [getProxiedUrl, isConnected, startOverlappingConnection]);
