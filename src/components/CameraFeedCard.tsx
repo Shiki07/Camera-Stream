@@ -88,7 +88,9 @@ export const CameraFeedCard = ({
   const frameCountRef = useRef<number>(0);
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const reconnectAttemptsRef = useRef<number>(0);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const MAX_RECONNECT_ATTEMPTS = 3;
+  const FRONTEND_CONNECTION_TIMEOUT_MS = 20000; // 20 second timeout for initial connection
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -296,6 +298,12 @@ export const CameraFeedCard = ({
       reconnectTimeoutRef.current = null;
     }
     fetchControllerRef.current = new AbortController();
+    
+    // Set frontend connection timeout - fail fast if proxy doesn't respond
+    connectionTimeoutRef.current = setTimeout(() => {
+      console.log(`CameraFeedCard: Frontend connection timeout for ${config.name}`);
+      fetchControllerRef.current?.abort();
+    }, FRONTEND_CONNECTION_TIMEOUT_MS);
 
     try {
       const safeDecode = (value: string) => {
@@ -393,13 +401,33 @@ export const CameraFeedCard = ({
         signal: fetchControllerRef.current.signal,
         headers,
       });
+      
+      // Clear the connection timeout on successful response
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
 
       if (!response.ok) {
         let details = '';
         try {
-          details = await response.clone().text();
+          const jsonData = await response.clone().json();
+          details = jsonData?.error || '';
         } catch {
-          // ignore
+          try {
+            details = await response.clone().text();
+          } catch {
+            // ignore
+          }
+        }
+        
+        // Provide user-friendly error messages
+        if (response.status === 504) {
+          throw new Error('Connection timed out - camera may be offline');
+        } else if (response.status === 429) {
+          throw new Error('Too many requests - please wait a moment');
+        } else if (response.status === 502) {
+          throw new Error('Camera connection failed - check camera is online');
         }
         throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
       }
@@ -927,12 +955,20 @@ export const CameraFeedCard = ({
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
           
-          {/* Auto-reconnect indicator */}
-          {!isConnected && !isConnecting && error && isTabVisible && (
-            <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50 text-amber-200">
-              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-              Auto-retry
-            </Badge>
+          {/* Manual Force Reconnect button */}
+          {!isConnected && !isConnecting && error && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                reconnectAttemptsRef.current = 0;
+                isWebcam ? connectToWebcam() : connectToNetworkStream();
+              }}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Force Reconnect
+            </Button>
           )}
           
           {!isWebcam && piRecording.piServiceConnected !== null && (
