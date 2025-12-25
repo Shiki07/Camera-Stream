@@ -286,6 +286,12 @@ export const CameraFeedCard = ({
     frameCountRef.current = 0;
     lastFrameTimeRef.current = Date.now();
 
+    // Clear any previous connection timeout to avoid delayed aborts
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+
     if (fetchControllerRef.current) {
       fetchControllerRef.current.abort();
     }
@@ -298,7 +304,7 @@ export const CameraFeedCard = ({
       reconnectTimeoutRef.current = null;
     }
     fetchControllerRef.current = new AbortController();
-    
+
     // Set frontend connection timeout - fail fast if proxy doesn't respond
     connectionTimeoutRef.current = setTimeout(() => {
       console.log(`CameraFeedCard: Frontend connection timeout for ${config.name}`);
@@ -655,6 +661,12 @@ export const CameraFeedCard = ({
     } catch (err) {
       const e = err as Error;
 
+      // Always clear the connection timeout (success/error/abort) to avoid delayed aborts later
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+
       // Clean up stall detection on error
       if (stallCheckIntervalRef.current) {
         clearInterval(stallCheckIntervalRef.current);
@@ -695,7 +707,11 @@ export const CameraFeedCard = ({
         setIsConnecting(false);
       }
     } finally {
-      // keep existing state handling
+      // Always clear the connection timeout (safety net)
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
       if (!isActiveRef.current) setIsConnecting(false);
     }
   }, [config.url, config.name, piRecording]);

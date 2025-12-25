@@ -277,7 +277,7 @@ export const useNetworkCamera = () => {
 
       const controller = new AbortController();
       fetchControllerRef.current = controller;
-      
+
       // Set frontend connection timeout - fail fast if proxy doesn't respond
       const connectionTimeoutId = setTimeout(() => {
         console.log('useNetworkCamera: Frontend connection timeout');
@@ -289,29 +289,32 @@ export const useNetworkCamera = () => {
         clearTimeout(connectionTimeoutId);
         throw new Error('Authentication session required');
       }
-      
-      const response = await fetch(proxiedUrl, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        credentials: 'omit'
-      });
-      
-      // Clear the connection timeout on successful response
-      clearTimeout(connectionTimeoutId);
+
+      let response: Response;
+      try {
+        response = await fetch(proxiedUrl, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          credentials: 'omit'
+        });
+      } finally {
+        // Always clear the connection timeout for this attempt
+        clearTimeout(connectionTimeoutId);
+      }
 
       if (!response.ok) {
         let details = '';
-        try { 
-          const data = await response.clone().json(); 
-          details = data?.error || JSON.stringify(data); 
+        try {
+          const data = await response.clone().json();
+          details = data?.error || JSON.stringify(data);
         } catch {}
-        
+
         // Provide user-friendly error messages
         if (response.status === 504) {
           throw new Error('Connection timed out - camera may be offline');
@@ -366,13 +369,15 @@ export const useNetworkCamera = () => {
               
               console.log(`useNetworkCamera: Stream ended. Age: ${connectionAge}ms, Frames: ${framesProcessed}`);
               
-              // Clean up stall detection
-              if (stallCheckIntervalRef.current) {
-                clearInterval(stallCheckIntervalRef.current);
-                stallCheckIntervalRef.current = null;
-              }
-              
-              // === DISTINGUISH NATURAL CYCLE VS ERROR ===
+               // Clean up stall detection
+               if (stallCheckIntervalRef.current) {
+                 clearInterval(stallCheckIntervalRef.current);
+                 stallCheckIntervalRef.current = null;
+               }
+
+               // Always clear connection timeout for this attempt
+               clearTimeout(connectionTimeoutId);
+               
               if (connectionAge < 10000 && framesProcessed < 5) {
                 // Less than 10 seconds and very few frames = ERROR
                 console.log('useNetworkCamera: Connection error detected, reconnecting with backoff...');
