@@ -82,7 +82,12 @@ export const CameraSourceSelector = ({
 
   const handleAddCamera = () => {
     if (newCamera.name && newCamera.url && newCamera.type) {
-      onAddNetworkCamera(newCamera as NetworkCameraConfig);
+      // Normalize URL to HTTP - cameras don't serve HTTPS
+      let normalizedUrl = newCamera.url;
+      if (normalizedUrl.startsWith('https://')) {
+        normalizedUrl = normalizedUrl.replace('https://', 'http://');
+      }
+      onAddNetworkCamera({ ...newCamera, url: normalizedUrl } as NetworkCameraConfig);
       setNewCamera({ type: 'mjpeg', name: '', url: '' });
       setShowAddForm(false);
     }

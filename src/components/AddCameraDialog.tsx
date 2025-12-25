@@ -106,8 +106,14 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
         return;
       }
       
+      // Normalize URL to HTTP - cameras don't serve HTTPS
+      let normalizedUrl = url.trim();
+      if (normalizedUrl.startsWith('https://')) {
+        normalizedUrl = normalizedUrl.replace('https://', 'http://');
+      }
+      
       try {
-        new URL(url);
+        new URL(normalizedUrl);
       } catch {
         setError('Please enter a valid URL');
         return;
@@ -116,7 +122,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
       const config: CameraConfig = {
         source: 'network',
         name: name.trim(),
-        url: url.trim(),
+        url: normalizedUrl,
         type,
         ...(username && { username }),
         ...(password && { password }),
