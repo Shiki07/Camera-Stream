@@ -267,10 +267,18 @@ export const useNetworkCamera = () => {
           if (timeSinceLastFrame > STALL_TIMEOUT_MS && isActiveRef.current) {
             console.log(`useNetworkCamera: Stream stalled (${Math.round(timeSinceLastFrame / 1000)}s since last frame), restarting...`);
             
+            // Clear interval first to prevent multiple triggers
+            if (stallCheckIntervalRef.current) {
+              clearInterval(stallCheckIntervalRef.current);
+              stallCheckIntervalRef.current = null;
+            }
+            
             // Abort the frozen connection
             try { fetchControllerRef.current?.abort(); } catch {}
             
             // Start a new overlapping connection immediately
+            setIsConnected(false);
+            setIsConnecting(true);
             setTimeout(() => {
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
