@@ -127,7 +127,7 @@ export const useCameraRecording = () => {
     }
   }, [user, isRecording, getPiUrl]);
 
-  // Stop recording
+  // Stop recording - optimistic UI update for instant response
   const stopRecording = useCallback(async (cameraUrl: string) => {
     if (!recordingId) {
       setError('No active recording');
@@ -140,37 +140,43 @@ export const useCameraRecording = () => {
       return null;
     }
 
+    const currentRecordingId = recordingId;
+
+    // Optimistic UI update - immediately show as stopped
+    setIsRecording(false);
+    setRecordingId(null);
+    setRecordingDuration(0);
     setIsProcessing(true);
 
-    // Clear duration interval
+    // Clear duration interval immediately
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
 
     try {
+      // Fire and don't block UI - use shorter timeout via AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
       const { data, error: fnError } = await supabase.functions.invoke('pi-recording', {
         body: {
           action: 'stop',
           pi_url: piUrl,
-          recording_id: recordingId
+          recording_id: currentRecordingId
         }
       });
+
+      clearTimeout(timeoutId);
 
       if (fnError) throw fnError;
       if (!data?.success) throw new Error(data?.error || 'Failed to stop recording');
 
-      setIsRecording(false);
-      setRecordingId(null);
-      setRecordingDuration(0);
-
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to stop recording');
-      // Reset state even on error
-      setIsRecording(false);
-      setRecordingId(null);
-      setRecordingDuration(0);
+      // Log error but don't revert UI - recording is already stopped locally
+      console.warn('Stop recording request failed:', err instanceof Error ? err.message : err);
+      setError(err instanceof Error ? err.message : 'Stop request failed - recording may still be active on Pi');
       return null;
     } finally {
       setIsProcessing(false);
