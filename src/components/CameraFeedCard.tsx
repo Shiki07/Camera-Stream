@@ -470,6 +470,8 @@ export const CameraFeedCard = ({
           }
           
           // Start a new connection immediately
+          setIsConnected(false);
+          setIsConnecting(true);
           setTimeout(() => {
             if (isActiveRef.current) {
               connectToNetworkStream();
@@ -579,9 +581,10 @@ export const CameraFeedCard = ({
       }
 
       // Abort errors are expected (we abort to restart on stall / on unmount)
+      // Don't set isConnecting=false here - the stall detection or unmount will handle state
       if (e?.name === 'AbortError') {
         setIsConnected(false);
-        setIsConnecting(false);
+        // Don't set isConnecting(false) - let the reconnect logic handle it
         return;
       }
 
