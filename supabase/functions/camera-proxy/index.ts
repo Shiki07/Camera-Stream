@@ -10,7 +10,6 @@ const getCorsHeaders = (req: Request) => ({
 });
 
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
-const CONNECTION_TIMEOUT_MS = 15000; // 15 second connection timeout
 
 const checkRateLimit = (userId: string): boolean => {
   const now = Date.now();
@@ -19,7 +18,7 @@ const checkRateLimit = (userId: string): boolean => {
     rateLimits.set(userId, { count: 1, resetTime: now + 60000 });
     return true;
   }
-  if (limit.count >= 60) return false; // Increased from 30 to 60 for reconnections
+  if (limit.count >= 30) return false;
   limit.count++;
   return true;
 };
@@ -112,38 +111,18 @@ serve(async (req) => {
 
     console.log(`Camera proxy: Proxying to ${targetUrl}`);
 
-    // Add connection timeout to fail fast if Pi is unreachable
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log(`Camera proxy: Connection timeout after ${CONNECTION_TIMEOUT_MS}ms`);
-      controller.abort();
-    }, CONNECTION_TIMEOUT_MS);
-
-    let response: Response;
-    try {
-      response = await fetch(targetUrl, {
-        method: req.method,
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'CameraProxy/1.0',
-          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
-        },
-        keepalive: true
-      });
-      clearTimeout(timeoutId);
-    } catch (fetchError: unknown) {
-      clearTimeout(timeoutId);
-      const error = fetchError as Error;
-      if (error.name === 'AbortError') {
-        console.log('Camera proxy: Connection timed out');
-        return new Response(JSON.stringify({ error: 'Connection timed out - camera may be offline' }), { 
-          status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
-      }
-      throw fetchError;
-    }
+    // NO hard timeout - the stream will stay open as long as data flows
+    // Client-side stall detection handles frozen streams
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers: {
+        'User-Agent': 'CameraProxy/1.0',
+        'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      },
+      keepalive: true
+    });
 
     if (!response.ok) {
       console.log(`Camera proxy: Upstream error ${response.status}`);

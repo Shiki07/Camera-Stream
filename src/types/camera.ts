@@ -26,7 +26,6 @@ export interface CameraSettings {
   detection_zones_enabled: boolean;
   video_path: string;
   storage_type: 'cloud' | 'local';
-  direct_connection: boolean; // Bypass proxy for local network access
 }
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
@@ -46,7 +45,6 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   detection_zones_enabled: false,
   video_path: '/home/pi/Videos',
   storage_type: 'local',
-  direct_connection: false,
 };
 
 export type GridLayout = '1x1' | '2x2' | '3x3' | '4x4';

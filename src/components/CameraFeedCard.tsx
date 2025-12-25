@@ -88,9 +88,7 @@ export const CameraFeedCard = ({
   const frameCountRef = useRef<number>(0);
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const reconnectAttemptsRef = useRef<number>(0);
-  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const MAX_RECONNECT_ATTEMPTS = 3;
-  const FRONTEND_CONNECTION_TIMEOUT_MS = 20000; // 20 second timeout for initial connection
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -286,12 +284,6 @@ export const CameraFeedCard = ({
     frameCountRef.current = 0;
     lastFrameTimeRef.current = Date.now();
 
-    // Clear any previous connection timeout to avoid delayed aborts
-    if (connectionTimeoutRef.current) {
-      clearTimeout(connectionTimeoutRef.current);
-      connectionTimeoutRef.current = null;
-    }
-
     if (fetchControllerRef.current) {
       fetchControllerRef.current.abort();
     }
@@ -304,12 +296,6 @@ export const CameraFeedCard = ({
       reconnectTimeoutRef.current = null;
     }
     fetchControllerRef.current = new AbortController();
-
-    // Set frontend connection timeout - fail fast if proxy doesn't respond
-    connectionTimeoutRef.current = setTimeout(() => {
-      console.log(`CameraFeedCard: Frontend connection timeout for ${config.name}`);
-      fetchControllerRef.current?.abort();
-    }, FRONTEND_CONNECTION_TIMEOUT_MS);
 
     try {
       const safeDecode = (value: string) => {
@@ -378,24 +364,13 @@ export const CameraFeedCard = ({
           console.log('CameraFeedCard: Using camera-proxy directly');
         }
       } else {
-        // Check if direct connection is enabled (bypasses proxy for local network)
-        if (settings.direct_connection) {
-          streamUrl = config.url;
-          headers = {
-            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-          };
-          requiresSupabaseJwt = false;
-          console.log('CameraFeedCard: Using DIRECT local connection (no proxy)');
-        } else {
-          const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
-          proxyUrl.searchParams.set('url', config.url);
-          streamUrl = proxyUrl.toString();
-          headers = {
-            Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
-          };
-          requiresSupabaseJwt = true;
-          console.log('CameraFeedCard: Using camera-proxy');
-        }
+        const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
+        proxyUrl.searchParams.set('url', config.url);
+        streamUrl = proxyUrl.toString();
+        headers = {
+          Accept: 'multipart/x-mixed-replace, image/jpeg, */*',
+        };
+        requiresSupabaseJwt = true;
       }
 
       // Auto-reconnect ALL network cameras when stream ends (proxy timeout, server restart, etc.)
@@ -418,33 +393,13 @@ export const CameraFeedCard = ({
         signal: fetchControllerRef.current.signal,
         headers,
       });
-      
-      // Clear the connection timeout on successful response
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-        connectionTimeoutRef.current = null;
-      }
 
       if (!response.ok) {
         let details = '';
         try {
-          const jsonData = await response.clone().json();
-          details = jsonData?.error || '';
+          details = await response.clone().text();
         } catch {
-          try {
-            details = await response.clone().text();
-          } catch {
-            // ignore
-          }
-        }
-        
-        // Provide user-friendly error messages
-        if (response.status === 504) {
-          throw new Error('Connection timed out - camera may be offline');
-        } else if (response.status === 429) {
-          throw new Error('Too many requests - please wait a moment');
-        } else if (response.status === 502) {
-          throw new Error('Camera connection failed - check camera is online');
+          // ignore
         }
         throw new Error(`HTTP ${response.status}${details ? `: ${details}` : ''}`);
       }
@@ -672,12 +627,6 @@ export const CameraFeedCard = ({
     } catch (err) {
       const e = err as Error;
 
-      // Always clear the connection timeout (success/error/abort) to avoid delayed aborts later
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-        connectionTimeoutRef.current = null;
-      }
-
       // Clean up stall detection on error
       if (stallCheckIntervalRef.current) {
         clearInterval(stallCheckIntervalRef.current);
@@ -718,11 +667,7 @@ export const CameraFeedCard = ({
         setIsConnecting(false);
       }
     } finally {
-      // Always clear the connection timeout (safety net)
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-        connectionTimeoutRef.current = null;
-      }
+      // keep existing state handling
       if (!isActiveRef.current) setIsConnecting(false);
     }
   }, [config.url, config.name, piRecording]);
@@ -982,20 +927,12 @@ export const CameraFeedCard = ({
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
           
-          {/* Manual Force Reconnect button */}
-          {!isConnected && !isConnecting && error && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                reconnectAttemptsRef.current = 0;
-                isWebcam ? connectToWebcam() : connectToNetworkStream();
-              }}
-              className="flex items-center gap-1"
-            >
-              <RefreshCw className="h-3 w-3" />
-              Force Reconnect
-            </Button>
+          {/* Auto-reconnect indicator */}
+          {!isConnected && !isConnecting && error && isTabVisible && (
+            <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50 text-amber-200">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Auto-retry
+            </Badge>
           )}
           
           {!isWebcam && piRecording.piServiceConnected !== null && (
@@ -1038,11 +975,6 @@ export const CameraFeedCard = ({
           <Badge variant="secondary" className="text-xs">
             {isWebcam ? 'Webcam' : 'Network'}
           </Badge>
-          {!isWebcam && settings.direct_connection && (
-            <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs">
-              Direct
-            </Badge>
-          )}
         </div>
 
         {/* Live Clock */}
