@@ -50,17 +50,17 @@ export const MultiCameraGrid = () => {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <LayoutGrid className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-base sm:text-lg font-semibold">Cameras</h2>
-          <span className="text-xs sm:text-sm text-muted-foreground">({cameras.length} connected)</span>
+          <h2 className="text-lg font-semibold">Cameras</h2>
+          <span className="text-sm text-muted-foreground">({cameras.length} connected)</span>
         </div>
         
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           {/* Layout Selector */}
           <Select value={layout} onValueChange={(v) => setLayout(v as GridLayout)}>
-            <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px]">
+            <SelectTrigger className="w-[140px]">
               <Grid className="h-4 w-4 mr-2" />
               <SelectValue />
             </SelectTrigger>
@@ -74,10 +74,9 @@ export const MultiCameraGrid = () => {
           </Select>
           
           {/* Add Camera Button */}
-          <Button onClick={() => setAddDialogOpen(true)} className="flex-1 sm:flex-none">
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Camera</span>
-            <span className="sm:hidden">Add</span>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Camera
           </Button>
         </div>
       </div>
