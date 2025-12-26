@@ -1,12 +1,45 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GridLayout, GRID_LAYOUTS } from '@/types/camera';
-import { useEncryptedCameras } from '@/hooks/useEncryptedCameras';
+import { useSyncedCameras, SyncedCamera } from '@/hooks/useSyncedCameras';
 
 export const useMultiCamera = () => {
-  const { cameras, addCamera, removeCamera, updateCamera, isLoading } = useEncryptedCameras();
+  const { 
+    cameras, 
+    addCamera: addSyncedCamera, 
+    removeCamera: removeSyncedCamera, 
+    updateCamera: updateSyncedCamera, 
+    isLoading,
+    isLocalWebcam,
+    deviceId,
+    deviceName,
+  } = useSyncedCameras();
+  
   const [layout, setLayout] = useState<GridLayout>('2x2');
   const [focusedCameraIndex, setFocusedCameraIndex] = useState<number | null>(null);
   const [activeCameraIndices, setActiveCameraIndices] = useState<number[]>([]);
+
+  // Wrapper to match the expected interface
+  const addCamera = useCallback(async (config: any) => {
+    return await addSyncedCamera({
+      name: config.name,
+      url: config.url,
+      type: config.type || 'mjpeg',
+      quality: config.quality || 'medium',
+      source: config.source || 'network',
+      deviceId: config.deviceId,
+      haEntityId: config.haEntityId,
+      username: config.username,
+      password: config.password,
+    });
+  }, [addSyncedCamera]);
+
+  const removeCamera = useCallback(async (index: number) => {
+    return await removeSyncedCamera(index);
+  }, [removeSyncedCamera]);
+
+  const updateCamera = useCallback(async (index: number, config: any) => {
+    return await updateSyncedCamera(index, config);
+  }, [updateSyncedCamera]);
 
   // Determine which cameras should be active based on layout
   useEffect(() => {
@@ -74,5 +107,8 @@ export const useMultiCamera = () => {
     activeCameraIndices,
     getGridClass,
     getEmptySlots,
+    isLocalWebcam,
+    deviceId,
+    deviceName,
   };
 };

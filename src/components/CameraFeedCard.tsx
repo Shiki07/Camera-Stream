@@ -49,6 +49,8 @@ interface CameraFeedCardProps {
   onFocus: (index: number | null) => void;
   onSettings: (index: number) => void;
   onRemove: (index: number) => void;
+  isRemoteWebcam?: boolean;
+  sourceDeviceName?: string;
 }
 
 export const CameraFeedCard = ({
@@ -59,6 +61,8 @@ export const CameraFeedCard = ({
   onFocus,
   onSettings,
   onRemove,
+  isRemoteWebcam = false,
+  sourceDeviceName,
 }: CameraFeedCardProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -671,6 +675,13 @@ export const CameraFeedCard = ({
   useEffect(() => {
     let authSubscription: { unsubscribe: () => void } | null = null;
     
+    // Don't try to connect to remote webcams - they're on another device
+    if (isRemoteWebcam) {
+      setIsConnecting(false);
+      setIsConnected(false);
+      return;
+    }
+    
     const connect = () => {
       if (isWebcam) {
         connectToWebcam();
@@ -744,7 +755,7 @@ export const CameraFeedCard = ({
       networkMotionDetection.stopDetection();
       authSubscription?.unsubscribe();
     };
-  }, [config.url, config.deviceId, isWebcam]);
+  }, [config.url, config.deviceId, isWebcam, isRemoteWebcam]);
 
   // Auto-reconnect when disconnected
   useEffect(() => {
@@ -872,7 +883,25 @@ export const CameraFeedCard = ({
       isRecording && "ring-2 ring-red-500"
     )}>
       <div className="relative aspect-video bg-muted">
-        {isConnecting ? (
+        {/* Remote webcam - not available on this device */}
+        {isRemoteWebcam ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-center p-4">
+              <div className="p-3 bg-muted-foreground/10 rounded-full">
+                <Camera className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Webcam on another device</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This webcam is connected on {sourceDeviceName || 'another device'}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-[200px]">
+                To view it remotely, use the "Share for Remote Viewing" feature on that device
+              </p>
+            </div>
+          </div>
+        ) : isConnecting ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
