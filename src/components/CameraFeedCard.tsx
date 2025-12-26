@@ -979,13 +979,24 @@ export const CameraFeedCard = ({
 
         {/* Status Badges */}
         <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-          <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
-            {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
-            {isConnected ? 'Live' : 'Offline'}
-          </Badge>
+          {/* For remote webcams, show relay status instead of connection status */}
+          {isRemoteWebcam ? (
+            <Badge 
+              variant={autoRelay.remoteFrameUrl ? "default" : "secondary"} 
+              className={cn("text-xs", autoRelay.remoteFrameUrl && "bg-green-500/80")}
+            >
+              <Radio className={cn("h-3 w-3 mr-1", autoRelay.remoteFrameUrl && "animate-pulse")} />
+              {autoRelay.remoteFrameUrl ? 'Relay Live' : 'Relay'}
+            </Badge>
+          ) : (
+            <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
+              {isConnected ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
+              {isConnected ? 'Live' : 'Offline'}
+            </Badge>
+          )}
           
-          {/* Auto-reconnect indicator */}
-          {!isConnected && !isConnecting && error && isTabVisible && (
+          {/* Auto-reconnect indicator - only for non-remote cameras */}
+          {!isRemoteWebcam && !isConnected && !isConnecting && error && isTabVisible && (
             <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50 text-amber-200">
               <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
               Auto-retry
