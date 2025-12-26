@@ -85,6 +85,7 @@ export const CameraFeedCard = ({
   const lastFrameTimeRef = useRef<number>(Date.now());
   const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const authHydrationRetryRef = useRef<number>(0);
   // Anti-freeze improvements: track connection age and frame count for natural vs error detection
   const connectionAgeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
@@ -487,11 +488,24 @@ export const CameraFeedCard = ({
       if (requiresSupabaseJwt) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          // This can happen on mobile when the dashboard renders before auth is fully hydrated.
-          // Retry shortly instead of failing permanently.
+          // Mobile can render before auth is hydrated; retry briefly.
+          authHydrationRetryRef.current += 1;
+
+          // Stop infinite loops if the user isn't actually signed in
+          if (authHydrationRetryRef.current >= 10) {
+            setIsConnected(false);
+            setIsConnecting(false);
+            setError('Please sign in again to load this camera.');
+            return;
+          }
+
           setIsConnected(false);
           setIsConnecting(true);
           setError('Connecting (auth initializing)...');
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
           reconnectTimeoutRef.current = setTimeout(() => {
             if (isActiveRef.current) {
               connectToNetworkStream();
@@ -499,6 +513,10 @@ export const CameraFeedCard = ({
           }, 600);
           return;
         }
+
+        // Reset auth hydration retry counter once we have a session
+        authHydrationRetryRef.current = 0;
+
         headers = {
           ...headers,
           Authorization: `Bearer ${session.access_token}`,
