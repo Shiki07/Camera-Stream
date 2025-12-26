@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useServerSideTokens } from '@/hooks/useServerSideTokens';
 import { encryptValue, decryptValue } from '@/utils/credentialEncryption';
 
 export interface HomeAssistantConfig {
@@ -15,22 +16,9 @@ export interface HACamera {
   proxy_url?: string;
 }
 
-const STORAGE_KEY = 'homeassistant_config';
-const ENCRYPTED_TOKEN_KEY = 'homeassistant_encrypted_token';
-
-// Check if a token is in legacy base64 format (simple obfuscation)
-const isLegacyToken = (token: string): boolean => {
-  try {
-    // Legacy tokens are simple base64 of reversed string
-    // They won't have the IV prefix that proper encrypted tokens have
-    const decoded = atob(token);
-    // Legacy tokens are just reversed strings, typically short
-    // Encrypted tokens have 12-byte IV + encrypted data, making them longer
-    return decoded.length < 50 && !token.includes('=') === false;
-  } catch {
-    return false;
-  }
-};
+// Legacy localStorage keys for migration
+const LEGACY_STORAGE_KEY = 'homeassistant_config';
+const LEGACY_ENCRYPTED_TOKEN_KEY = 'homeassistant_encrypted_token';
 
 // Decrypt legacy token format
 const decryptLegacyToken = (encrypted: string): string => {
@@ -53,40 +41,67 @@ export const useHomeAssistant = () => {
   const [connected, setConnected] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
+  const { saveToken, loadToken, isAuthenticated } = useServerSideTokens();
+  const migrationAttemptedRef = useRef(false);
 
-  // Load config from localStorage with proper decryption
+  // Load config from server-side storage (with legacy localStorage migration)
   useEffect(() => {
     const loadConfig = async () => {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      // Try to load from server-side storage first
+      if (isAuthenticated) {
+        try {
+          const serverConfig = await loadToken<HomeAssistantConfig>('homeassistant');
+          
+          if (serverConfig) {
+            setConfig(serverConfig);
+            setIsInitialized(true);
+            
+            // Clean up legacy localStorage if migration hasn't been attempted
+            if (!migrationAttemptedRef.current) {
+              migrationAttemptedRef.current = true;
+              cleanupLegacyStorage();
+            }
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load server-side HA config:', error);
+        }
+      }
+
+      // Fall back to legacy localStorage for migration
+      const stored = localStorage.getItem(LEGACY_STORAGE_KEY);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
           let decryptedToken = '';
           
-          // Check for new encrypted token format first
-          const encryptedToken = localStorage.getItem(ENCRYPTED_TOKEN_KEY);
+          // Check for encrypted token format
+          const encryptedToken = localStorage.getItem(LEGACY_ENCRYPTED_TOKEN_KEY);
           if (encryptedToken) {
             decryptedToken = await decryptValue(encryptedToken);
           } else if (parsed.token) {
             // Handle legacy base64 obfuscation
             decryptedToken = decryptLegacyToken(parsed.token);
-            
-            // Migrate to proper encryption if we successfully decoded a legacy token
-            if (decryptedToken) {
-              const properlyEncrypted = await encryptValue(decryptedToken);
-              localStorage.setItem(ENCRYPTED_TOKEN_KEY, properlyEncrypted);
-              // Remove legacy token from config
-              const newConfig = { ...parsed, token: '' };
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-            }
           }
           
-          setConfig({
+          const loadedConfig = {
             url: parsed.url || '',
             webhookId: parsed.webhookId || '',
             enabled: parsed.enabled || false,
             token: decryptedToken,
-          });
+          };
+          
+          setConfig(loadedConfig);
+          
+          // Auto-migrate to server-side if authenticated
+          if (isAuthenticated && !migrationAttemptedRef.current) {
+            migrationAttemptedRef.current = true;
+            const saved = await saveToken('homeassistant', loadedConfig);
+            if (saved) {
+              console.log('Migrated Home Assistant config to server-side storage');
+              cleanupLegacyStorage();
+            }
+          }
         } catch (error) {
           console.error('Failed to parse Home Assistant config');
         }
@@ -95,27 +110,41 @@ export const useHomeAssistant = () => {
     };
     
     loadConfig();
+  }, [isAuthenticated, loadToken, saveToken]);
+
+  // Clean up legacy localStorage
+  const cleanupLegacyStorage = useCallback(() => {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_ENCRYPTED_TOKEN_KEY);
   }, []);
 
-  // Save config to localStorage with proper AES-256-GCM encryption
+  // Save config to server-side storage (with localStorage fallback for unauthenticated users)
   const saveConfig = useCallback(async (newConfig: HomeAssistantConfig) => {
     try {
-      // Encrypt token separately with proper encryption
-      if (newConfig.token) {
-        const encryptedToken = await encryptValue(newConfig.token);
-        localStorage.setItem(ENCRYPTED_TOKEN_KEY, encryptedToken);
-      } else {
-        localStorage.removeItem(ENCRYPTED_TOKEN_KEY);
+      // Try server-side storage first if authenticated
+      if (isAuthenticated) {
+        const saved = await saveToken('homeassistant', newConfig);
+        if (saved) {
+          setConfig(newConfig);
+          return;
+        }
       }
       
-      // Store config without the token (token is stored encrypted separately)
+      // Fallback to localStorage for unauthenticated users (encrypted)
+      if (newConfig.token) {
+        const encryptedToken = await encryptValue(newConfig.token);
+        localStorage.setItem(LEGACY_ENCRYPTED_TOKEN_KEY, encryptedToken);
+      } else {
+        localStorage.removeItem(LEGACY_ENCRYPTED_TOKEN_KEY);
+      }
+      
       const toStore = {
         url: newConfig.url,
         webhookId: newConfig.webhookId,
         enabled: newConfig.enabled,
         token: '', // Don't store token in main config
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(toStore));
       setConfig(newConfig);
     } catch (error) {
       console.error('Failed to save Home Assistant config:', error);
@@ -125,7 +154,7 @@ export const useHomeAssistant = () => {
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  }, [isAuthenticated, saveToken, toast]);
 
   // Test connection to Home Assistant via edge function (avoids CORS)
   const testConnection = useCallback(async (): Promise<boolean> => {
