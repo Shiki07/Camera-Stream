@@ -259,6 +259,30 @@ export type Database = {
         }
         Relationships: []
       }
+      relay_frames: {
+        Row: {
+          frame: string
+          host_id: string | null
+          host_name: string | null
+          room_id: string
+          updated_at: string
+        }
+        Insert: {
+          frame: string
+          host_id?: string | null
+          host_name?: string | null
+          room_id: string
+          updated_at?: string
+        }
+        Update: {
+          frame?: string
+          host_id?: string | null
+          host_name?: string | null
+          room_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shared_streams: {
         Row: {
           camera_name: string
