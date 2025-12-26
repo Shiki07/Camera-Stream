@@ -78,15 +78,15 @@ const Landing = () => {
         <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Camera className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold">Camera Stream</span>
+              <Camera className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <span className="text-lg sm:text-xl font-bold">Camera Stream</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link to="/auth">
-                <Button variant="ghost">Sign In</Button>
+                <Button variant="ghost" size="sm" className="text-xs sm:text-sm px-2 sm:px-4">Sign In</Button>
               </Link>
               <Link to="/auth">
-                <Button>Get Started Free</Button>
+                <Button size="sm" className="text-xs sm:text-sm px-2 sm:px-4">Get Started</Button>
               </Link>
             </div>
           </div>
