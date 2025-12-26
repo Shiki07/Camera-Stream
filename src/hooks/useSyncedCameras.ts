@@ -40,8 +40,19 @@ export function useSyncedCameras() {
 
   // Convert database row to camera config
   const dbToConfig = useCallback((row: DatabaseCamera): SyncedCameraConfig => {
-    const isWebcam = row.camera_type === 'webcam';
+    // Detect webcam by URL pattern OR camera_type (handles legacy data with wrong type)
+    const isWebcam = row.camera_type === 'webcam' || row.camera_url?.startsWith('webcam://');
     const sourceDeviceId = row.source_device_id;
+    
+    // Determine source type - prioritize URL pattern detection
+    let source: 'webcam' | 'network' | 'homeassistant' = 'network';
+    if (isWebcam) {
+      source = 'webcam';
+    } else if (row.ha_entity_id) {
+      source = 'homeassistant';
+    } else if (row.camera_type === 'homeassistant') {
+      source = 'homeassistant';
+    }
     
     return {
       id: row.id,
@@ -49,7 +60,7 @@ export function useSyncedCameras() {
       url: row.camera_url,
       type: (row.stream_type as 'mjpeg' | 'rtsp' | 'hls') || 'mjpeg',
       quality: (row.quality as 'high' | 'medium' | 'low') || 'medium',
-      source: (row.camera_type as 'webcam' | 'network' | 'homeassistant') || 'network',
+      source,
       deviceId: isWebcam ? row.camera_url.replace('webcam://', '') : undefined,
       haEntityId: row.ha_entity_id || undefined,
       sourceDeviceId: sourceDeviceId || undefined,
@@ -125,6 +136,48 @@ export function useSyncedCameras() {
     }
   }, []);
 
+  // Backfill missing source_device_id for webcams that belong to this device
+  const backfillCameraData = useCallback(async (cams: SyncedCameraConfig[]) => {
+    if (!user) return;
+    
+    const currentDeviceId = getDeviceId();
+    const currentDeviceName = getDeviceName();
+    
+    for (const cam of cams) {
+      // Check if this is a webcam (by URL) that's missing source_device_id
+      const isWebcamByUrl = cam.url?.startsWith('webcam://');
+      const needsBackfill = isWebcamByUrl && !cam.sourceDeviceId && cam.id;
+      
+      // Also fix camera_type if it's wrong
+      const needsTypefix = isWebcamByUrl && cam.source !== 'webcam' && cam.id;
+      
+      if (needsBackfill || needsTypefix) {
+        // Try to access the webcam to see if it belongs to this device
+        const deviceId = cam.url?.replace('webcam://', '') || '';
+        
+        try {
+          // Check if we can access this webcam device
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const webcamExists = devices.some(d => d.deviceId === deviceId && d.kind === 'videoinput');
+          
+          if (webcamExists) {
+            console.log(`Backfilling camera data for: ${cam.name}`);
+            await supabase.from('camera_credentials')
+              .update({
+                camera_type: 'webcam',
+                source_device_id: currentDeviceId,
+                source_device_name: currentDeviceName,
+              })
+              .eq('id', cam.id);
+          }
+        } catch (err) {
+          // Can't enumerate devices - skip backfill
+          console.log('Cannot enumerate devices for backfill:', err);
+        }
+      }
+    }
+  }, [user]);
+
   // Initial load
   useEffect(() => {
     const load = async () => {
@@ -137,6 +190,16 @@ export function useSyncedCameras() {
         if (supabaseCameras.length > 0) {
           setCameras(supabaseCameras);
           saveToLocalStorage(supabaseCameras);
+          
+          // Backfill missing data for cameras on this device
+          await backfillCameraData(supabaseCameras);
+          
+          // Reload to get updated data
+          const updatedCameras = await loadFromSupabase();
+          if (JSON.stringify(updatedCameras) !== JSON.stringify(supabaseCameras)) {
+            setCameras(updatedCameras);
+            saveToLocalStorage(updatedCameras);
+          }
         } else {
           // Check if there are local cameras to migrate
           const localCameras = loadFromLocalStorage();
@@ -169,7 +232,7 @@ export function useSyncedCameras() {
     };
     
     load();
-  }, [user, loadFromSupabase, loadFromLocalStorage, saveToLocalStorage, configToDbInsert]);
+  }, [user, loadFromSupabase, loadFromLocalStorage, saveToLocalStorage, configToDbInsert, backfillCameraData]);
 
   // Set up realtime subscription
   useEffect(() => {
