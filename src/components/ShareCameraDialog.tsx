@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRelayStream, RelayStreamSource } from '@/hooks/useRelayStream';
+import { useSharedStreams } from '@/hooks/useSharedStreams';
 
 interface ShareCameraDialogProps {
   open: boolean;
@@ -49,10 +50,13 @@ export const ShareCameraDialog: React.FC<ShareCameraDialogProps> = ({
     stopStream,
   } = useRelayStream();
 
+  const { registerStream, unregisterStream, updateHeartbeat } = useSharedStreams();
+
   const [copied, setCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const networkImgRef = useRef<HTMLImageElement | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const baseUrl = window.location.origin;
   const viewerUrl = roomId ? `${baseUrl}/view/${roomId}` : '';
@@ -66,6 +70,25 @@ export const ShareCameraDialog: React.FC<ShareCameraDialogProps> = ({
       }
     }
   }, [open]);
+
+  // Register stream in database when roomId is available
+  useEffect(() => {
+    if (roomId && isHosting) {
+      registerStream(roomId, cameraName, cameraSource);
+      
+      // Set up heartbeat to keep stream marked as active
+      heartbeatIntervalRef.current = setInterval(() => {
+        updateHeartbeat(roomId);
+      }, 30000); // Every 30 seconds
+    }
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [roomId, isHosting, cameraName, cameraSource, registerStream, updateHeartbeat]);
 
   const handleStartSharing = async () => {
     setIsStarting(true);
@@ -116,10 +139,17 @@ export const ShareCameraDialog: React.FC<ShareCameraDialogProps> = ({
     }
   };
 
-  const handleStopSharing = () => {
+  const handleStopSharing = async () => {
     if (refreshIntervalRef.current) {
       clearInterval(refreshIntervalRef.current);
       refreshIntervalRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (roomId) {
+      await unregisterStream(roomId);
     }
     stopStream();
   };
