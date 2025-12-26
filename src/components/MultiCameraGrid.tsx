@@ -153,8 +153,12 @@ export const MultiCameraGrid = () => {
               return null;
             }
             
-            // Check if this is a remote webcam
-            if (camera.isRemote && camera.source === 'webcam') {
+            // Check if this is a remote webcam (by isRemote flag OR by URL pattern + different sourceDeviceId)
+            const isWebcamByUrl = camera.url?.startsWith('webcam://');
+            const isRemoteWebcam = camera.isRemote || 
+              (isWebcamByUrl && camera.source === 'webcam');
+            
+            if (isRemoteWebcam) {
               return (
                 <RemoteWebcamPlaceholder
                   key={camera.url + index}
