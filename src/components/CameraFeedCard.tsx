@@ -20,7 +20,8 @@ import {
   Trash2,
   RefreshCw,
   Clock,
-  Share2
+  Share2,
+  Radio
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useImageMotionDetection } from '@/hooks/useImageMotionDetection';
@@ -30,6 +31,7 @@ import { useRecording } from '@/hooks/useRecording';
 import { useMotionNotification } from '@/hooks/useMotionNotification';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
+import { useAutoRelay } from '@/hooks/useAutoRelay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -51,6 +53,9 @@ interface CameraFeedCardProps {
   onRemove: (index: number) => void;
   isRemoteWebcam?: boolean;
   sourceDeviceName?: string;
+  // Relay data for automatic webcam streaming
+  relayRoomId?: string | null;
+  relayActive?: boolean;
 }
 
 export const CameraFeedCard = ({
@@ -63,6 +68,8 @@ export const CameraFeedCard = ({
   onRemove,
   isRemoteWebcam = false,
   sourceDeviceName,
+  relayRoomId,
+  relayActive,
 }: CameraFeedCardProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -101,6 +108,14 @@ export const CameraFeedCard = ({
   
   // Determine if webcam or network camera
   const isWebcam = config.source === 'webcam';
+  
+  // Auto-relay for webcams (local: push frames, remote: pull frames)
+  const autoRelay = useAutoRelay({
+    cameraId,
+    isLocalWebcam: isWebcam && !isRemoteWebcam,
+    relayRoomId,
+    relayActive,
+  });
   
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
@@ -266,6 +281,11 @@ export const CameraFeedCard = ({
         
         setIsConnected(true);
         console.log(`Webcam connected: ${config.name}`);
+        
+        // Auto-start relay for local webcam
+        if (videoRef.current && !isRemoteWebcam) {
+          autoRelay.startRelay(videoRef.current);
+        }
       }
     } catch (err) {
       console.error('Webcam connection failed:', err);
@@ -883,24 +903,44 @@ export const CameraFeedCard = ({
       isRecording && "ring-2 ring-red-500"
     )}>
       <div className="relative aspect-video bg-muted">
-        {/* Remote webcam - not available on this device */}
+        {/* Remote webcam - show relay feed if available, otherwise show message */}
         {isRemoteWebcam ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3 text-center p-4">
-              <div className="p-3 bg-muted-foreground/10 rounded-full">
-                <Camera className="h-10 w-10 text-muted-foreground" />
+          relayActive && autoRelay.remoteFrameUrl ? (
+            // Show relay feed from remote device
+            <>
+              <img
+                src={autoRelay.remoteFrameUrl}
+                className="w-full h-full object-contain"
+                alt={config.name}
+              />
+              {/* Relay indicator */}
+              <div className="absolute top-2 left-2">
+                <Badge variant="secondary" className="text-xs bg-green-500/20 border-green-500/50 text-green-200">
+                  <Radio className="h-3 w-3 mr-1 animate-pulse" />
+                  Live via Relay
+                </Badge>
               </div>
-              <div>
-                <p className="font-medium text-foreground">Webcam on another device</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  This webcam is connected on {sourceDeviceName || 'another device'}
-                </p>
+            </>
+          ) : (
+            // No active relay - show waiting message
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-center p-4">
+                <div className="p-3 bg-muted-foreground/10 rounded-full">
+                  <Camera className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Webcam on {sourceDeviceName || 'another device'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Waiting for device to come online...
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  <Radio className="h-3 w-3 mr-1" />
+                  Auto-sync enabled
+                </Badge>
               </div>
-              <p className="text-xs text-muted-foreground max-w-[200px]">
-                To view it remotely, use the "Share for Remote Viewing" feature on that device
-              </p>
             </div>
-          </div>
+          )
         ) : isConnecting ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">

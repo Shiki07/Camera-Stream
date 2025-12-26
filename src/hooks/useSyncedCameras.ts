@@ -10,6 +10,10 @@ export interface SyncedCamera extends NetworkCameraConfig {
   haEntityId?: string;
   sourceDeviceId?: string;
   sourceDeviceName?: string;
+  // Relay fields for automatic webcam streaming
+  relayRoomId?: string | null;
+  relayActive?: boolean;
+  relayLastHeartbeat?: string | null;
 }
 
 // Generate a unique device ID for this browser/device
@@ -30,6 +34,14 @@ const getDeviceName = (): string => {
   if (/Mac/.test(userAgent)) return 'Mac';
   if (/Linux/.test(userAgent)) return 'Linux PC';
   return 'Unknown Device';
+};
+
+// Check if relay is stale (no heartbeat in last 30 seconds)
+const isRelayStale = (lastHeartbeat: string | null): boolean => {
+  if (!lastHeartbeat) return true;
+  const heartbeatTime = new Date(lastHeartbeat).getTime();
+  const now = Date.now();
+  return now - heartbeatTime > 30000; // 30 seconds
 };
 
 export function useSyncedCameras() {
@@ -57,20 +69,28 @@ export function useSyncedCameras() {
       if (error) throw error;
 
       // Transform database records to SyncedCamera format
-      const syncedCameras: SyncedCamera[] = (data || []).map(cam => ({
-        id: cam.id,
-        url: cam.camera_url,
-        name: cam.camera_name,
-        type: (cam.stream_type as 'rtsp' | 'mjpeg' | 'hls') || 'mjpeg',
-        quality: (cam.quality as 'high' | 'medium' | 'low') || 'medium',
-        source: (cam.camera_type as 'webcam' | 'network' | 'homeassistant') || 'network',
-        haEntityId: cam.ha_entity_id || undefined,
-        sourceDeviceId: cam.source_device_id || undefined,
-        sourceDeviceName: cam.source_device_name || undefined,
-        // Decrypt credentials if present (handled by DB function)
-        username: cam.encrypted_username ? undefined : undefined, // Will be decrypted on demand
-        password: cam.encrypted_password ? undefined : undefined,
-      }));
+      const syncedCameras: SyncedCamera[] = (data || []).map(cam => {
+        const relayIsStale = isRelayStale(cam.relay_last_heartbeat);
+        
+        return {
+          id: cam.id,
+          url: cam.camera_url,
+          name: cam.camera_name,
+          type: (cam.stream_type as 'rtsp' | 'mjpeg' | 'hls') || 'mjpeg',
+          quality: (cam.quality as 'high' | 'medium' | 'low') || 'medium',
+          source: (cam.camera_type as 'webcam' | 'network' | 'homeassistant') || 'network',
+          haEntityId: cam.ha_entity_id || undefined,
+          sourceDeviceId: cam.source_device_id || undefined,
+          sourceDeviceName: cam.source_device_name || undefined,
+          // Relay fields - mark as inactive if heartbeat is stale
+          relayRoomId: cam.relay_room_id || null,
+          relayActive: cam.relay_active && !relayIsStale,
+          relayLastHeartbeat: cam.relay_last_heartbeat || null,
+          // Decrypt credentials if present (handled by DB function)
+          username: cam.encrypted_username ? undefined : undefined,
+          password: cam.encrypted_password ? undefined : undefined,
+        };
+      });
 
       setCameras(syncedCameras);
     } catch (err) {

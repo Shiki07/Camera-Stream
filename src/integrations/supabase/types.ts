@@ -25,6 +25,9 @@ export type Database = {
           ha_entity_id: string | null
           id: string
           quality: string | null
+          relay_active: boolean | null
+          relay_last_heartbeat: string | null
+          relay_room_id: string | null
           source_device_id: string | null
           source_device_name: string | null
           stream_type: string | null
@@ -41,6 +44,9 @@ export type Database = {
           ha_entity_id?: string | null
           id?: string
           quality?: string | null
+          relay_active?: boolean | null
+          relay_last_heartbeat?: string | null
+          relay_room_id?: string | null
           source_device_id?: string | null
           source_device_name?: string | null
           stream_type?: string | null
@@ -57,6 +63,9 @@ export type Database = {
           ha_entity_id?: string | null
           id?: string
           quality?: string | null
+          relay_active?: boolean | null
+          relay_last_heartbeat?: string | null
+          relay_room_id?: string | null
           source_device_id?: string | null
           source_device_name?: string | null
           stream_type?: string | null
