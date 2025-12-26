@@ -15,8 +15,9 @@ import Contact from "./pages/Contact";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 
-// Lazy load the main dashboard to reduce initial bundle size
+// Lazy load the main dashboard and remote viewer to reduce initial bundle size
 const Index = lazy(() => import("./pages/Index"));
+const RemoteViewer = lazy(() => import("./pages/RemoteViewer"));
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,18 @@ const App = () => (
               } 
             />
             <Route path="/auth" element={<Auth />} />
+            <Route 
+              path="/view/:roomId" 
+              element={
+                <Suspense fallback={
+                  <div className="min-h-screen bg-background flex items-center justify-center">
+                    <div className="text-muted-foreground">Loading viewer...</div>
+                  </div>
+                }>
+                  <RemoteViewer />
+                </Suspense>
+              } 
+            />
             <Route path="/documentation" element={<Documentation />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
