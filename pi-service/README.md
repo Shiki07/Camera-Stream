@@ -48,7 +48,30 @@ Common SD card mount points:
 - `/mnt/sdcard/Videos`
 - `/home/pi/Videos` (if using Pi's internal storage)
 
-### 3. Start the Service
+### 3. Configure API Key (Required for Security)
+
+Generate a cryptographically secure API key:
+
+```bash
+# Generate a secure 32-byte (64 character) API key
+openssl rand -hex 32
+# Example output: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
+
+# Set the API key environment variable
+export PI_SERVICE_API_KEY="your_generated_key_here"
+
+# For permanent configuration, add to ~/.bashrc or use systemd environment
+echo 'export PI_SERVICE_API_KEY="your_generated_key_here"' >> ~/.bashrc
+```
+
+**Security Requirements:**
+- API key must be at least 32 characters long
+- Use `openssl rand -hex 32` to generate cryptographically secure keys
+- Never commit API keys to version control
+- Rotate keys periodically (recommended: every 90 days)
+- Store the same key in both Pi service and Supabase Edge Function secrets
+
+### 4. Start the Service
 
 ```bash
 # Start the service
@@ -60,7 +83,7 @@ npm run dev
 
 The service will run on port 3002 by default.
 
-### 4. Make it Run on Boot (Optional)
+### 5. Make it Run on Boot (Optional)
 
 Create a systemd service:
 
@@ -68,7 +91,7 @@ Create a systemd service:
 sudo nano /etc/systemd/system/camalert-pi.service
 ```
 
-Add this content:
+Add this content (replace YOUR_API_KEY with your generated key):
 
 ```ini
 [Unit]
@@ -79,11 +102,25 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/camalert-pi-service
+Environment=PI_SERVICE_API_KEY=YOUR_API_KEY_HERE
 ExecStart=/usr/bin/node server.js
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
+```
+
+**Security Note:** For production, consider using systemd's `EnvironmentFile` directive:
+
+```ini
+[Service]
+EnvironmentFile=/home/pi/.camalert-env
+```
+
+Then create `/home/pi/.camalert-env` with restricted permissions:
+```bash
+echo "PI_SERVICE_API_KEY=your_key_here" > /home/pi/.camalert-env
+chmod 600 /home/pi/.camalert-env
 ```
 
 Enable and start:

@@ -7,9 +7,12 @@ const { spawn } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-
 // API Key authentication - set via environment variable
 const API_KEY = process.env.PI_SERVICE_API_KEY;
+
+// Validate API key strength on startup
+const MIN_API_KEY_LENGTH = 32;
+const isApiKeyStrong = API_KEY && API_KEY.length >= MIN_API_KEY_LENGTH;
 
 // Recording state management
 const activeRecordings = new Map(); // Map<recordingId, { process, filename, startTime }>
@@ -27,10 +30,19 @@ const authenticateApiKey = (req, res, next) => {
 
   // SECURITY: API key is now MANDATORY - refuse requests if not configured
   if (!API_KEY) {
-    console.error('❌ PI_SERVICE_API_KEY not set. Request rejected for security.');
+    console.error('PI_SERVICE_API_KEY not set. Request rejected for security.');
     return res.status(503).json({ 
       error: 'Service Not Configured',
-      message: 'PI_SERVICE_API_KEY environment variable must be set. See documentation for setup instructions.'
+      message: 'PI_SERVICE_API_KEY environment variable must be set. Generate with: openssl rand -hex 32'
+    });
+  }
+
+  // SECURITY: Reject weak API keys
+  if (!isApiKeyStrong) {
+    console.error('PI_SERVICE_API_KEY is too weak. Minimum 32 characters required.');
+    return res.status(503).json({ 
+      error: 'Weak API Key',
+      message: `PI_SERVICE_API_KEY must be at least ${MIN_API_KEY_LENGTH} characters. Generate with: openssl rand -hex 32`
     });
   }
 
@@ -406,12 +418,16 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎥 CamAlert Pi Service running on port ${PORT}`);
   console.log(`📁 Videos will be saved to: /home/pi/Videos`);
   console.log(`🌐 Access at: http://YOUR_PI_IP:${PORT}`);
-  if (API_KEY) {
-    console.log(`🔒 Authentication: ENABLED (API key required)`);
+  if (API_KEY && isApiKeyStrong) {
+    console.log(`🔒 Authentication: ENABLED (strong API key configured)`);
+  } else if (API_KEY && !isApiKeyStrong) {
+    console.error(`⚠️ WARNING: PI_SERVICE_API_KEY is too weak (${API_KEY.length} chars, need ${MIN_API_KEY_LENGTH}+)`);
+    console.error(`   Generate a strong key: openssl rand -hex 32`);
+    console.error(`   All requests (except /health) will be rejected until fixed.`);
   } else {
     console.error(`❌ CRITICAL: PI_SERVICE_API_KEY not set!`);
+    console.error(`   Generate a strong key: openssl rand -hex 32`);
     console.error(`   All requests (except /health) will be rejected until configured.`);
-    console.error(`   Set PI_SERVICE_API_KEY environment variable to enable the service.`);
   }
   console.log('\n📋 Available endpoints:');
   console.log(`   GET  /health - Health check (no auth)`);
@@ -423,5 +439,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   GET  /recording/active - List active recordings`);
   console.log('\n⚙️  Requirements:');
   console.log(`   - FFmpeg must be installed: sudo apt install ffmpeg`);
-  console.log(`   - Set PI_SERVICE_API_KEY env var for security`);
+  console.log(`   - Generate API key: openssl rand -hex 32`);
+  console.log(`   - Set PI_SERVICE_API_KEY env var with the generated key`);
 });
