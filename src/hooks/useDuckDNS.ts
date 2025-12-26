@@ -115,14 +115,9 @@ export const useDuckDNS = () => {
       try {
         console.log(`Updating DuckDNS via Edge Function for domain: ${config.domain} with IP: ${ip}`);
         
-        // Refresh the session to ensure we have a valid token
-        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !session?.access_token) {
-          // Try getting existing session as fallback
-          const { data: { session: existingSession } } = await supabase.auth.getSession();
-          if (!existingSession?.access_token) {
-            throw new Error('Authentication required for DuckDNS update. Please log in.');
-          }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('Authentication required for DuckDNS update. Please log in.');
         }
 
         console.log('Calling DuckDNS update function...');
