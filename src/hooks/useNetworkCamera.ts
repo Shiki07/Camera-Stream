@@ -71,20 +71,8 @@ export const useNetworkCamera = () => {
     const shouldUseProxy = normalizedUrl.startsWith('http://') && window.location.protocol === 'https:';
     
     if (shouldUseProxy) {
-      // Refresh session to ensure we have a valid token
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('Session refresh failed, trying existing session:', refreshError.message);
-      }
-      
-      const session = refreshData?.session;
-      if (!session) {
-        // Try getting existing session as fallback
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        if (!existingSession) {
-          throw new Error('Authentication required - please log in');
-        }
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Authentication required');
       
       const proxyUrl = new URL('https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy');
       proxyUrl.searchParams.set('url', normalizedUrl);
@@ -159,14 +147,8 @@ export const useNetworkCamera = () => {
       const controller = new AbortController();
       fetchControllerRef.current = controller;
       
-      // Refresh session before making the request
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      let session = refreshData?.session;
-      if (!session) {
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        session = existingSession;
-      }
-      if (!session) throw new Error('Authentication session required - please log in');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Authentication session required');
       
       const response = await fetch(proxiedUrl, {
         method: 'GET',
@@ -270,14 +252,8 @@ export const useNetworkCamera = () => {
       const controller = new AbortController();
       fetchControllerRef.current = controller;
 
-      // Refresh session before making the request
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      let session = refreshData?.session;
-      if (!session) {
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        session = existingSession;
-      }
-      if (!session) throw new Error('Authentication session required - please log in');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Authentication session required');
       
       const response = await fetch(proxiedUrl, {
         method: 'GET',
@@ -294,11 +270,6 @@ export const useNetworkCamera = () => {
       if (!response.ok) {
         let details = '';
         try { const data = await response.clone().json(); details = data?.error || JSON.stringify(data); } catch {}
-        
-        // Check for auth-specific errors
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('Authentication failed - please try logging in again');
-        }
         throw new Error(`HTTP ${response.status}: ${details || response.statusText}`);
       }
 

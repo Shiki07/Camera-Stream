@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GridLayout, GRID_LAYOUTS } from '@/types/camera';
-import { useSyncedCameras, SyncedCameraConfig } from '@/hooks/useSyncedCameras';
+import { useEncryptedCameras } from '@/hooks/useEncryptedCameras';
 
 export const useMultiCamera = () => {
-  const { cameras, addCamera, removeCamera, updateCamera, isLoading, isSyncing } = useSyncedCameras();
+  const { cameras, addCamera, removeCamera, updateCamera, isLoading } = useEncryptedCameras();
   const [layout, setLayout] = useState<GridLayout>('2x2');
   const [focusedCameraIndex, setFocusedCameraIndex] = useState<number | null>(null);
   const [activeCameraIndices, setActiveCameraIndices] = useState<number[]>([]);
@@ -61,18 +61,12 @@ export const useMultiCamera = () => {
     return Math.max(0, maxCameras - cameras.length);
   }, [cameras.length, layout, focusedCameraIndex]);
 
-  // Wrapper to maintain backward compatibility
-  const addCameraWrapper = useCallback((config: SyncedCameraConfig) => {
-    addCamera(config);
-  }, [addCamera]);
-
   return {
     cameras,
-    addCamera: addCameraWrapper,
+    addCamera,
     removeCamera,
     updateCamera,
     isLoading,
-    isSyncing,
     layout,
     setLayout,
     focusedCameraIndex,
