@@ -84,6 +84,12 @@ export const CameraFeedCard = ({
   const lastFrameTimeRef = useRef<number>(Date.now());
   const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Anti-freeze improvements: track connection age and frame count for natural vs error detection
+  const connectionAgeRef = useRef<number>(Date.now());
+  const frameCountRef = useRef<number>(0);
+  // Memory leak prevention: track and limit blob URLs
+  const blobUrlsRef = useRef<Set<string>>(new Set());
+  const MAX_BLOB_URLS = 5;
   const { toast } = useToast();
   
   // Determine if webcam or network camera
@@ -274,6 +280,8 @@ export const CameraFeedCard = ({
     setError(null);
     isActiveRef.current = true;
     lastFrameTimeRef.current = Date.now();
+    connectionAgeRef.current = Date.now();
+    frameCountRef.current = 0;
 
     if (fetchControllerRef.current) {
       fetchControllerRef.current.abort();
@@ -524,6 +532,7 @@ export const CameraFeedCard = ({
           buffer = buffer.slice(endIdx);
           framesExtracted++;
           frameCount++;
+          frameCountRef.current = frameCount;
 
           const blob = new Blob([jpegData], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
@@ -531,8 +540,20 @@ export const CameraFeedCard = ({
           if (imgRef.current) {
             const oldSrc = imgRef.current.src;
             imgRef.current.src = url;
+            // Revoke old blob URL and remove from tracking set
             if (oldSrc.startsWith('blob:')) {
               URL.revokeObjectURL(oldSrc);
+              blobUrlsRef.current.delete(oldSrc);
+            }
+          }
+          
+          // Track blob URL and limit memory usage
+          blobUrlsRef.current.add(url);
+          if (blobUrlsRef.current.size > MAX_BLOB_URLS) {
+            const oldestUrl = blobUrlsRef.current.values().next().value;
+            if (oldestUrl) {
+              URL.revokeObjectURL(oldestUrl);
+              blobUrlsRef.current.delete(oldestUrl);
             }
           }
 
@@ -560,16 +581,33 @@ export const CameraFeedCard = ({
         stallCheckIntervalRef.current = null;
       }
 
-      // Auto-reconnect if stream ended gracefully (e.g., server timeout) and component is still active
+      // Distinguish natural MJPEG cycles from actual connection errors
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
-        console.log(`CameraFeedCard: Auto-reconnecting ${config.name} after stream end...`);
-        setIsConnected(false);
-        setIsConnecting(true);
-        setTimeout(() => {
-          if (isActiveRef.current) {
-            connectToNetworkStream();
-          }
-        }, 500);
+        const connectionAge = Date.now() - connectionAgeRef.current;
+        const framesProcessed = frameCountRef.current;
+        
+        if (connectionAge < 10000 && framesProcessed < 5) {
+          // Short-lived connection with few frames = actual error, use exponential backoff
+          console.log(`CameraFeedCard: Connection error detected for ${config.name} (age: ${connectionAge}ms, frames: ${framesProcessed}), reconnecting with delay...`);
+          setIsConnected(false);
+          setIsConnecting(true);
+          const delay = Math.min(3000 * Math.max(1, Math.floor(connectionAge / 1000)), 10000);
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, delay);
+        } else {
+          // Natural stream cycle (long-running, many frames) = immediate seamless restart
+          console.log(`CameraFeedCard: Natural stream cycle for ${config.name} (age: ${connectionAge}ms, frames: ${framesProcessed}), immediate restart...`);
+          setIsConnected(false);
+          setIsConnecting(true);
+          setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, 100);
+        }
       }
     } catch (err) {
       const e = err as Error;
@@ -691,6 +729,14 @@ export const CameraFeedCard = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      // Clean up all tracked blob URLs to prevent memory leaks
+      blobUrlsRef.current.forEach(url => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
+      blobUrlsRef.current.clear();
+      frameCountRef.current = 0;
+      connectionAgeRef.current = Date.now();
+      
       webcamMotionDetection.stopDetection();
       networkMotionDetection.stopDetection();
       authSubscription?.unsubscribe();
