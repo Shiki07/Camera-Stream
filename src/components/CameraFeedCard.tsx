@@ -1065,15 +1065,6 @@ export const CameraFeedCard = ({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 bg-background/50 hover:bg-destructive hover:text-destructive-foreground"
-            onClick={() => onRemove(index)}
-            title="Remove camera"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={() => onFocus(isFocused ? null : index)}
           >
