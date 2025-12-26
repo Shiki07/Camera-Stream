@@ -31,25 +31,17 @@ export const useAutoRelay = ({
   const pullIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isActiveRef = useRef(true);
+  const relayRoomIdRef = useRef<string | null>(null);
+  const isRelayingRef = useRef(false);
 
-  // Update relay status in database
-  const updateRelayStatus = useCallback(async (roomId: string | null, active: boolean) => {
-    if (!user) return;
-    
-    try {
-      await supabase
-        .from('camera_credentials')
-        .update({
-          relay_room_id: roomId,
-          relay_active: active,
-          relay_last_heartbeat: active ? new Date().toISOString() : null,
-        })
-        .eq('camera_url', cameraId)
-        .eq('user_id', user.id);
-    } catch (err) {
-      console.error('Failed to update relay status:', err);
-    }
-  }, [cameraId, user]);
+  // Keep refs in sync with state
+  useEffect(() => {
+    relayRoomIdRef.current = relayRoomId;
+  }, [relayRoomId]);
+
+  useEffect(() => {
+    isRelayingRef.current = isRelaying;
+  }, [isRelaying]);
 
   // Capture frame from video element
   const captureFrame = useCallback((): string | null => {
@@ -67,15 +59,16 @@ export const useAutoRelay = ({
     return canvas.toDataURL('image/jpeg', 0.6);
   }, []);
 
-  // Push frame to relay server
+  // Push frame to relay server (uses refs for current values)
   const pushFrame = useCallback(async () => {
-    if (!relayRoomId || !isRelaying) return;
+    const currentRoomId = relayRoomIdRef.current;
+    if (!currentRoomId || !isRelayingRef.current) return;
 
     const frame = captureFrame();
     if (!frame) return;
 
     try {
-      await fetch(`${EDGE_FUNCTION_URL}?action=push&roomId=${encodeURIComponent(relayRoomId)}`, {
+      await fetch(`${EDGE_FUNCTION_URL}?action=push&roomId=${encodeURIComponent(currentRoomId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -87,14 +80,15 @@ export const useAutoRelay = ({
     } catch (error) {
       console.error('Push frame error:', error);
     }
-  }, [relayRoomId, isRelaying, captureFrame, user]);
+  }, [captureFrame, user]);
 
   // Pull frame from relay server (for remote viewing)
   const pullFrame = useCallback(async () => {
-    if (!relayRoomId || isLocalWebcam) return;
+    const currentRoomId = relayRoomIdRef.current;
+    if (!currentRoomId || isLocalWebcam) return;
 
     try {
-      const response = await fetch(`${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(relayRoomId)}`);
+      const response = await fetch(`${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(currentRoomId)}`);
       
       if (response.status === 404 || response.status === 410) {
         setRelayError('Stream not available');
@@ -111,11 +105,11 @@ export const useAutoRelay = ({
     } catch (error) {
       console.error('Pull frame error:', error);
     }
-  }, [relayRoomId, isLocalWebcam]);
+  }, [isLocalWebcam]);
 
   // Heartbeat to keep relay alive
   const sendHeartbeat = useCallback(async () => {
-    if (!user || !relayRoomId) return;
+    if (!user) return;
     
     try {
       await supabase
@@ -126,11 +120,31 @@ export const useAutoRelay = ({
     } catch (err) {
       console.error('Heartbeat failed:', err);
     }
-  }, [cameraId, user, relayRoomId]);
+  }, [cameraId, user]);
+
+  // Update relay status in database
+  const updateRelayStatus = useCallback(async (roomId: string | null, active: boolean) => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('camera_credentials')
+        .update({
+          relay_room_id: roomId,
+          relay_active: active,
+          relay_last_heartbeat: active ? new Date().toISOString() : null,
+        })
+        .eq('camera_url', cameraId)
+        .eq('user_id', user.id);
+      console.log('Updated relay status in DB:', { roomId, active });
+    } catch (err) {
+      console.error('Failed to update relay status:', err);
+    }
+  }, [cameraId, user]);
 
   // Start relaying (for local webcam)
   const startRelay = useCallback(async (video: HTMLVideoElement) => {
-    if (!user || !isLocalWebcam) return;
+    if (!user || !isLocalWebcam || isRelayingRef.current) return;
     
     console.log('Starting auto-relay for webcam:', cameraId);
     
@@ -138,11 +152,21 @@ export const useAutoRelay = ({
     canvasRef.current = document.createElement('canvas');
     
     const newRoomId = `auto_${user.id}_${Date.now()}`;
+    
+    // Set refs first so pushFrame can use them immediately
+    relayRoomIdRef.current = newRoomId;
+    isRelayingRef.current = true;
+    
+    // Then update state
     setRelayRoomId(newRoomId);
     setIsRelaying(true);
     
     // Update database
     await updateRelayStatus(newRoomId, true);
+    
+    // Clear any existing intervals
+    if (pushIntervalRef.current) clearInterval(pushIntervalRef.current);
+    if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     
     // Start pushing frames
     pushIntervalRef.current = setInterval(pushFrame, FRAME_INTERVAL);
@@ -156,14 +180,18 @@ export const useAutoRelay = ({
 
   // Start viewing relay (for remote webcam)
   const startViewing = useCallback(() => {
-    if (!relayRoomId || isLocalWebcam) return;
+    const currentRoomId = relayRoomIdRef.current;
+    if (!currentRoomId || isLocalWebcam) return;
     
-    console.log('Starting relay view for remote webcam:', cameraId, 'room:', relayRoomId);
+    console.log('Starting relay view for remote webcam:', cameraId, 'room:', currentRoomId);
+    
+    // Clear any existing interval
+    if (pullIntervalRef.current) clearInterval(pullIntervalRef.current);
     
     // Start pulling frames
     pullIntervalRef.current = setInterval(pullFrame, FRAME_INTERVAL);
     pullFrame(); // Pull immediately
-  }, [relayRoomId, isLocalWebcam, cameraId, pullFrame]);
+  }, [isLocalWebcam, cameraId, pullFrame]);
 
   // Stop relay
   const stopRelay = useCallback(async () => {
@@ -183,10 +211,12 @@ export const useAutoRelay = ({
       heartbeatIntervalRef.current = null;
     }
     
+    const currentRoomId = relayRoomIdRef.current;
+    
     // Notify relay server
-    if (isRelaying && relayRoomId) {
+    if (isRelayingRef.current && currentRoomId) {
       try {
-        await fetch(`${EDGE_FUNCTION_URL}?action=stop&roomId=${encodeURIComponent(relayRoomId)}`, {
+        await fetch(`${EDGE_FUNCTION_URL}?action=stop&roomId=${encodeURIComponent(currentRoomId)}`, {
           method: 'POST',
         });
       } catch (err) {
@@ -199,19 +229,13 @@ export const useAutoRelay = ({
       await updateRelayStatus(null, false);
     }
     
+    isRelayingRef.current = false;
+    relayRoomIdRef.current = null;
     setIsRelaying(false);
     setRemoteFrameUrl(null);
     videoRef.current = null;
     canvasRef.current = null;
-  }, [cameraId, isRelaying, relayRoomId, isLocalWebcam, updateRelayStatus]);
-
-  // Update push interval when relayRoomId changes
-  useEffect(() => {
-    if (isRelaying && relayRoomId && pushIntervalRef.current) {
-      clearInterval(pushIntervalRef.current);
-      pushIntervalRef.current = setInterval(pushFrame, FRAME_INTERVAL);
-    }
-  }, [isRelaying, relayRoomId, pushFrame]);
+  }, [cameraId, isLocalWebcam, updateRelayStatus]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -219,17 +243,26 @@ export const useAutoRelay = ({
     
     return () => {
       isActiveRef.current = false;
-      stopRelay();
+      // Clear intervals directly without async cleanup
+      if (pushIntervalRef.current) clearInterval(pushIntervalRef.current);
+      if (pullIntervalRef.current) clearInterval(pullIntervalRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
   }, []);
 
   // Auto-start viewing for remote webcam with active relay
   useEffect(() => {
     if (!isLocalWebcam && initialRelayActive && initialRelayRoomId) {
+      console.log('Auto-starting viewer for remote webcam relay:', initialRelayRoomId);
+      relayRoomIdRef.current = initialRelayRoomId;
       setRelayRoomId(initialRelayRoomId);
-      startViewing();
+      
+      // Small delay to ensure state is set
+      setTimeout(() => {
+        startViewing();
+      }, 100);
     }
-  }, [isLocalWebcam, initialRelayActive, initialRelayRoomId, startViewing]);
+  }, [isLocalWebcam, initialRelayActive, initialRelayRoomId]);
 
   return {
     isRelaying,

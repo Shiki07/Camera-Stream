@@ -9,11 +9,10 @@ import { MotionEventDashboard } from "@/components/MotionEventDashboard";
 import { CloudStorageSettings } from "@/components/CloudStorageSettings";
 import { FolderSettings } from "@/components/FolderSettings";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
-import { WebRTCStreamPanel } from "@/components/WebRTCStreamPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useState } from "react";
-import { Camera, Activity, Settings, History, AlertTriangle, Radio } from "lucide-react";
+import { Camera, Activity, Settings, History, AlertTriangle } from "lucide-react";
 
 const Index = () => {
   const [storageType, setStorageType] = useState<'cloud' | 'local'>('local');
@@ -67,7 +66,7 @@ const Index = () => {
           
           {/* Tabbed Sections */}
           <Tabs defaultValue="motion" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="motion" className="flex items-center gap-2">
                 <Activity className="w-4 h-4" />
                 <span className="hidden sm:inline">Motion Events</span>
@@ -75,10 +74,6 @@ const Index = () => {
               <TabsTrigger value="recordings" className="flex items-center gap-2">
                 <History className="w-4 h-4" />
                 <span className="hidden sm:inline">Recordings</span>
-              </TabsTrigger>
-              <TabsTrigger value="stream" className="flex items-center gap-2">
-                <Radio className="w-4 h-4" />
-                <span className="hidden sm:inline">P2P Stream</span>
               </TabsTrigger>
               <TabsTrigger value="storage" className="flex items-center gap-2">
                 <Camera className="w-4 h-4" />
@@ -96,12 +91,6 @@ const Index = () => {
 
             <TabsContent value="recordings">
               <RecordingHistory />
-            </TabsContent>
-
-            <TabsContent value="stream">
-              <div className="max-w-md mx-auto">
-                <WebRTCStreamPanel />
-              </div>
             </TabsContent>
 
             <TabsContent value="storage">
