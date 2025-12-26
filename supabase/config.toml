@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.stream-relay]
 verify_jwt = false
+
+[functions.save-user-token]
+verify_jwt = true
+
+[functions.save-duckdns-token]
+verify_jwt = true
