@@ -194,8 +194,6 @@ export const CameraFeedCard = ({
 
   // Connect to webcam
   const connectToWebcam = useCallback(async () => {
-    if (!config.deviceId) return;
-    
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -209,44 +207,17 @@ export const CameraFeedCard = ({
       videoRef.current.srcObject = null;
     }
 
-    try {
-      // First try with exact deviceId
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: { exact: config.deviceId },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
-          },
-          audio: true,
-        });
-      } catch (exactErr) {
-        // If exact deviceId fails (stale after browser restart), try with ideal preference
-        console.log('Exact deviceId failed, trying with ideal preference:', exactErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: { ideal: config.deviceId },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
-          },
-          audio: true,
-        });
-      }
-
+    // Helper to set stream and mark connected
+    const setStreamAndConnect = (stream: MediaStream) => {
       if (!isActiveRef.current) {
-        // Component unmounted during async operation
         stream.getTracks().forEach(track => track.stop());
-        return;
+        return false;
       }
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         
-        // Listen for track ended events (e.g., user revokes permission)
+        // Listen for track ended events
         stream.getVideoTracks().forEach(track => {
           track.onended = () => {
             console.log('Webcam track ended, attempting reconnect...');
@@ -258,8 +229,96 @@ export const CameraFeedCard = ({
         });
         
         setIsConnected(true);
-        console.log(`Webcam connected: ${config.name}`);
+        setIsConnecting(false);
+        return true;
       }
+      return false;
+    };
+
+    try {
+      let stream: MediaStream | null = null;
+
+      // Strategy 1: Try with exact deviceId if provided
+      if (config.deviceId) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              deviceId: { exact: config.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            },
+            audio: true,
+          });
+          if (setStreamAndConnect(stream)) {
+            console.log(`Webcam connected with exact deviceId: ${config.name}`);
+            return;
+          }
+        } catch (exactErr) {
+          console.log('Exact deviceId failed, trying fallback strategies:', exactErr);
+        }
+      }
+
+      // Strategy 2: Try with ideal deviceId preference
+      if (config.deviceId && !stream) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              deviceId: { ideal: config.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            },
+            audio: true,
+          });
+          if (setStreamAndConnect(stream)) {
+            console.log(`Webcam connected with ideal deviceId: ${config.name}`);
+            return;
+          }
+        } catch (idealErr) {
+          console.log('Ideal deviceId failed, trying any camera:', idealErr);
+        }
+      }
+
+      // Strategy 3: Try any available camera (cross-device fallback)
+      // This handles the case where camera was added on desktop but viewed on mobile
+      if (!stream) {
+        try {
+          // First get list of devices to see what's available
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(d => d.kind === 'videoinput');
+          console.log(`Found ${videoDevices.length} video devices, using first available`);
+          
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+              // On mobile, prefer environment (back) camera for surveillance
+              facingMode: { ideal: 'environment' },
+            },
+            audio: true,
+          });
+          if (setStreamAndConnect(stream)) {
+            console.log(`Webcam connected with fallback camera: ${config.name}`);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.log('Fallback camera failed, trying minimal constraints:', fallbackErr);
+        }
+      }
+
+      // Strategy 4: Minimal constraints as last resort
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (setStreamAndConnect(stream)) {
+          console.log(`Webcam connected with minimal constraints: ${config.name}`);
+          return;
+        }
+      }
+
+      // If we got here, all strategies failed
+      throw new Error('Could not access any camera');
     } catch (err) {
       console.error('Webcam connection failed:', err);
       
@@ -267,30 +326,13 @@ export const CameraFeedCard = ({
       let errorMessage = 'Failed to access webcam';
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+          errorMessage = 'Camera permission denied. Tap to allow camera access in browser settings.';
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          errorMessage = 'No camera found. Please connect a camera and try again.';
+          errorMessage = 'No camera found on this device.';
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          errorMessage = 'Camera is in use by another app. Please close other apps using the camera.';
-        } else if (err.name === 'OverconstrainedError') {
-          errorMessage = 'Camera does not support requested settings. Trying default settings...';
-          // Try with minimal constraints as last resort
-          try {
-            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if (isActiveRef.current && videoRef.current) {
-              videoRef.current.srcObject = fallbackStream;
-              streamRef.current = fallbackStream;
-              setIsConnected(true);
-              setError(null);
-              console.log(`Webcam connected with fallback: ${config.name}`);
-              setIsConnecting(false);
-              return;
-            }
-          } catch (fallbackErr) {
-            errorMessage = 'Could not access any camera. Please check permissions.';
-          }
+          errorMessage = 'Camera in use by another app.';
         } else if (err.name === 'SecurityError') {
-          errorMessage = 'Camera access blocked. Please use HTTPS or localhost.';
+          errorMessage = 'Camera blocked. Use HTTPS.';
         } else {
           errorMessage = err.message || 'Failed to access webcam';
         }
