@@ -15,7 +15,6 @@ import {
   WifiOff,
   AlertTriangle,
   HardDrive,
-  Download,
   Mail,
   Trash2,
   RefreshCw,
@@ -1122,16 +1121,6 @@ export const CameraFeedCard = ({
             <Camera className="h-4 w-4" />
           </Button>
           
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 bg-background/50 hover:bg-background/80"
-            onClick={handleSnapshot}
-            disabled={!isConnected}
-            title="Download snapshot"
-          >
-            <Download className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </Card>
