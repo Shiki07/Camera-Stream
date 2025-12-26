@@ -262,7 +262,41 @@ export const CameraFeedCard = ({
       }
     } catch (err) {
       console.error('Webcam connection failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to access webcam');
+      
+      // Provide specific error messages for common webcam issues
+      let errorMessage = 'Failed to access webcam';
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          errorMessage = 'No camera found. Please connect a camera and try again.';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          errorMessage = 'Camera is in use by another app. Please close other apps using the camera.';
+        } else if (err.name === 'OverconstrainedError') {
+          errorMessage = 'Camera does not support requested settings. Trying default settings...';
+          // Try with minimal constraints as last resort
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            if (isActiveRef.current && videoRef.current) {
+              videoRef.current.srcObject = fallbackStream;
+              streamRef.current = fallbackStream;
+              setIsConnected(true);
+              setError(null);
+              console.log(`Webcam connected with fallback: ${config.name}`);
+              setIsConnecting(false);
+              return;
+            }
+          } catch (fallbackErr) {
+            errorMessage = 'Could not access any camera. Please check permissions.';
+          }
+        } else if (err.name === 'SecurityError') {
+          errorMessage = 'Camera access blocked. Please use HTTPS or localhost.';
+        } else {
+          errorMessage = err.message || 'Failed to access webcam';
+        }
+      }
+      
+      setError(errorMessage);
       setIsConnected(false);
     } finally {
       setIsConnecting(false);
