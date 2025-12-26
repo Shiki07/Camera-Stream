@@ -14,7 +14,7 @@ import {
 import { SEOHead } from '@/components/SEOHead';
 
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
-const PULL_INTERVAL = 66; // 15 fps
+const PULL_INTERVAL = 100; // ~10 fps for smoother mobile performance
 
 type StreamStatus = 'connecting' | 'streaming' | 'error' | 'ended';
 

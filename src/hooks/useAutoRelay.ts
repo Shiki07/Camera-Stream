@@ -43,7 +43,7 @@ export const useAutoRelay = ({
     isRelayingRef.current = isRelaying;
   }, [isRelaying]);
 
-  // Capture frame from video element
+  // Capture frame from video element (optimized: 320x240 @ 50% JPEG quality)
   const captureFrame = useCallback((): string | null => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -53,10 +53,11 @@ export const useAutoRelay = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg', 0.6);
+    // Fixed smaller resolution for faster relay
+    canvas.width = 320;
+    canvas.height = 240;
+    ctx.drawImage(video, 0, 0, 320, 240);
+    return canvas.toDataURL('image/jpeg', 0.5);
   }, []);
 
   // Push frame to relay server (uses refs for current values)
@@ -188,8 +189,8 @@ export const useAutoRelay = ({
     // Clear any existing interval
     if (pullIntervalRef.current) clearInterval(pullIntervalRef.current);
     
-    // Start pulling frames
-    pullIntervalRef.current = setInterval(pullFrame, FRAME_INTERVAL);
+    // Start pulling frames (slower interval for viewers - 10fps)
+    pullIntervalRef.current = setInterval(pullFrame, 100);
     pullFrame(); // Pull immediately
   }, [isLocalWebcam, cameraId, pullFrame]);
 
