@@ -266,6 +266,7 @@ export type Database = {
           host_name: string | null
           room_id: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           frame: string
@@ -273,6 +274,7 @@ export type Database = {
           host_name?: string | null
           room_id: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           frame?: string
@@ -280,6 +282,7 @@ export type Database = {
           host_name?: string | null
           room_id?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -9,30 +9,56 @@ import {
   Home, 
   Maximize2, 
   Minimize2,
-  Camera
+  Camera,
+  Lock
 } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
 const PULL_INTERVAL = 100; // ~10 fps for smoother mobile performance
 
-type StreamStatus = 'connecting' | 'streaming' | 'error' | 'ended';
+type StreamStatus = 'connecting' | 'streaming' | 'error' | 'ended' | 'unauthorized';
 
 const RemoteViewer: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
+  const { user, loading } = useAuth();
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<StreamStatus>('connecting');
   const [hostName, setHostName] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lastFrameTime, setLastFrameTime] = useState<number>(Date.now());
 
+  // Get auth token for authenticated requests
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  }, []);
+
   const pullFrame = useCallback(async () => {
     if (!roomId) return;
 
+    const token = await getAuthToken();
+    if (!token) {
+      setStatus('unauthorized');
+      return;
+    }
+
     try {
       const response = await fetch(
-        `${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(roomId)}`
+        `${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(roomId)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
       );
+      
+      if (response.status === 401) {
+        setStatus('unauthorized');
+        return;
+      }
       
       if (response.status === 404) {
         setStatus('ended');
@@ -61,11 +87,16 @@ const RemoteViewer: React.FC = () => {
       console.error('Pull frame error:', error);
       setStatus('error');
     }
-  }, [roomId]);
+  }, [roomId, getAuthToken]);
 
-  // Start pulling frames
+  // Wait for auth to load before starting to pull frames
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || loading) return;
+    
+    if (!user) {
+      setStatus('unauthorized');
+      return;
+    }
 
     // Initial pull
     pullFrame();
@@ -74,7 +105,7 @@ const RemoteViewer: React.FC = () => {
     const interval = setInterval(pullFrame, PULL_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [roomId, pullFrame]);
+  }, [roomId, pullFrame, user, loading]);
 
   // Check for stale stream
   useEffect(() => {
@@ -136,8 +167,29 @@ const RemoteViewer: React.FC = () => {
             Stream Ended
           </Badge>
         );
+      case 'unauthorized':
+        return (
+          <Badge variant="destructive">
+            <Lock className="h-3 w-3 mr-1" />
+            Unauthorized
+          </Badge>
+        );
     }
   };
+
+  // Redirect to auth if not logged in
+  if (!loading && !user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -178,7 +230,7 @@ const RemoteViewer: React.FC = () => {
         {/* Main video area */}
         <main className="flex-1 flex items-center justify-center p-2 sm:p-4 bg-black">
           <div className="relative w-full max-w-5xl aspect-video bg-muted rounded-lg overflow-hidden">
-            {frameUrl && status !== 'ended' ? (
+            {frameUrl && status !== 'ended' && status !== 'unauthorized' ? (
               <img
                 src={frameUrl}
                 alt="Live camera stream"
@@ -187,7 +239,27 @@ const RemoteViewer: React.FC = () => {
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center space-y-4">
-                  {status === 'ended' ? (
+                  {status === 'unauthorized' ? (
+                    <>
+                      <Lock className="h-16 w-16 text-destructive mx-auto opacity-50" />
+                      <div className="space-y-2">
+                        <p className="text-lg text-muted-foreground">
+                          Access Denied
+                        </p>
+                        <p className="text-sm text-muted-foreground/70">
+                          You don't have permission to view this stream.
+                          <br />
+                          Only the stream owner can access this camera feed.
+                        </p>
+                        <Link to="/dashboard">
+                          <Button variant="outline" className="mt-4">
+                            <Home className="h-4 w-4 mr-2" />
+                            Go to Dashboard
+                          </Button>
+                        </Link>
+                      </div>
+                    </>
+                  ) : status === 'ended' ? (
                     <>
                       <Camera className="h-16 w-16 text-muted-foreground mx-auto opacity-50" />
                       <div className="space-y-2">
