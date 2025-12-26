@@ -955,7 +955,7 @@ export const CameraFeedCard = ({
             autoPlay
             playsInline
             muted
-            className={cn("w-full h-full object-cover", (isConnecting || error) && "opacity-0")}
+            className={cn("absolute inset-0 w-full h-full object-cover", (isConnecting || error) && "opacity-0")}
           />
         )}
         
