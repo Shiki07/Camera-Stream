@@ -29,7 +29,6 @@ import { useRecording } from '@/hooks/useRecording';
 import { useMotionNotification } from '@/hooks/useMotionNotification';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -85,7 +84,6 @@ export const CameraFeedCard = ({
   const lastFrameTimeRef = useRef<number>(Date.now());
   const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const authHydrationRetryRef = useRef<number>(0);
   // Anti-freeze improvements: track connection age and frame count for natural vs error detection
   const connectionAgeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
@@ -93,11 +91,10 @@ export const CameraFeedCard = ({
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const MAX_BLOB_URLS = 5;
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   
   // Determine if webcam or network camera
   const isWebcam = config.source === 'webcam';
-  const requiresUserGestureForWebcam = isWebcam && isMobile;
+  
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
   const browserRecording = useRecording();
@@ -197,6 +194,8 @@ export const CameraFeedCard = ({
 
   // Connect to webcam
   const connectToWebcam = useCallback(async () => {
+    if (!config.deviceId) return;
+    
     setIsConnecting(true);
     setError(null);
     isActiveRef.current = true;
@@ -210,47 +209,44 @@ export const CameraFeedCard = ({
       videoRef.current.srcObject = null;
     }
 
-    // Helper to set stream and mark connected
-    const setStreamAndConnect = (stream: MediaStream) => {
-      if (!isActiveRef.current) {
-        stream.getTracks().forEach(track => track.stop());
-        return false;
+    try {
+      // First try with exact deviceId
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { exact: config.deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: true,
+        });
+      } catch (exactErr) {
+        // If exact deviceId fails (stale after browser restart), try with ideal preference
+        console.log('Exact deviceId failed, trying with ideal preference:', exactErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { ideal: config.deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: true,
+        });
       }
+
+      if (!isActiveRef.current) {
+        // Component unmounted during async operation
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
       if (videoRef.current) {
-        const el = videoRef.current;
-
-        el.muted = true;
-        el.playsInline = true;
-        // iOS Safari specific inline playback attribute
-        try {
-          el.setAttribute('playsinline', 'true');
-          el.setAttribute('webkit-playsinline', 'true');
-        } catch {
-          // ignore
-        }
-
-        el.srcObject = stream;
+        videoRef.current.srcObject = stream;
         streamRef.current = stream;
-
-        const tryPlay = () => {
-          try {
-            const p = el.play();
-            if (p && typeof (p as any).catch === 'function') {
-              (p as Promise<void>).catch(() => {
-                // ignore - UI shows Retry
-              });
-            }
-          } catch {
-            // ignore
-          }
-        };
-
-        // iOS/Safari often needs an explicit play() call AFTER metadata is ready
-        el.onloadedmetadata = tryPlay;
-        el.oncanplay = tryPlay;
-        tryPlay();
-
-        // Listen for track ended events
+        
+        // Listen for track ended events (e.g., user revokes permission)
         stream.getVideoTracks().forEach(track => {
           track.onended = () => {
             console.log('Webcam track ended, attempting reconnect...');
@@ -260,118 +256,13 @@ export const CameraFeedCard = ({
             }
           };
         });
-
+        
         setIsConnected(true);
-        setIsConnecting(false);
-        return true;
+        console.log(`Webcam connected: ${config.name}`);
       }
-      return false;
-    };
-
-    try {
-      let stream: MediaStream | null = null;
-
-      // Strategy 1: Try with exact deviceId if provided
-      if (config.deviceId) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              deviceId: { exact: config.deviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              frameRate: { ideal: 30 },
-            },
-            audio: false,
-          });
-          if (setStreamAndConnect(stream)) {
-            console.log(`Webcam connected with exact deviceId: ${config.name}`);
-            return;
-          }
-        } catch (exactErr) {
-          console.log('Exact deviceId failed, trying fallback strategies:', exactErr);
-        }
-      }
-
-      // Strategy 2: Try with ideal deviceId preference
-      if (config.deviceId && !stream) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              deviceId: { ideal: config.deviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              frameRate: { ideal: 30 },
-            },
-            audio: false,
-          });
-          if (setStreamAndConnect(stream)) {
-            console.log(`Webcam connected with ideal deviceId: ${config.name}`);
-            return;
-          }
-        } catch (idealErr) {
-          console.log('Ideal deviceId failed, trying any camera:', idealErr);
-        }
-      }
-
-      // Strategy 3: Try any available camera (cross-device fallback)
-      // This handles the case where camera was added on desktop but viewed on mobile
-      if (!stream) {
-        try {
-          // First get list of devices to see what's available
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(d => d.kind === 'videoinput');
-          console.log(`Found ${videoDevices.length} video devices, using first available`);
-          
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              frameRate: { ideal: 30 },
-              // On mobile, prefer environment (back) camera for surveillance
-              facingMode: { ideal: 'environment' },
-            },
-            audio: false,
-          });
-          if (setStreamAndConnect(stream)) {
-            console.log(`Webcam connected with fallback camera: ${config.name}`);
-            return;
-          }
-        } catch (fallbackErr) {
-          console.log('Fallback camera failed, trying minimal constraints:', fallbackErr);
-        }
-      }
-
-      // Strategy 4: Minimal constraints as last resort
-      if (!stream) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        if (setStreamAndConnect(stream)) {
-          console.log(`Webcam connected with minimal constraints: ${config.name}`);
-          return;
-        }
-      }
-
-      // If we got here, all strategies failed
-      throw new Error('Could not access any camera');
     } catch (err) {
       console.error('Webcam connection failed:', err);
-      
-      // Provide specific error messages for common webcam issues
-      let errorMessage = 'Failed to access webcam';
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = 'Camera permission denied. Tap to allow camera access in browser settings.';
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          errorMessage = 'No camera found on this device.';
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          errorMessage = 'Camera in use by another app.';
-        } else if (err.name === 'SecurityError') {
-          errorMessage = 'Camera blocked. Use HTTPS.';
-        } else {
-          errorMessage = err.message || 'Failed to access webcam';
-        }
-      }
-      
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to access webcam');
       setIsConnected(false);
     } finally {
       setIsConnecting(false);
@@ -488,35 +379,8 @@ export const CameraFeedCard = ({
       if (requiresSupabaseJwt) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          // Mobile can render before auth is hydrated; retry briefly.
-          authHydrationRetryRef.current += 1;
-
-          // Stop infinite loops if the user isn't actually signed in
-          if (authHydrationRetryRef.current >= 10) {
-            setIsConnected(false);
-            setIsConnecting(false);
-            setError('Please sign in again to load this camera.');
-            return;
-          }
-
-          setIsConnected(false);
-          setIsConnecting(true);
-          setError('Connecting (auth initializing)...');
-          if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-            reconnectTimeoutRef.current = null;
-          }
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (isActiveRef.current) {
-              connectToNetworkStream();
-            }
-          }, 600);
-          return;
+          throw new Error('Authentication required');
         }
-
-        // Reset auth hydration retry counter once we have a session
-        authHydrationRetryRef.current = 0;
-
         headers = {
           ...headers,
           Authorization: `Bearer ${session.access_token}`,
@@ -806,12 +670,6 @@ export const CameraFeedCard = ({
     
     const connect = () => {
       if (isWebcam) {
-        // Mobile browsers often block getUserMedia without a user gesture.
-        if (requiresUserGestureForWebcam) {
-          setIsConnecting(false);
-          setError('Tap Retry to enable camera access on this device.');
-          return;
-        }
         connectToWebcam();
       } else {
         connectToNetworkStream();
