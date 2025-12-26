@@ -12,7 +12,7 @@ import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useState } from "react";
-import { Camera, Activity, Settings, History, AlertTriangle } from "lucide-react";
+import { Camera, Activity, Settings, History, AlertTriangle, RefreshCw } from "lucide-react";
 
 const Index = () => {
   const [storageType, setStorageType] = useState<'cloud' | 'local'>('local');
@@ -32,6 +32,16 @@ const Index = () => {
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <p className="text-sm font-semibold text-foreground">
               Under Construction - Some features may not work as expected
+            </p>
+          </div>
+        </div>
+        
+        {/* Refresh Recommendation Banner */}
+        <div className="bg-blue-500/20 border-b border-blue-500/40 py-3 px-4">
+          <div className="container mx-auto flex items-center justify-center gap-2">
+            <RefreshCw className="h-5 w-5 text-blue-500" />
+            <p className="text-sm text-foreground">
+              Experiencing issues? Try refreshing the page to resolve some problems.
             </p>
           </div>
         </div>
