@@ -18,7 +18,7 @@ const checkRateLimit = (userId: string): boolean => {
     rateLimits.set(userId, { count: 1, resetTime: now + 60000 });
     return true;
   }
-  if (limit.count >= 30) return false;
+  if (limit.count >= 120) return false;
   limit.count++;
   return true;
 };
