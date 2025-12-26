@@ -20,7 +20,6 @@ import {
   Trash2,
   RefreshCw,
   Clock,
-  Share2,
   Radio
 } from 'lucide-react';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
@@ -35,7 +34,6 @@ import { useAutoRelay } from '@/hooks/useAutoRelay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { ShareCameraDialog } from '@/components/ShareCameraDialog';
 
 interface CameraConfig extends NetworkCameraConfig {
   source: 'webcam' | 'network' | 'homeassistant';
@@ -76,7 +74,6 @@ export const CameraFeedCard = ({
   const [error, setError] = useState<string | null>(null);
   const [motionDetected, setMotionDetected] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   // Live clock update
   useEffect(() => {
@@ -1015,6 +1012,14 @@ export const CameraFeedCard = ({
               Alerts On
             </Badge>
           )}
+          
+          {/* Auto-relay status for local webcams */}
+          {isWebcam && !isRemoteWebcam && autoRelay.isRelaying && (
+            <Badge variant="secondary" className="text-xs bg-green-500/20 border-green-500/50 text-green-200">
+              <Radio className="h-3 w-3 mr-1 animate-pulse" />
+              Syncing
+            </Badge>
+          )}
         </div>
 
         {/* Recording Indicator */}
@@ -1051,11 +1056,11 @@ export const CameraFeedCard = ({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 bg-background/50 hover:bg-primary hover:text-primary-foreground"
-            onClick={() => setShareDialogOpen(true)}
-            title="Share for remote viewing"
+            className="h-7 w-7 bg-background/50 hover:bg-destructive hover:text-destructive-foreground"
+            onClick={() => onRemove(index)}
+            title="Remove camera"
           >
-            <Share2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Button
             size="icon"
@@ -1136,16 +1141,6 @@ export const CameraFeedCard = ({
           </Button>
         </div>
       </div>
-
-      {/* Share Dialog */}
-      <ShareCameraDialog
-        open={shareDialogOpen}
-        onOpenChange={setShareDialogOpen}
-        cameraName={config.name || 'Camera'}
-        cameraUrl={config.url}
-        cameraSource={config.source}
-        deviceId={config.deviceId}
-      />
     </Card>
   );
 };
