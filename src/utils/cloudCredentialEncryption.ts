@@ -1,18 +1,16 @@
 /**
- * Cloud Storage Credential Management Utility
- * Uses server-side storage for authenticated users with localStorage fallback
+ * Cloud Storage Credential Encryption Utility
+ * Extends the credentialEncryption utility for cloud storage credentials
  */
 
 import { encryptValue, decryptValue } from './credentialEncryption';
 import { CloudStorageConfig } from '@/services/cloudStorage/types';
-import { supabase } from '@/integrations/supabase/client';
 
-// Legacy localStorage keys for migration
-const LEGACY_CONFIG_STORAGE_KEY = 'cloudStorageConfig';
-const LEGACY_ENCRYPTED_KEY = 'cloudStorageConfigEncrypted';
+const CLOUD_CONFIG_STORAGE_KEY = 'cloudStorageConfig';
+const CLOUD_CONFIG_ENCRYPTED_KEY = 'cloudStorageConfigEncrypted';
 
 // Validation patterns for cloud storage inputs
-const VALID_PROVIDERS = ['s3', 'google-drive', 'dropbox', 'onedrive', 'none'] as const;
+const VALID_PROVIDERS = ['s3', 'google-drive', 'dropbox', 'onedrive'] as const;
 const BUCKET_NAME_PATTERN = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
 const REGION_PATTERN = /^[a-z]{2}-[a-z]+-\d+$/;
 const PATH_DANGEROUS_PATTERNS = [/\.\./, /^\//, /\/$/];
@@ -50,13 +48,18 @@ export function sanitizePath(path: string): string {
   
   let sanitized = path;
   
+  // Remove dangerous patterns
   for (const pattern of PATH_DANGEROUS_PATTERNS) {
     sanitized = sanitized.replace(pattern, '');
   }
   
+  // Remove any remaining directory traversal attempts
   sanitized = sanitized.replace(/\.\./g, '');
+  
+  // Trim leading/trailing slashes and whitespace
   sanitized = sanitized.replace(/^\/+|\/+$/g, '').trim();
   
+  // Limit length
   if (sanitized.length > 500) {
     sanitized = sanitized.substring(0, 500);
   }
@@ -72,6 +75,7 @@ export function sanitizeEndpoint(endpoint: string): string {
   
   try {
     const url = new URL(endpoint);
+    // Only allow https (or http for localhost)
     if (url.protocol !== 'https:' && !url.hostname.includes('localhost')) {
       return '';
     }
@@ -84,27 +88,22 @@ export function sanitizeEndpoint(endpoint: string): string {
 interface EncryptedCloudStorageConfig {
   provider: CloudStorageConfig['provider'];
   authMethod: CloudStorageConfig['authMethod'];
+  // Non-sensitive data stored in plain (validated)
   bucketName?: string;
   region?: string;
   endpoint?: string;
+  // Encrypted credentials
   encryptedAccessToken?: string;
   encryptedRefreshToken?: string;
   encryptedApiKey?: string;
   encryptedApiSecret?: string;
   expiresAt?: string;
+  // Flag to identify encrypted format
   isEncrypted: true;
 }
 
 /**
- * Get auth token for server-side requests
- */
-async function getAuthToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
-}
-
-/**
- * Save cloud storage configuration to server-side storage
+ * Encrypt and save cloud storage configuration
  */
 export async function saveEncryptedCloudConfig(config: CloudStorageConfig): Promise<void> {
   // Validate provider
@@ -112,7 +111,7 @@ export async function saveEncryptedCloudConfig(config: CloudStorageConfig): Prom
     throw new Error(`Invalid cloud storage provider: ${config.provider}`);
   }
 
-  // Validate bucket name if provided for S3
+  // Validate and sanitize bucket name if provided
   const bucketName = config.credentials?.bucketName;
   if (bucketName && config.provider === 's3' && !validateBucketName(bucketName)) {
     throw new Error('Invalid S3 bucket name format');
@@ -124,53 +123,18 @@ export async function saveEncryptedCloudConfig(config: CloudStorageConfig): Prom
     throw new Error('Invalid AWS region format');
   }
 
-  // Try server-side storage first
-  const authToken = await getAuthToken();
-  if (authToken) {
-    try {
-      const response = await fetch(
-        'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/save-user-token',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            action: 'save',
-            token_type: 'cloud_storage',
-            data: {
-              provider: config.provider,
-              authMethod: config.authMethod,
-              credentials: config.credentials,
-            },
-          }),
-        }
-      );
-
-      const result = await response.json();
-      if (response.ok && result.success) {
-        // Clean up legacy localStorage
-        localStorage.removeItem(LEGACY_CONFIG_STORAGE_KEY);
-        localStorage.removeItem(LEGACY_ENCRYPTED_KEY);
-        return;
-      }
-    } catch (error) {
-      console.error('Failed to save to server-side storage:', error);
-    }
-  }
-
-  // Fallback to localStorage for unauthenticated users
   const encryptedConfig: EncryptedCloudStorageConfig = {
     provider: config.provider,
     authMethod: config.authMethod,
     isEncrypted: true,
+    // Non-sensitive S3 config (validated)
     bucketName: bucketName,
     region: region,
     endpoint: config.credentials?.endpoint ? sanitizeEndpoint(config.credentials.endpoint) : undefined,
     expiresAt: config.credentials?.expiresAt,
   };
 
+  // Encrypt sensitive credentials
   if (config.credentials?.accessToken) {
     encryptedConfig.encryptedAccessToken = await encryptValue(config.credentials.accessToken);
   }
@@ -184,47 +148,19 @@ export async function saveEncryptedCloudConfig(config: CloudStorageConfig): Prom
     encryptedConfig.encryptedApiSecret = await encryptValue(config.credentials.apiSecret);
   }
 
-  localStorage.setItem(LEGACY_ENCRYPTED_KEY, JSON.stringify(encryptedConfig));
-  localStorage.removeItem(LEGACY_CONFIG_STORAGE_KEY);
+  // Save encrypted config
+  localStorage.setItem(CLOUD_CONFIG_ENCRYPTED_KEY, JSON.stringify(encryptedConfig));
+  
+  // Remove legacy unencrypted config if it exists
+  localStorage.removeItem(CLOUD_CONFIG_STORAGE_KEY);
 }
 
 /**
- * Load cloud storage configuration from server-side or localStorage
+ * Load and decrypt cloud storage configuration
  */
 export async function loadEncryptedCloudConfig(): Promise<CloudStorageConfig | null> {
-  // Try server-side storage first
-  const authToken = await getAuthToken();
-  if (authToken) {
-    try {
-      const response = await fetch(
-        'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/save-user-token',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            action: 'load',
-            token_type: 'cloud_storage',
-          }),
-        }
-      );
-
-      const result = await response.json();
-      if (response.ok && result.success && result.data) {
-        // Clean up legacy localStorage after successful server load
-        localStorage.removeItem(LEGACY_CONFIG_STORAGE_KEY);
-        localStorage.removeItem(LEGACY_ENCRYPTED_KEY);
-        return result.data as CloudStorageConfig;
-      }
-    } catch (error) {
-      console.error('Failed to load from server-side storage:', error);
-    }
-  }
-
-  // Try to load encrypted config from localStorage
-  const encryptedConfigStr = localStorage.getItem(LEGACY_ENCRYPTED_KEY);
+  // First try to load encrypted config
+  const encryptedConfigStr = localStorage.getItem(CLOUD_CONFIG_ENCRYPTED_KEY);
   
   if (encryptedConfigStr) {
     try {
@@ -242,6 +178,7 @@ export async function loadEncryptedCloudConfig(): Promise<CloudStorageConfig | n
           },
         };
 
+        // Decrypt sensitive credentials
         if (encryptedConfig.encryptedAccessToken) {
           config.credentials!.accessToken = await decryptValue(encryptedConfig.encryptedAccessToken);
         }
@@ -255,11 +192,6 @@ export async function loadEncryptedCloudConfig(): Promise<CloudStorageConfig | n
           config.credentials!.apiSecret = await decryptValue(encryptedConfig.encryptedApiSecret);
         }
 
-        // Migrate to server-side if authenticated
-        if (authToken) {
-          await saveEncryptedCloudConfig(config);
-        }
-
         return config;
       }
     } catch (error) {
@@ -268,11 +200,15 @@ export async function loadEncryptedCloudConfig(): Promise<CloudStorageConfig | n
   }
 
   // Try to migrate legacy unencrypted config
-  const legacyConfigStr = localStorage.getItem(LEGACY_CONFIG_STORAGE_KEY);
+  const legacyConfigStr = localStorage.getItem(CLOUD_CONFIG_STORAGE_KEY);
   if (legacyConfigStr) {
     try {
       const legacyConfig: CloudStorageConfig = JSON.parse(legacyConfigStr);
+      
+      // Migrate to encrypted format
       await saveEncryptedCloudConfig(legacyConfig);
+      console.log('Migrated legacy cloud config to encrypted format');
+      
       return legacyConfig;
     } catch (error) {
       console.error('Failed to migrate legacy cloud config:', error);
@@ -287,39 +223,15 @@ export async function loadEncryptedCloudConfig(): Promise<CloudStorageConfig | n
  */
 export function hasCloudConfig(): boolean {
   return !!(
-    localStorage.getItem(LEGACY_ENCRYPTED_KEY) || 
-    localStorage.getItem(LEGACY_CONFIG_STORAGE_KEY)
+    localStorage.getItem(CLOUD_CONFIG_ENCRYPTED_KEY) || 
+    localStorage.getItem(CLOUD_CONFIG_STORAGE_KEY)
   );
 }
 
 /**
  * Clear cloud storage configuration
  */
-export async function clearCloudConfig(): Promise<void> {
-  // Clear server-side storage
-  const authToken = await getAuthToken();
-  if (authToken) {
-    try {
-      await fetch(
-        'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/save-user-token',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            action: 'delete',
-            token_type: 'cloud_storage',
-          }),
-        }
-      );
-    } catch (error) {
-      console.error('Failed to clear server-side storage:', error);
-    }
-  }
-
-  // Clear localStorage
-  localStorage.removeItem(LEGACY_ENCRYPTED_KEY);
-  localStorage.removeItem(LEGACY_CONFIG_STORAGE_KEY);
+export function clearCloudConfig(): void {
+  localStorage.removeItem(CLOUD_CONFIG_ENCRYPTED_KEY);
+  localStorage.removeItem(CLOUD_CONFIG_STORAGE_KEY);
 }

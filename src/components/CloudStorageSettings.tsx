@@ -306,7 +306,7 @@ export const CloudStorageSettings = () => {
         <Alert className="border-green-500/30 bg-green-500/10">
           <Shield className="h-4 w-4 text-green-500" />
           <AlertDescription className="text-sm">
-            Your cloud storage credentials are securely encrypted and stored server-side when logged in.
+            Your cloud storage credentials are encrypted using AES-256-GCM before being stored locally in your browser.
             {selectedProvider === 's3' && ' Note: S3 uploads are processed through secure edge functions.'}
           </AlertDescription>
         </Alert>
