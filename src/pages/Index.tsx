@@ -10,6 +10,7 @@ import { CloudStorageSettings } from "@/components/CloudStorageSettings";
 import { FolderSettings } from "@/components/FolderSettings";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { WebRTCStreamPanel } from "@/components/WebRTCStreamPanel";
+import { SharedStreamsPanel } from "@/components/SharedStreamsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useState } from "react";
@@ -62,6 +63,9 @@ const Index = () => {
         </div>
         
         <div className="container mx-auto px-4 py-8 space-y-8">
+          {/* Shared Streams Panel - shows cameras shared from other devices */}
+          <SharedStreamsPanel />
+          
           {/* Multi-Camera Grid */}
           <MultiCameraGrid />
           

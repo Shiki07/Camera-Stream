@@ -250,6 +250,42 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_streams: {
+        Row: {
+          camera_name: string
+          camera_type: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_heartbeat: string
+          room_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          camera_name: string
+          camera_type?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_heartbeat?: string
+          room_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          camera_name?: string
+          camera_type?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_heartbeat?: string
+          room_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_tokens: {
         Row: {
           created_at: string
