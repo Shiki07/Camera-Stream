@@ -218,6 +218,19 @@ export const CameraFeedCard = ({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+
+        // iOS/Safari often needs an explicit play() call after srcObject is set
+        // (works when connectToWebcam is triggered by a user gesture)
+        try {
+          const p = videoRef.current.play();
+          if (p && typeof (p as any).catch === 'function') {
+            (p as Promise<void>).catch(() => {
+              // ignore - UI shows Retry
+            });
+          }
+        } catch {
+          // ignore
+        }
         
         // Listen for track ended events
         stream.getVideoTracks().forEach(track => {
@@ -457,7 +470,17 @@ export const CameraFeedCard = ({
       if (requiresSupabaseJwt) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          throw new Error('Authentication required');
+          // This can happen on mobile when the dashboard renders before auth is fully hydrated.
+          // Retry shortly instead of failing permanently.
+          setIsConnected(false);
+          setIsConnecting(true);
+          setError('Connecting (auth initializing)...');
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (isActiveRef.current) {
+              connectToNetworkStream();
+            }
+          }, 600);
+          return;
         }
         headers = {
           ...headers,
