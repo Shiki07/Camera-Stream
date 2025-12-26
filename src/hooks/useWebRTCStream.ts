@@ -16,6 +16,17 @@ interface StreamRoom {
   createdAt: string;
 }
 
+export interface StreamSource {
+  type: 'webcam' | 'network-camera' | 'canvas';
+  name: string;
+  // For webcam
+  deviceId?: string;
+  // For network camera - we'll capture from an image element
+  imageElement?: HTMLImageElement;
+  // For canvas-based streaming (network cameras)
+  canvasElement?: HTMLCanvasElement;
+}
+
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -34,9 +45,12 @@ export const useWebRTCStream = () => {
   const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
   const [availableRooms, setAvailableRooms] = useState<StreamRoom[]>([]);
 
+  const [selectedSource, setSelectedSource] = useState<StreamSource | null>(null);
+
   const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const canvasIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create a new peer connection
   const createPeerConnection = useCallback((peerId: string, isInitiator: boolean): RTCPeerConnection => {
@@ -143,10 +157,67 @@ export const useWebRTCStream = () => {
     }
   }, [user?.id, createPeerConnection]);
 
+  // Create a stream from an image element (for network cameras)
+  const createStreamFromImage = useCallback((imgElement: HTMLImageElement): MediaStream => {
+    const canvas = document.createElement('canvas');
+    canvas.width = imgElement.naturalWidth || 640;
+    canvas.height = imgElement.naturalHeight || 480;
+    const ctx = canvas.getContext('2d')!;
+
+    // Draw the image to canvas at regular intervals
+    const drawFrame = () => {
+      if (imgElement.complete && imgElement.naturalWidth > 0) {
+        canvas.width = imgElement.naturalWidth;
+        canvas.height = imgElement.naturalHeight;
+        ctx.drawImage(imgElement, 0, 0);
+      }
+    };
+
+    // Initial draw
+    drawFrame();
+
+    // Update at 15fps for network cameras
+    canvasIntervalRef.current = setInterval(drawFrame, 66);
+
+    // Capture stream from canvas
+    const stream = canvas.captureStream(15);
+    return stream;
+  }, []);
+
   // Start hosting a stream
-  const startHosting = useCallback(async (stream: MediaStream) => {
+  const startHosting = useCallback(async (source: StreamSource | MediaStream) => {
     if (!user) {
       toast.error('Please sign in to share your camera');
+      return null;
+    }
+
+    let stream: MediaStream;
+
+    // Handle different source types
+    if (source instanceof MediaStream) {
+      stream = source;
+    } else if (source.type === 'webcam') {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: source.deviceId 
+            ? { deviceId: { exact: source.deviceId }, width: 1280, height: 720 }
+            : { width: 1280, height: 720 },
+          audio: true,
+        });
+      } catch (error) {
+        console.error('Failed to get webcam:', error);
+        toast.error('Failed to access webcam');
+        return null;
+      }
+      setSelectedSource(source);
+    } else if (source.type === 'network-camera' && source.imageElement) {
+      stream = createStreamFromImage(source.imageElement);
+      setSelectedSource(source);
+    } else if (source.type === 'canvas' && source.canvasElement) {
+      stream = source.canvasElement.captureStream(15);
+      setSelectedSource(source);
+    } else {
+      toast.error('Invalid stream source');
       return null;
     }
 
@@ -210,7 +281,7 @@ export const useWebRTCStream = () => {
 
     toast.success('Stream started! Share your Room ID with others.');
     return newRoomId;
-  }, [user, handleSignalingMessage, createPeerConnection]);
+  }, [user, handleSignalingMessage, createPeerConnection, createStreamFromImage]);
 
   // Join a stream as viewer
   const joinStream = useCallback(async (targetRoomId: string) => {
@@ -257,6 +328,12 @@ export const useWebRTCStream = () => {
     });
     peerConnectionsRef.current.clear();
 
+    // Stop canvas interval if active
+    if (canvasIntervalRef.current) {
+      clearInterval(canvasIntervalRef.current);
+      canvasIntervalRef.current = null;
+    }
+
     // Stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -275,6 +352,7 @@ export const useWebRTCStream = () => {
     setIsHosting(false);
     setIsViewing(false);
     setConnectedPeers([]);
+    setSelectedSource(null);
 
     toast.info('Stream ended');
   }, []);
@@ -316,6 +394,7 @@ export const useWebRTCStream = () => {
     remoteStream,
     connectedPeers,
     availableRooms,
+    selectedSource,
     startHosting,
     joinStream,
     stopStream,
