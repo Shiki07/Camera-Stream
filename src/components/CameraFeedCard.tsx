@@ -904,20 +904,11 @@ export const CameraFeedCard = ({
         {isRemoteWebcam ? (
           relayActive && autoRelay.remoteFrameUrl ? (
             // Show relay feed from remote device
-            <>
-              <img
-                src={autoRelay.remoteFrameUrl}
-                className="w-full h-full object-contain"
-                alt={config.name}
-              />
-              {/* Relay indicator */}
-              <div className="absolute top-2 left-2">
-                <Badge variant="secondary" className="text-xs bg-green-500/20 border-green-500/50 text-green-200">
-                  <Radio className="h-3 w-3 mr-1 animate-pulse" />
-                  Live via Relay
-                </Badge>
-              </div>
-            </>
+            <img
+              src={autoRelay.remoteFrameUrl}
+              className="w-full h-full object-cover"
+              alt={config.name}
+            />
           ) : (
             // No active relay - show waiting message
             <div className="absolute inset-0 flex items-center justify-center">
@@ -964,7 +955,7 @@ export const CameraFeedCard = ({
             autoPlay
             playsInline
             muted
-            className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
+            className={cn("w-full h-full object-cover", (isConnecting || error) && "opacity-0")}
           />
         )}
         
@@ -972,7 +963,7 @@ export const CameraFeedCard = ({
         {!isWebcam && (
           <img
             ref={imgRef}
-            className={cn("w-full h-full object-contain", (isConnecting || error) && "opacity-0")}
+            className={cn("w-full h-full object-cover", (isConnecting || error) && "opacity-0")}
             alt={config.name}
           />
         )}
