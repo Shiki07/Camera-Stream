@@ -17,31 +17,49 @@ export type Database = {
       camera_credentials: {
         Row: {
           camera_name: string
+          camera_type: string | null
           camera_url: string
           created_at: string
           encrypted_password: string | null
           encrypted_username: string | null
+          ha_entity_id: string | null
           id: string
+          quality: string | null
+          source_device_id: string | null
+          source_device_name: string | null
+          stream_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           camera_name: string
+          camera_type?: string | null
           camera_url: string
           created_at?: string
           encrypted_password?: string | null
           encrypted_username?: string | null
+          ha_entity_id?: string | null
           id?: string
+          quality?: string | null
+          source_device_id?: string | null
+          source_device_name?: string | null
+          stream_type?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           camera_name?: string
+          camera_type?: string | null
           camera_url?: string
           created_at?: string
           encrypted_password?: string | null
           encrypted_username?: string | null
+          ha_entity_id?: string | null
           id?: string
+          quality?: string | null
+          source_device_id?: string | null
+          source_device_name?: string | null
+          stream_type?: string | null
           updated_at?: string
           user_id?: string
         }
