@@ -130,6 +130,8 @@ export const MultiCameraGrid = () => {
                 onRemove={removeCamera}
                 isRemoteWebcam={isRemoteWebcam}
                 sourceDeviceName={camera.sourceDeviceName}
+                relayRoomId={camera.relayRoomId}
+                relayActive={camera.relayActive}
               />
             );
           })}
