@@ -9,9 +9,10 @@ import { CameraSettingsSheet } from '@/components/CameraSettingsSheet';
 import { useMultiCamera } from '@/hooks/useMultiCamera';
 import { GridLayout, GRID_LAYOUTS } from '@/types/camera';
 import { cn } from '@/lib/utils';
+import { SyncedCamera } from '@/hooks/useSyncedCameras';
 
 // Helper to ensure camera has source field and extract deviceId for webcams
-const ensureCameraConfig = (camera: any): CameraConfig => {
+const ensureCameraConfig = (camera: SyncedCamera): CameraConfig => {
   const isWebcam = camera.source === 'webcam' || camera.url?.startsWith('webcam://');
   const isHomeAssistant = camera.source === 'homeassistant' || camera.haEntityId;
   const deviceId = camera.deviceId || (isWebcam && camera.url ? camera.url.replace('webcam://', '') : undefined);
@@ -35,6 +36,7 @@ export const MultiCameraGrid = () => {
     focusCamera,
     getGridClass,
     getEmptySlots,
+    isLocalWebcam,
   } = useMultiCamera();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -114,6 +116,8 @@ export const MultiCameraGrid = () => {
             }
             
             const cameraConfig = ensureCameraConfig(camera);
+            const isRemoteWebcam = camera.source === 'webcam' && !isLocalWebcam(camera);
+            
             return (
               <CameraFeedCard
                 key={camera.url + index}
@@ -124,6 +128,8 @@ export const MultiCameraGrid = () => {
                 onFocus={focusCamera}
                 onSettings={setSettingsIndex}
                 onRemove={removeCamera}
+                isRemoteWebcam={isRemoteWebcam}
+                sourceDeviceName={camera.sourceDeviceName}
               />
             );
           })}
