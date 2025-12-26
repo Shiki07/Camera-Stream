@@ -50,13 +50,15 @@ export const MultiCameraGrid = () => {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Title row */}
         <div className="flex items-center gap-2">
           <LayoutGrid className="h-5 w-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold">Cameras</h2>
           <span className="text-sm text-muted-foreground">({cameras.length} connected)</span>
         </div>
         
+        {/* Controls row */}
         <div className="flex items-center gap-2">
           {/* Layout Selector */}
           <Select value={layout} onValueChange={(v) => setLayout(v as GridLayout)}>
