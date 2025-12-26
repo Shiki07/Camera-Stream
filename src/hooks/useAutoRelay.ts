@@ -60,6 +60,12 @@ export const useAutoRelay = ({
     return canvas.toDataURL('image/jpeg', 0.5);
   }, []);
 
+  // Get auth token for authenticated requests
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  }, []);
+
   // Push frame to relay server (uses refs for current values)
   const pushFrame = useCallback(async () => {
     const currentRoomId = relayRoomIdRef.current;
@@ -68,10 +74,19 @@ export const useAutoRelay = ({
     const frame = captureFrame();
     if (!frame) return;
 
+    const token = await getAuthToken();
+    if (!token) {
+      console.error('No auth token available for push');
+      return;
+    }
+
     try {
       await fetch(`${EDGE_FUNCTION_URL}?action=push&roomId=${encodeURIComponent(currentRoomId)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
           frame,
           hostId: user?.id || 'anonymous',
@@ -81,15 +96,31 @@ export const useAutoRelay = ({
     } catch (error) {
       console.error('Push frame error:', error);
     }
-  }, [captureFrame, user]);
+  }, [captureFrame, user, getAuthToken]);
 
   // Pull frame from relay server (for remote viewing)
   const pullFrame = useCallback(async () => {
     const currentRoomId = relayRoomIdRef.current;
     if (!currentRoomId || isLocalWebcam) return;
 
+    const token = await getAuthToken();
+    if (!token) {
+      console.error('No auth token available for pull');
+      setRelayError('Authentication required');
+      return;
+    }
+
     try {
-      const response = await fetch(`${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(currentRoomId)}`);
+      const response = await fetch(`${EDGE_FUNCTION_URL}?action=pull&roomId=${encodeURIComponent(currentRoomId)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.status === 401) {
+        setRelayError('Authentication required');
+        return;
+      }
       
       if (response.status === 404 || response.status === 410) {
         setRelayError('Stream not available');
@@ -106,7 +137,7 @@ export const useAutoRelay = ({
     } catch (error) {
       console.error('Pull frame error:', error);
     }
-  }, [isLocalWebcam]);
+  }, [isLocalWebcam, getAuthToken]);
 
   // Heartbeat to keep relay alive
   const sendHeartbeat = useCallback(async () => {
@@ -214,11 +245,13 @@ export const useAutoRelay = ({
     
     const currentRoomId = relayRoomIdRef.current;
     
-    // Notify relay server
+    // Notify relay server (with auth)
     if (isRelayingRef.current && currentRoomId) {
       try {
+        const token = await getAuthToken();
         await fetch(`${EDGE_FUNCTION_URL}?action=stop&roomId=${encodeURIComponent(currentRoomId)}`, {
           method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         });
       } catch (err) {
         console.error('Failed to stop relay on server:', err);

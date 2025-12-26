@@ -6,6 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to verify JWT and get user
+async function verifyUser(req: Request, supabase: any): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { userId: null, error: 'Missing or invalid authorization header' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return { userId: null, error: 'Invalid or expired token' };
+  }
+
+  return { userId: user.id, error: null };
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -25,12 +42,22 @@ serve(async (req) => {
 
   try {
     // List active rooms (rooms with frames updated in last 30 seconds)
+    // REQUIRES AUTHENTICATION - only show user's own rooms
     if (action === 'list-rooms') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
       
       const { data: rooms, error } = await supabase
         .from('relay_frames')
-        .select('room_id, host_id, host_name, updated_at')
+        .select('room_id, host_id, host_name, updated_at, user_id')
+        .eq('user_id', userId)
         .gte('updated_at', thirtySecondsAgo);
 
       if (error) throw error;
@@ -42,14 +69,23 @@ serve(async (req) => {
         createdAt: r.updated_at,
       }));
 
-      console.log(`Active rooms: ${formattedRooms.length}`);
+      console.log(`Active rooms for user ${userId}: ${formattedRooms.length}`);
       return new Response(JSON.stringify({ rooms: formattedRooms }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Push a frame (host) - upsert to database
+    // REQUIRES AUTHENTICATION
     if (action === 'push' && req.method === 'POST') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       if (!roomId) {
         return new Response(JSON.stringify({ error: 'roomId required' }), {
           status: 400,
@@ -67,14 +103,15 @@ serve(async (req) => {
         });
       }
 
-      // Upsert frame to database
+      // Upsert frame to database with user_id for RLS
       const { error } = await supabase
         .from('relay_frames')
         .upsert({
           room_id: roomId,
           frame: frame,
-          host_id: hostId || 'anonymous',
+          host_id: hostId || userId,
           host_name: hostName || 'Anonymous',
+          user_id: userId,
           updated_at: new Date().toISOString(),
         }, { 
           onConflict: 'room_id' 
@@ -91,7 +128,16 @@ serve(async (req) => {
     }
 
     // Get latest frame (viewer) - read from database
+    // REQUIRES AUTHENTICATION - user can only view their own streams
     if (action === 'pull') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       if (!roomId) {
         return new Response(JSON.stringify({ error: 'roomId required' }), {
           status: 400,
@@ -99,14 +145,16 @@ serve(async (req) => {
         });
       }
 
+      // Only allow viewing frames owned by the authenticated user
       const { data, error } = await supabase
         .from('relay_frames')
-        .select('frame, host_name, updated_at')
+        .select('frame, host_name, updated_at, user_id')
         .eq('room_id', roomId)
+        .eq('user_id', userId)
         .single();
 
       if (error || !data) {
-        return new Response(JSON.stringify({ error: 'Stream not found or ended' }), {
+        return new Response(JSON.stringify({ error: 'Stream not found or access denied' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -135,7 +183,16 @@ serve(async (req) => {
     }
 
     // Stop a stream (host) - delete from database
+    // REQUIRES AUTHENTICATION
     if (action === 'stop') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       if (!roomId) {
         return new Response(JSON.stringify({ error: 'roomId required' }), {
           status: 400,
@@ -143,23 +200,26 @@ serve(async (req) => {
         });
       }
 
+      // Only allow deleting frames owned by the authenticated user
       const { error } = await supabase
         .from('relay_frames')
         .delete()
-        .eq('room_id', roomId);
+        .eq('room_id', roomId)
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Stop stream error:', error);
       }
 
-      console.log(`Stream stopped: ${roomId}`);
+      console.log(`Stream stopped by user ${userId}: ${roomId}`);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Cleanup old frames (older than 60 seconds) - can be called periodically
+    // Cleanup old frames (older than 60 seconds) - service account operation
+    // This uses service role key so bypasses RLS
     if (action === 'cleanup') {
       const sixtySecondsAgo = new Date(Date.now() - 60000).toISOString();
       
