@@ -29,6 +29,7 @@ import { useRecording } from '@/hooks/useRecording';
 import { useMotionNotification } from '@/hooks/useMotionNotification';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -91,10 +92,11 @@ export const CameraFeedCard = ({
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const MAX_BLOB_URLS = 5;
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Determine if webcam or network camera
   const isWebcam = config.source === 'webcam';
-  
+  const requiresUserGestureForWebcam = isWebcam && isMobile;
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
   const browserRecording = useRecording();
@@ -248,7 +250,7 @@ export const CameraFeedCard = ({
               height: { ideal: 720 },
               frameRate: { ideal: 30 },
             },
-            audio: true,
+            audio: false,
           });
           if (setStreamAndConnect(stream)) {
             console.log(`Webcam connected with exact deviceId: ${config.name}`);
@@ -269,7 +271,7 @@ export const CameraFeedCard = ({
               height: { ideal: 720 },
               frameRate: { ideal: 30 },
             },
-            audio: true,
+            audio: false,
           });
           if (setStreamAndConnect(stream)) {
             console.log(`Webcam connected with ideal deviceId: ${config.name}`);
@@ -297,7 +299,7 @@ export const CameraFeedCard = ({
               // On mobile, prefer environment (back) camera for surveillance
               facingMode: { ideal: 'environment' },
             },
-            audio: true,
+            audio: false,
           });
           if (setStreamAndConnect(stream)) {
             console.log(`Webcam connected with fallback camera: ${config.name}`);
@@ -310,7 +312,7 @@ export const CameraFeedCard = ({
 
       // Strategy 4: Minimal constraints as last resort
       if (!stream) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         if (setStreamAndConnect(stream)) {
           console.log(`Webcam connected with minimal constraints: ${config.name}`);
           return;
@@ -746,6 +748,12 @@ export const CameraFeedCard = ({
     
     const connect = () => {
       if (isWebcam) {
+        // Mobile browsers often block getUserMedia without a user gesture.
+        if (requiresUserGestureForWebcam) {
+          setIsConnecting(false);
+          setError('Tap Retry to enable camera access on this device.');
+          return;
+        }
         connectToWebcam();
       } else {
         connectToNetworkStream();
