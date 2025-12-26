@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useWebRTCStream } from '@/hooks/useWebRTCStream';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useWebRTCStream, StreamSource } from '@/hooks/useWebRTCStream';
+import { useEncryptedCameras } from '@/hooks/useEncryptedCameras';
 import { 
   Video, 
   VideoOff, 
@@ -15,7 +17,9 @@ import {
   X,
   RefreshCw,
   Wifi,
-  WifiOff
+  WifiOff,
+  Camera,
+  MonitorPlay
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,18 +40,23 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
     remoteStream,
     connectedPeers,
     availableRooms,
+    selectedSource,
     startHosting,
     joinStream,
     stopStream,
     refreshAvailableRooms,
   } = useWebRTCStream();
 
+  const { cameras, isLoading: camerasLoading } = useEncryptedCameras();
+
   const [joinRoomId, setJoinRoomId] = useState('');
   const [copied, setCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [selectedCameraIndex, setSelectedCameraIndex] = useState<string>('webcam');
 
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const networkCameraImgRef = useRef<HTMLImageElement>(null);
   const localVideoElement = externalVideoRef || internalVideoRef;
 
   // Attach local stream to video element
@@ -74,20 +83,53 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
   const handleStartHosting = async () => {
     setIsStarting(true);
     try {
-      let stream = existingStream;
-      
-      if (!stream) {
-        // Request camera access if no existing stream
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 1280, height: 720 },
-          audio: true,
-        });
-      }
+      if (selectedCameraIndex === 'webcam') {
+        // Use default webcam
+        const source: StreamSource = {
+          type: 'webcam',
+          name: 'Local Webcam',
+        };
+        await startHosting(source);
+      } else {
+        const cameraIdx = parseInt(selectedCameraIndex, 10);
+        const camera = cameras[cameraIdx];
+        
+        if (!camera) {
+          toast.error('Camera not found');
+          return;
+        }
 
-      await startHosting(stream);
+        // For network cameras, we need to capture from the image
+        // Create a hidden image element to load the stream
+        const img = document.createElement('img');
+        img.crossOrigin = 'anonymous';
+        
+        // Build the proxy URL for the camera
+        const proxyUrl = `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy?url=${encodeURIComponent(camera.url)}`;
+        
+        img.src = proxyUrl;
+        
+        // Wait for image to load
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load camera feed'));
+          // Timeout after 10 seconds
+          setTimeout(() => reject(new Error('Camera connection timeout')), 10000);
+        });
+
+        networkCameraImgRef.current = img;
+
+        const source: StreamSource = {
+          type: 'network-camera',
+          name: camera.name || 'Network Camera',
+          imageElement: img,
+        };
+
+        await startHosting(source);
+      }
     } catch (error) {
       console.error('Failed to start hosting:', error);
-      toast.error('Failed to access camera');
+      toast.error(error instanceof Error ? error.message : 'Failed to start stream');
     } finally {
       setIsStarting(false);
     }
@@ -135,6 +177,37 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
         {/* Not streaming - show options */}
         {!isHosting && !isViewing && (
           <>
+            {/* Camera source selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Select Camera Source</label>
+              <Select value={selectedCameraIndex} onValueChange={setSelectedCameraIndex}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a camera" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="webcam">
+                    <div className="flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      <span>Local Webcam</span>
+                    </div>
+                  </SelectItem>
+                  {!camerasLoading && cameras.map((camera, index) => (
+                    <SelectItem key={index} value={index.toString()}>
+                      <div className="flex items-center gap-2">
+                        <MonitorPlay className="h-4 w-4" />
+                        <span>{camera.name || `Camera ${index + 1}`}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {cameras.length === 0 && !camerasLoading && (
+                <p className="text-xs text-muted-foreground">
+                  Add network cameras in the Cameras section to share them
+                </p>
+              )}
+            </div>
+
             {/* Start hosting */}
             <div className="space-y-2">
               <Button
@@ -146,12 +219,12 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
                 {isStarting ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
-                  <Video className="h-4 w-4 mr-2" />
+                  <Camera className="h-4 w-4 mr-2" />
                 )}
-                Share My Webcam
+                Share Selected Camera
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                Start streaming your webcam to other devices
+                Start streaming to other devices via P2P
               </p>
             </div>
 
@@ -160,7 +233,7 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
+                <span className="bg-card px-2 text-muted-foreground">or join a stream</span>
               </div>
             </div>
 
@@ -212,6 +285,18 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
         {/* Currently hosting */}
         {isHosting && (
           <div className="space-y-4">
+            {/* Source indicator */}
+            {selectedSource && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {selectedSource.type === 'webcam' ? (
+                  <Video className="h-4 w-4" />
+                ) : (
+                  <MonitorPlay className="h-4 w-4" />
+                )}
+                <span>Streaming: {selectedSource.name}</span>
+              </div>
+            )}
+
             {/* Local video preview */}
             {!externalVideoRef && (
               <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
