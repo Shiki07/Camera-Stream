@@ -3,8 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
-const FRAME_INTERVAL = 100; // Send frame every 100ms (10 fps)
-const PULL_INTERVAL = 100; // Pull frames every 100ms
+const FRAME_INTERVAL = 66; // Send frame every 66ms (15 fps)
+const PULL_INTERVAL = 66; // Pull frames every 66ms
 
 export interface StreamRoom {
   roomId: string;
