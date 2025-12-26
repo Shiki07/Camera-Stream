@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ha-test-connection]
 verify_jwt = false
+
+[functions.stream-relay]
+verify_jwt = false

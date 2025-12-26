@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useWebRTCStream, StreamSource } from '@/hooks/useWebRTCStream';
+import { useRelayStream, RelayStreamSource } from '@/hooks/useRelayStream';
 import { useEncryptedCameras } from '@/hooks/useEncryptedCameras';
 import { 
   Video, 
-  VideoOff, 
   Users, 
   Copy, 
   Check, 
@@ -19,33 +18,27 @@ import {
   Wifi,
   WifiOff,
   Camera,
-  MonitorPlay
+  MonitorPlay,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface WebRTCStreamPanelProps {
-  localVideoRef?: React.RefObject<HTMLVideoElement>;
-  existingStream?: MediaStream | null;
-}
-
-export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
-  localVideoRef: externalVideoRef,
-  existingStream,
-}) => {
+export const WebRTCStreamPanel: React.FC = () => {
   const {
     isHosting,
     isViewing,
     roomId,
     localStream,
-    remoteStream,
-    connectedPeers,
+    remoteFrameUrl,
     availableRooms,
     selectedSource,
+    streamStatus,
     startHosting,
     joinStream,
     stopStream,
     refreshAvailableRooms,
-  } = useWebRTCStream();
+    videoRef,
+  } = useRelayStream();
 
   const { cameras, isLoading: camerasLoading } = useEncryptedCameras();
 
@@ -54,38 +47,20 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
   const [isStarting, setIsStarting] = useState(false);
   const [selectedCameraIndex, setSelectedCameraIndex] = useState<string>('webcam');
 
-  const internalVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const networkCameraImgRef = useRef<HTMLImageElement>(null);
-  const localVideoElement = externalVideoRef || internalVideoRef;
+  const localPreviewRef = useRef<HTMLVideoElement>(null);
 
-  // Attach local stream to video element
+  // Attach local stream to preview video
   useEffect(() => {
-    const stream = existingStream || localStream;
-    if (localVideoElement.current && stream) {
-      localVideoElement.current.srcObject = stream;
+    if (localPreviewRef.current && localStream) {
+      localPreviewRef.current.srcObject = localStream;
     }
-  }, [localStream, existingStream, localVideoElement]);
-
-  // Attach remote stream to video element
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-
-  // Refresh available rooms on mount
-  useEffect(() => {
-    const cleanup = refreshAvailableRooms();
-    return cleanup;
-  }, [refreshAvailableRooms]);
+  }, [localStream]);
 
   const handleStartHosting = async () => {
     setIsStarting(true);
     try {
       if (selectedCameraIndex === 'webcam') {
-        // Use default webcam
-        const source: StreamSource = {
+        const source: RelayStreamSource = {
           type: 'webcam',
           name: 'Local Webcam',
         };
@@ -99,27 +74,30 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
           return;
         }
 
-        // For network cameras, we need to capture from the image
-        // Create a hidden image element to load the stream
+        // For network cameras, create an image element to capture from
         const img = document.createElement('img');
         img.crossOrigin = 'anonymous';
         
         // Build the proxy URL for the camera
         const proxyUrl = `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/camera-proxy?url=${encodeURIComponent(camera.url)}`;
-        
         img.src = proxyUrl;
-        
+
         // Wait for image to load
         await new Promise<void>((resolve, reject) => {
           img.onload = () => resolve();
           img.onerror = () => reject(new Error('Failed to load camera feed'));
-          // Timeout after 10 seconds
           setTimeout(() => reject(new Error('Camera connection timeout')), 10000);
         });
 
-        networkCameraImgRef.current = img;
+        // Keep refreshing the image for MJPEG
+        const refreshImg = () => {
+          if (isHosting) {
+            img.src = proxyUrl + '&t=' + Date.now();
+          }
+        };
+        setInterval(refreshImg, 200);
 
-        const source: StreamSource = {
+        const source: RelayStreamSource = {
           type: 'network-camera',
           name: camera.name || 'Network Camera',
           imageElement: img,
@@ -152,24 +130,26 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
     }
   };
 
+  const getStatusBadge = () => {
+    switch (streamStatus) {
+      case 'connecting':
+        return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Connecting</Badge>;
+      case 'streaming':
+        return <Badge variant="default" className="bg-green-500"><Wifi className="h-3 w-3 mr-1" />Live</Badge>;
+      case 'error':
+        return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />Error</Badge>;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Radio className="h-5 w-5 text-primary" />
-          P2P Stream Sharing
-          {isHosting && (
-            <Badge variant="default" className="ml-auto bg-green-500">
-              <Wifi className="h-3 w-3 mr-1" />
-              Hosting
-            </Badge>
-          )}
-          {isViewing && (
-            <Badge variant="secondary" className="ml-auto">
-              <Eye className="h-3 w-3 mr-1" />
-              Viewing
-            </Badge>
-          )}
+          Stream Relay
+          <span className="ml-auto">{getStatusBadge()}</span>
         </CardTitle>
       </CardHeader>
 
@@ -224,7 +204,7 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
                 Share Selected Camera
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                Start streaming to other devices via P2P
+                Stream via server relay (works through firewalls)
               </p>
             </div>
 
@@ -256,7 +236,12 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
             {/* Available rooms */}
             {availableRooms.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Available Streams:</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Available Streams:</p>
+                  <Button size="sm" variant="ghost" onClick={refreshAvailableRooms}>
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </div>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {availableRooms.map((room) => (
                     <div
@@ -297,11 +282,11 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
               </div>
             )}
 
-            {/* Local video preview */}
-            {!externalVideoRef && (
+            {/* Local video preview (for webcam) */}
+            {localStream && (
               <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
                 <video
-                  ref={internalVideoRef}
+                  ref={localPreviewRef}
                   autoPlay
                   muted
                   playsInline
@@ -334,17 +319,11 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
               </div>
             </div>
 
-            {/* Connected viewers */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                <span>{connectedPeers.length} viewer(s) connected</span>
-              </div>
-              <Button variant="destructive" size="sm" onClick={stopStream}>
-                <X className="h-4 w-4 mr-1" />
-                Stop
-              </Button>
-            </div>
+            {/* Stop button */}
+            <Button variant="destructive" className="w-full" onClick={stopStream}>
+              <X className="h-4 w-4 mr-2" />
+              Stop Streaming
+            </Button>
           </div>
         )}
 
@@ -353,34 +332,42 @@ export const WebRTCStreamPanel: React.FC<WebRTCStreamPanelProps> = ({
           <div className="space-y-4">
             {/* Remote video */}
             <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-              {remoteStream ? (
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+              {remoteFrameUrl ? (
+                <>
+                  <img
+                    src={remoteFrameUrl}
+                    alt="Remote stream"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 left-2">
+                    <Badge className="text-xs bg-primary">
+                      LIVE
+                    </Badge>
+                  </div>
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center space-y-2">
-                    <WifiOff className="h-8 w-8 text-muted-foreground mx-auto animate-pulse" />
-                    <p className="text-sm text-muted-foreground">Connecting...</p>
+                    {streamStatus === 'error' ? (
+                      <>
+                        <WifiOff className="h-8 w-8 text-destructive mx-auto" />
+                        <p className="text-sm text-destructive">Stream ended or unavailable</p>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-8 w-8 text-muted-foreground mx-auto animate-spin" />
+                        <p className="text-sm text-muted-foreground">Connecting...</p>
+                      </>
+                    )}
                   </div>
-                </div>
-              )}
-              {remoteStream && (
-                <div className="absolute top-2 left-2">
-                  <Badge className="text-xs bg-primary">
-                    LIVE
-                  </Badge>
                 </div>
               )}
             </div>
 
             {/* Controls */}
             <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Room: <span className="font-mono text-xs">{roomId?.slice(0, 20)}...</span>
+              <div className="text-sm text-muted-foreground truncate flex-1">
+                Room: <span className="font-mono text-xs">{roomId?.slice(0, 25)}...</span>
               </div>
               <Button variant="destructive" size="sm" onClick={stopStream}>
                 <X className="h-4 w-4 mr-1" />
