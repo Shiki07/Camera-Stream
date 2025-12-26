@@ -216,22 +216,39 @@ export const CameraFeedCard = ({
         return false;
       }
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
+        const el = videoRef.current;
 
-        // iOS/Safari often needs an explicit play() call after srcObject is set
-        // (works when connectToWebcam is triggered by a user gesture)
+        el.muted = true;
+        el.playsInline = true;
+        // iOS Safari specific inline playback attribute
         try {
-          const p = videoRef.current.play();
-          if (p && typeof (p as any).catch === 'function') {
-            (p as Promise<void>).catch(() => {
-              // ignore - UI shows Retry
-            });
-          }
+          el.setAttribute('playsinline', 'true');
+          el.setAttribute('webkit-playsinline', 'true');
         } catch {
           // ignore
         }
-        
+
+        el.srcObject = stream;
+        streamRef.current = stream;
+
+        const tryPlay = () => {
+          try {
+            const p = el.play();
+            if (p && typeof (p as any).catch === 'function') {
+              (p as Promise<void>).catch(() => {
+                // ignore - UI shows Retry
+              });
+            }
+          } catch {
+            // ignore
+          }
+        };
+
+        // iOS/Safari often needs an explicit play() call AFTER metadata is ready
+        el.onloadedmetadata = tryPlay;
+        el.oncanplay = tryPlay;
+        tryPlay();
+
         // Listen for track ended events
         stream.getVideoTracks().forEach(track => {
           track.onended = () => {
@@ -242,7 +259,7 @@ export const CameraFeedCard = ({
             }
           };
         });
-        
+
         setIsConnected(true);
         setIsConnecting(false);
         return true;
