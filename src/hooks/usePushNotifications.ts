@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 // VAPID public key - must match the one in Supabase secrets
-const VAPID_PUBLIC_KEY = 'BNzfTXk9KYCNqkuQS2EG2_y0K-xAB-sPE8YbKz1HkjqD6WvqMBjV5IK7z3yqwzr9kGN_XHMP7kLkJu0ycgVkpVU';
+const VAPID_PUBLIC_KEY = 'BB3AVLsZE5sN1SSw7fnbG74mBAJbBkFR5qNCwOAzBjWm6W41aVvj_c6bQKEDxqyEr9ikGmWTv-NOG0g7_Bph8Kc';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
