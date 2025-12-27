@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
-import { Resend } from "https://esm.sh/resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,7 +49,7 @@ interface MotionAlertRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log('Motion alert function called');
+  console.log('Motion alert function called - using Proton Mail SMTP');
 
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -167,74 +165,100 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get SMTP credentials from environment
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpPortStr = Deno.env.get('SMTP_PORT') || '587';
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
+    const smtpFrom = Deno.env.get('SMTP_FROM');
+
+    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
+      console.error('Missing SMTP configuration - check SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM secrets');
+      return new Response(
+        JSON.stringify({ error: 'Email service not configured' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const smtpPort = parseInt(smtpPortStr);
+    console.log(`SMTP config: host=${smtpHost}, port=${smtpPort}, from=${smtpFrom}`);
+
     // Sanitize email for logging (security)
     const sanitizedEmail = sanitizeInput(email);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
-    const emailData: any = {
-      from: "CamAlert <noreply@resend.dev>",
-      to: [sanitizeInput(email)],
-      subject: "🚨 Motion Detected - CamAlert",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
-          <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #991b1b; margin-top: 0;">Alert Details:</h2>
-            <div style="color: #7f1d1d;">
-              <p><strong>Time:</strong> ${sanitizeInput(new Date(timestamp).toLocaleString())}</p>
-              <p><strong>Motion Level:</strong> ${motionLevel ? sanitizeInput(motionLevel.toFixed(2)) + '%' : 'N/A'}</p>
-              <p><strong>Camera:</strong> Main Feed</p>
-            </div>
+    // Build HTML email content
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
+        <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+          <h2 style="color: #991b1b; margin-top: 0;">Alert Details:</h2>
+          <div style="color: #7f1d1d;">
+            <p><strong>Time:</strong> ${sanitizeInput(new Date(timestamp).toLocaleString())}</p>
+            <p><strong>Motion Level:</strong> ${motionLevel ? sanitizeInput(motionLevel.toFixed(2)) + '%' : 'N/A'}</p>
+            <p><strong>Camera:</strong> Main Feed</p>
           </div>
-          
-          ${attachmentData ? `
-          <div style="text-align: center; margin: 20px 0;">
-            <h3 style="color: #374151;">📸 Motion Detection Image:</h3>
-            <img src="data:image/jpeg;base64,${attachmentData}" alt="Motion Detection Capture" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
-          </div>
-          ` : ''}
-          
-          <p style="color: #4b5563;">Motion has been detected in your camera feed. ${attachmentData ? 'The captured image is shown above.' : ''}</p>
-          
-          <div style="background-color: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <p style="color: #1e40af; margin: 0;">
-              📹 <strong>Automatic Recording:</strong> Recording has been automatically started and will be saved to your configured storage location.
-            </p>
-          </div>
-          
-          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 30px;">
-            This is an automated alert from your CamAlert system. To stop receiving these notifications, please disable motion detection in your camera settings.
+        </div>
+        
+        ${attachmentData ? `
+        <div style="text-align: center; margin: 20px 0;">
+          <h3 style="color: #374151;">📸 Motion Detection Image:</h3>
+          <img src="data:image/jpeg;base64,${attachmentData}" alt="Motion Detection Capture" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+        </div>
+        ` : ''}
+        
+        <p style="color: #4b5563;">Motion has been detected in your camera feed. ${attachmentData ? 'The captured image is shown above.' : ''}</p>
+        
+        <div style="background-color: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <p style="color: #1e40af; margin: 0;">
+            📹 <strong>Automatic Recording:</strong> Recording has been automatically started and will be saved to your configured storage location.
           </p>
         </div>
-      `,
-    };
+        
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 30px;">
+          This is an automated alert from your CameraStream system. To stop receiving these notifications, please disable motion detection in your camera settings.
+        </p>
+      </div>
+    `;
 
-    // Remove attachment logic since we're embedding the image
     if (attachmentData && attachmentType) {
       console.log(`Image embedded directly in email: type=${attachmentType}, data length=${attachmentData.length}`);
     } else {
       console.log('No attachment data provided');
     }
 
-    const emailResponse = await resend.emails.send(emailData);
-    
-    if (emailResponse.error) {
-      console.error('Resend API error:', emailResponse.error);
-      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
-    }
+    // Create SMTP client and send email
+    console.log('Connecting to SMTP server...');
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: true,
+        auth: {
+          username: smtpUser,
+          password: smtpPass,
+        },
+      },
+    });
+
+    await client.send({
+      from: smtpFrom,
+      to: sanitizeInput(email),
+      subject: "🚨 Motion Detected - CameraStream",
+      html: htmlContent,
+    });
+
+    await client.close();
     
     // SECURITY: Truncate user ID in logs
-    console.log(`Motion alert email sent successfully for user: ${user.id.substring(0, 8)}..., email ID: ${emailResponse.data?.id}`);
-    
-    if (attachmentData) {
-      console.log('Email sent WITH embedded image');
-    } else {
-      console.log('Email sent WITHOUT image');
-    }
+    console.log(`Motion alert email sent successfully via SMTP for user: ${user.id.substring(0, 8)}...`);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      emailId: emailResponse.data?.id 
+      message: 'Motion alert sent successfully'
     }), {
       status: 200,
       headers: {
