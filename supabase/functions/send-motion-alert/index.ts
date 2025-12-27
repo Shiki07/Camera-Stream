@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
-import nodemailer from "https://esm.sh/nodemailer@6.9.8";
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 // SMTP Configuration
 const smtpHost = Deno.env.get("SMTP_HOST");
@@ -203,18 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
     const sanitizedEmail = sanitizeInput(targetEmail);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
-    // Create SMTP transporter
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-
-    // Build email HTML
+    // Build email HTML (plain text version for Deno SMTP)
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
@@ -230,9 +219,7 @@ const handler = async (req: Request): Promise<Response> => {
         ${attachmentData ? `
         <div style="text-align: center; margin: 20px 0;">
           <h3>📸 Motion Detection Image:</h3>
-          <img src="cid:motion-capture" 
-               alt="Motion Detection Capture" 
-               style="max-width: 100%; height: auto; border: 2px solid #dc2626; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+          <p>An image capture is attached to this email.</p>
         </div>
         ` : ''}
         
@@ -250,50 +237,84 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Build email options
-    const mailOptions: any = {
-      from: smtpFrom,
-      to: sanitizeInput(targetEmail),
-      subject: "🚨 Motion Detected - CamAlert",
-      html: emailHtml,
-    };
+    // Create SMTP client
+    const client = new SmtpClient();
 
-    // Add image attachment if provided
-    if (attachmentData && attachmentType === 'image') {
-      mailOptions.attachments = [
-        {
-          filename: 'motion-capture.jpg',
-          content: attachmentData,
-          encoding: 'base64',
-          cid: 'motion-capture', // Content-ID for embedding in HTML
+    try {
+      // Connect based on port (465 = implicit TLS, 587 = STARTTLS)
+      if (smtpPort === 465) {
+        console.log('Connecting via TLS (port 465)');
+        await client.connectTLS({
+          hostname: smtpHost,
+          port: smtpPort,
+          username: smtpUser,
+          password: smtpPass,
+        });
+      } else {
+        console.log(`Connecting via STARTTLS (port ${smtpPort})`);
+        await client.connect({
+          hostname: smtpHost,
+          port: smtpPort,
+          username: smtpUser,
+          password: smtpPass,
+        });
+      }
+
+      // Build email content
+      const emailContent: any = {
+        from: smtpFrom,
+        to: sanitizeInput(targetEmail),
+        subject: "🚨 Motion Detected - CamAlert",
+        content: `Motion Detected at ${new Date(timestamp).toLocaleString()}. Motion Level: ${motionLevel ? motionLevel.toFixed(2) + '%' : 'N/A'}`,
+        html: emailHtml,
+      };
+
+      // Add image attachment if provided
+      if (attachmentData && attachmentType === 'image') {
+        emailContent.attachments = [
+          {
+            filename: 'motion-capture.jpg',
+            content: attachmentData,
+            encoding: 'base64',
+          },
+        ];
+        console.log(`Image attachment added, data length=${attachmentData.length}`);
+      } else {
+        console.log('No attachment data provided');
+      }
+
+      // Send email
+      await client.send(emailContent);
+      
+      console.log('Motion alert email sent successfully');
+      
+      if (attachmentData) {
+        console.log('Email sent WITH attachment');
+      } else {
+        console.log('Email sent WITHOUT image');
+      }
+
+      await client.close();
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Email sent successfully'
+      }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
         },
-      ];
-      console.log(`Image attachment added, data length=${attachmentData.length}`);
-    } else {
-      console.log('No attachment data provided');
+      });
+    } catch (smtpError: any) {
+      console.error('SMTP Error:', smtpError);
+      try {
+        await client.close();
+      } catch (_) {
+        // Ignore close errors
+      }
+      throw smtpError;
     }
-
-    // Send email via SMTP
-    const info = await transporter.sendMail(mailOptions);
-    
-    console.log(`Motion alert email sent successfully, messageId: ${info.messageId}`);
-    
-    if (attachmentData) {
-      console.log('Email sent WITH embedded image');
-    } else {
-      console.log('Email sent WITHOUT image');
-    }
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      messageId: info.messageId 
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
   } catch (error: any) {
     console.error("Error sending motion alert:", error);
     return new Response(
