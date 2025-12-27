@@ -125,7 +125,7 @@ serve(async (req) => {
 
     // Check rate limit
     if (!checkRateLimit(user.id)) {
-      console.warn(`Rate limit exceeded for user: ${user.id}`);
+      console.warn('Rate limit exceeded for user');
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { 
@@ -187,7 +187,7 @@ serve(async (req) => {
       .single();
 
     if (tokenFetchError || !tokenRecord?.encrypted_token) {
-      console.warn('DuckDNS token not found for user:', user.id);
+      console.warn('DuckDNS token not found for user');
       return new Response(
         JSON.stringify({ error: 'DuckDNS token not configured. Please save your token first.' }),
         { 
@@ -217,7 +217,7 @@ serve(async (req) => {
     // Make request to DuckDNS with retry logic for DNS failures
     const duckdnsUrl = `https://www.duckdns.org/update?domains=${encodeURIComponent(cleanDomain)}&token=${encodeURIComponent(decryptedToken)}&ip=${encodeURIComponent(cleanIP)}`;
     
-    console.log(`Updating DuckDNS - Domain: ${cleanDomain}, IP: ${cleanIP}, User: ${user.id}`);
+    console.log('Updating DuckDNS record');
     
     // Add retry logic for DNS failures
     let retryCount = 0;
