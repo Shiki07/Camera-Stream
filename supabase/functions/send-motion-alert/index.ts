@@ -184,11 +184,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const smtpPort = parseInt(smtpPortStr);
-    console.log(`SMTP config: host=${smtpHost}, port=${smtpPort}, from=${smtpFrom}`);
+    
+    // Enhanced logging for debugging (without leaking secrets)
+    console.log(`[SMTP] Config: host="${smtpHost}" (length=${smtpHost.length}, hasDot=${smtpHost.includes('.')}), port=${smtpPort}, from=${smtpFrom}`);
 
     // Sanitize email for logging (security)
     const sanitizedEmail = sanitizeInput(email);
-    console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
+    console.log('[SMTP] Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
     // Build HTML email content
     const htmlContent = `
@@ -225,13 +227,14 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     if (attachmentData && attachmentType) {
-      console.log(`Image embedded directly in email: type=${attachmentType}, data length=${attachmentData.length}`);
+      console.log(`[SMTP] Image embedded: type=${attachmentType}, data length=${attachmentData.length}`);
     } else {
-      console.log('No attachment data provided');
+      console.log('[SMTP] No attachment data provided');
     }
 
     // Create SMTP client and send email
-    console.log('Connecting to SMTP server...');
+    console.log(`[SMTP] Stage: connecting to ${smtpHost}:${smtpPort}...`);
+    
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
@@ -243,18 +246,21 @@ const handler = async (req: Request): Promise<Response> => {
         },
       },
     });
+    
+    console.log('[SMTP] Stage: client created, sending email...');
 
     await client.send({
       from: smtpFrom,
-      to: sanitizeInput(email),
+      to: sanitizedEmail,
       subject: "🚨 Motion Detected - CameraStream",
       html: htmlContent,
     });
 
+    console.log('[SMTP] Stage: email sent, closing connection...');
     await client.close();
     
     // SECURITY: Truncate user ID in logs
-    console.log(`Motion alert email sent successfully via SMTP for user: ${user.id.substring(0, 8)}...`);
+    console.log(`[SMTP] SUCCESS: Motion alert email sent for user: ${user.id.substring(0, 8)}...`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -267,7 +273,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error sending motion alert:", error);
+    console.error("[SMTP] ERROR:", error.message || error);
+    console.error("[SMTP] Error stack:", error.stack || 'No stack trace');
     return new Response(
       JSON.stringify({ 
         error: error.message,
