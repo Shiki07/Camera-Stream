@@ -12,6 +12,7 @@ import {
   AlertSensitivity, 
   SENSITIVITY_THRESHOLDS 
 } from "@/hooks/useNotificationSettings";
+import { PushNotificationSettings } from "@/components/PushNotificationSettings";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -370,6 +371,11 @@ export const NotificationSettings = ({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Push Notifications Section */}
+      <div className="mt-6">
+        <PushNotificationSettings />
       </div>
     </div>
   );
