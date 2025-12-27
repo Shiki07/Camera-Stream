@@ -1,15 +1,19 @@
+
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useHomeAssistant } from '@/hooks/useHomeAssistant';
 
 interface MotionNotificationOptions {
   email: string;
   enabled: boolean;
   includeAttachment?: boolean;
+  cameraName?: string;
 }
 
 export const useMotionNotification = (options: MotionNotificationOptions) => {
   const { toast } = useToast();
+  const { sendMotionEvent, config: haConfig } = useHomeAssistant();
 
   const captureFrameAsBase64 = useCallback((videoElement: HTMLVideoElement): string => {
     try {
@@ -72,8 +76,14 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
     motionLevel?: number,
     imageElement?: HTMLImageElement
   ) => {
-    if (!options.enabled || !options.email) {
-      console.log('Motion notifications disabled or no email provided');
+    // Send Home Assistant webhook if enabled
+    if (haConfig.enabled && haConfig.webhookId) {
+      console.log('Sending motion event to Home Assistant');
+      await sendMotionEvent(options.cameraName || 'Camera', motionLevel || 0);
+    }
+
+    if (!options.enabled) {
+      console.log('Motion notifications disabled');
       return;
     }
 
@@ -99,15 +109,33 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
         console.log('Failed to capture attachment, sending email without image');
       }
 
+      // SECURITY: Use authenticated user's email by default to prevent email harvesting
+      // Only pass custom email if explicitly provided, otherwise edge function uses auth email
       const { data, error } = await supabase.functions.invoke('send-motion-alert', {
         body: {
-          email: options.email,
+          // Only include email if user explicitly set a custom notification email
+          email: options.email || undefined,
+          // Tell the edge function to prefer the authenticated user's email
+          useAuthEmail: !options.email,
           attachmentData,
           attachmentType,
           timestamp: new Date().toISOString(),
           motionLevel,
+          duration: 'Unknown'
         }
       });
+
+      // Update motion event to mark email as sent
+      const { data: user } = await supabase.auth.getUser();
+      if (user.user) {
+        await supabase
+          .from('motion_events')
+          .update({ email_sent: true })
+          .eq('user_id', user.user.id)
+          .gte('detected_at', new Date(Date.now() - 30000).toISOString()) // Last 30 seconds
+          .order('detected_at', { ascending: false })
+          .limit(1);
+      }
 
       if (error) {
         console.error('Error sending motion alert:', error);
@@ -122,7 +150,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
       console.log('Motion alert sent successfully');
       toast({
         title: "Motion alert sent",
-        description: `Email notification sent to ${options.email}`,
+        description: "Email notification sent successfully",
       });
 
     } catch (error) {
@@ -133,7 +161,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
         variant: "destructive"
       });
     }
-  }, [options, captureFrameAsBase64, captureImageAsBase64, toast]);
+  }, [options, captureFrameAsBase64, captureImageAsBase64, toast, haConfig, sendMotionEvent]);
 
   return {
     sendMotionAlert
