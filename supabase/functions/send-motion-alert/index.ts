@@ -1,10 +1,11 @@
+// supabase/functions/send-motion-alert/index.ts
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
-// Initialize Resend - will check for API key in handler
-const resendApiKey = Deno.env.get("RESEND_API_KEY");
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -44,13 +45,11 @@ const sanitizeInput = (input: string): string => {
 };
 
 interface MotionAlertRequest {
-  // email is now optional - we prefer using the authenticated user's email
-  email?: string;
+  email: string;
   attachmentData?: string; // base64 encoded image/video
   attachmentType?: 'image' | 'video';
   timestamp: string;
   motionLevel?: number;
-  useAuthEmail?: boolean; // If true, use the authenticated user's email
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -59,21 +58,6 @@ const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
-  }
-
-  // Check if Resend API key is configured
-  if (!resend) {
-    console.error('RESEND_API_KEY is not configured in Supabase secrets');
-    return new Response(
-      JSON.stringify({ 
-        error: 'Email service not configured. Please add RESEND_API_KEY to your Supabase Edge Function secrets.',
-        success: false 
-      }),
-      { 
-        status: 503, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
   }
 
   try {
@@ -124,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check rate limit
     if (!checkRateLimit(user.id)) {
-      console.warn(`Rate limit exceeded`);
+      console.warn(`Rate limit exceeded for user: ${user.id.substring(0, 8)}...`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { 
@@ -134,28 +118,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email: providedEmail, attachmentData, attachmentType, timestamp, motionLevel, useAuthEmail }: MotionAlertRequest = await req.json();
+    const { email, attachmentData, attachmentType, timestamp, motionLevel }: MotionAlertRequest = await req.json();
     
-    // SECURITY: Prefer using the authenticated user's email to prevent email harvesting
-    // Only use provided email if useAuthEmail is explicitly false and email is valid
-    let targetEmail: string;
-    
-    if (useAuthEmail !== false && user.email) {
-      // Use the authenticated user's verified email (more secure)
-      targetEmail = user.email;
-      console.log('Using authenticated user email for notification');
-    } else if (providedEmail && validateEmail(providedEmail)) {
-      // Fallback to provided email if explicitly requested
-      targetEmail = providedEmail;
-      console.log('Using provided email for notification');
-    } else if (user.email) {
-      // Default to auth email if no valid email provided
-      targetEmail = user.email;
-      console.log('Falling back to authenticated user email');
-    } else {
-      console.warn('No valid email available');
+    // Enhanced input validation
+    if (!validateEmail(email)) {
+      console.warn('Invalid email format provided');
       return new Response(
-        JSON.stringify({ error: 'No valid email address available' }),
+        JSON.stringify({ error: 'Invalid email address' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -201,12 +170,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Sanitize email for logging (security)
-    const sanitizedEmail = sanitizeInput(targetEmail);
+    const sanitizedEmail = sanitizeInput(email);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
     const emailData: any = {
-      from: "Camera Stream Support <support@camerastream.live>",
-      to: [sanitizeInput(targetEmail)],
+      from: "Camera Stream <support@camerastream.live>",
+      to: [sanitizeInput(email)],
       subject: "🚨 Motion Detected - Camera Stream",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -223,9 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
           ${attachmentData ? `
           <div style="text-align: center; margin: 20px 0;">
             <h3>📸 Motion Detection Image:</h3>
-            <img src="data:image/jpeg;base64,${attachmentData}" 
-                 alt="Motion Detection Capture" 
-                 style="max-width: 100%; height: auto; border: 2px solid #dc2626; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+            <img src="data:image/jpeg;base64,${attachmentData}" alt="Motion Detection Capture" style="max-width: 100%; height: auto; border: 2px solid #dc2626; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
           </div>
           ` : ''}
           
@@ -258,7 +225,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Email sending failed: ${emailResponse.error.message}`);
     }
     
-    console.log(`Motion alert email sent successfully, email ID: ${emailResponse.data?.id}`);
+    // SECURITY: Truncate user ID in logs
+    console.log(`Motion alert email sent successfully for user: ${user.id.substring(0, 8)}..., email ID: ${emailResponse.data?.id}`);
     
     if (attachmentData) {
       console.log('Email sent WITH embedded image');
