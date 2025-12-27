@@ -102,14 +102,14 @@ export const HomeAssistantSettings = () => {
         {/* URL Configuration */}
         <div className="space-y-2">
           <Label htmlFor="ha-url">Home Assistant URL</Label>
-          <Input
+        <Input
             id="ha-url"
-            placeholder="http://homeassistant.local:8123"
+            placeholder="https://homeassistant.local:8123"
             value={localConfig.url}
             onChange={(e) => setLocalConfig({ ...localConfig, url: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">
-            Your Home Assistant instance URL (e.g., http://192.168.1.100:8123)
+            Your Home Assistant instance URL (e.g., https://192.168.1.100:8123)
           </p>
         </div>
 
