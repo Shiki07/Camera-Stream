@@ -68,7 +68,7 @@ serve(async (req) => {
     const targetUrl = url.searchParams.get('url');
     const authHeader = req.headers.get('authorization');
     
-    console.log(`Camera proxy: ${req.method} request for ${targetUrl}`);
+    console.log(`Camera proxy: ${req.method} request received`);
     
     const jwt = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
     
@@ -93,7 +93,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Camera proxy: Authenticated user ${user.id}`);
+    console.log('Camera proxy: User authenticated successfully');
 
     if (!checkRateLimit(user.id)) {
       console.log('Camera proxy: Rate limit exceeded');
@@ -103,13 +103,13 @@ serve(async (req) => {
     }
     
     if (!targetUrl || !(await validateCameraURL(targetUrl))) {
-      console.log('Camera proxy: Invalid URL:', targetUrl);
+      console.log('Camera proxy: Invalid or disallowed URL');
       return new Response(JSON.stringify({ error: 'Invalid URL' }), { 
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
-    console.log(`Camera proxy: Proxying to ${targetUrl}`);
+    console.log('Camera proxy: Proxying stream');
 
     // NO hard timeout - the stream will stay open as long as data flows
     // Client-side stall detection handles frozen streams

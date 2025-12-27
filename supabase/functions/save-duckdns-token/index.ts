@@ -192,7 +192,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`DuckDNS token encrypted and saved for user: ${user.id}`);
+    console.log('DuckDNS token encrypted and saved successfully');
     return new Response(
       JSON.stringify({ success: true, message: 'Token saved securely' }),
       { 
