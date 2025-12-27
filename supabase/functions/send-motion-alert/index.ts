@@ -1,14 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
-// SMTP Configuration
-const smtpHost = Deno.env.get("SMTP_HOST");
-const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-const smtpUser = Deno.env.get("SMTP_USER");
-const smtpPass = Deno.env.get("SMTP_PASS");
-const smtpFrom = Deno.env.get("SMTP_FROM");
-
+// Initialize Resend - will check for API key in handler
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -48,12 +44,13 @@ const sanitizeInput = (input: string): string => {
 };
 
 interface MotionAlertRequest {
+  // email is now optional - we prefer using the authenticated user's email
   email?: string;
-  attachmentData?: string;
+  attachmentData?: string; // base64 encoded image/video
   attachmentType?: 'image' | 'video';
   timestamp: string;
   motionLevel?: number;
-  useAuthEmail?: boolean;
+  useAuthEmail?: boolean; // If true, use the authenticated user's email
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -64,12 +61,12 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Check if SMTP is configured
-  if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-    console.error('SMTP configuration is incomplete. Required: SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM');
+  // Check if Resend API key is configured
+  if (!resend) {
+    console.error('RESEND_API_KEY is not configured in Supabase secrets');
     return new Response(
       JSON.stringify({ 
-        error: 'Email service not configured. Please add SMTP secrets to your Supabase Edge Function secrets.',
+        error: 'Email service not configured. Please add RESEND_API_KEY to your Supabase Edge Function secrets.',
         success: false 
       }),
       { 
@@ -140,15 +137,19 @@ const handler = async (req: Request): Promise<Response> => {
     const { email: providedEmail, attachmentData, attachmentType, timestamp, motionLevel, useAuthEmail }: MotionAlertRequest = await req.json();
     
     // SECURITY: Prefer using the authenticated user's email to prevent email harvesting
+    // Only use provided email if useAuthEmail is explicitly false and email is valid
     let targetEmail: string;
     
     if (useAuthEmail !== false && user.email) {
+      // Use the authenticated user's verified email (more secure)
       targetEmail = user.email;
       console.log('Using authenticated user email for notification');
     } else if (providedEmail && validateEmail(providedEmail)) {
+      // Fallback to provided email if explicitly requested
       targetEmail = providedEmail;
       console.log('Using provided email for notification');
     } else if (user.email) {
+      // Default to auth email if no valid email provided
       targetEmail = user.email;
       console.log('Falling back to authenticated user email');
     } else {
@@ -203,118 +204,78 @@ const handler = async (req: Request): Promise<Response> => {
     const sanitizedEmail = sanitizeInput(targetEmail);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
-    // Build email HTML (plain text version for Deno SMTP)
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
-        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p><strong>Alert Details:</strong></p>
-          <ul>
-            <li><strong>Time:</strong> ${sanitizeInput(new Date(timestamp).toLocaleString())}</li>
-            <li><strong>Motion Level:</strong> ${motionLevel ? sanitizeInput(motionLevel.toFixed(2)) + '%' : 'N/A'}</li>
-            <li><strong>Camera:</strong> Main Feed</li>
-          </ul>
-        </div>
-        
-        ${attachmentData ? `
-        <div style="text-align: center; margin: 20px 0;">
-          <h3>📸 Motion Detection Image:</h3>
-          <p>An image capture is attached to this email.</p>
-        </div>
-        ` : ''}
-        
-        <p>Motion has been detected in your camera feed. ${attachmentData ? 'The captured image is attached.' : ''}</p>
-        
-        <div style="background: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #1e40af;">
-            <strong>📹 Automatic Recording:</strong> Recording has been automatically started and will be saved to your configured storage location.
+    const emailData: any = {
+      from: "Camera Stream <noreply@resend.dev>",
+      to: [sanitizeInput(targetEmail)],
+      subject: "🚨 Motion Detected - Camera Stream",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #dc2626; text-align: center;">🚨 Motion Detected!</h1>
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Alert Details:</strong></p>
+            <ul>
+              <li><strong>Time:</strong> ${sanitizeInput(new Date(timestamp).toLocaleString())}</li>
+              <li><strong>Motion Level:</strong> ${motionLevel ? sanitizeInput(motionLevel.toFixed(2)) + '%' : 'N/A'}</li>
+              <li><strong>Camera:</strong> Main Feed</li>
+            </ul>
+          </div>
+          
+          ${attachmentData ? `
+          <div style="text-align: center; margin: 20px 0;">
+            <h3>📸 Motion Detection Image:</h3>
+            <img src="data:image/jpeg;base64,${attachmentData}" 
+                 alt="Motion Detection Capture" 
+                 style="max-width: 100%; height: auto; border: 2px solid #dc2626; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+          </div>
+          ` : ''}
+          
+          <p>Motion has been detected in your camera feed. ${attachmentData ? 'The captured image is shown above.' : ''}</p>
+          
+          <div style="background: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #1e40af;">
+              <strong>📹 Automatic Recording:</strong> Recording has been automatically started and will be saved to your configured storage location.
+            </p>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+            This is an automated alert from your Camera Stream system. To stop receiving these notifications, please disable motion detection in your camera settings.
           </p>
         </div>
-        
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          This is an automated alert from your CamAlert system. To stop receiving these notifications, please disable motion detection in your camera settings.
-        </p>
-      </div>
-    `;
+      `,
+    };
 
-    // Create SMTP client
-    const client = new SmtpClient();
-
-    try {
-      // Connect based on port (465 = implicit TLS, 587 = STARTTLS)
-      if (smtpPort === 465) {
-        console.log('Connecting via TLS (port 465)');
-        await client.connectTLS({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpUser,
-          password: smtpPass,
-        });
-      } else {
-        console.log(`Connecting via STARTTLS (port ${smtpPort})`);
-        await client.connect({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpUser,
-          password: smtpPass,
-        });
-      }
-
-      // Build email content
-      const emailContent: any = {
-        from: smtpFrom,
-        to: sanitizeInput(targetEmail),
-        subject: "🚨 Motion Detected - CamAlert",
-        content: `Motion Detected at ${new Date(timestamp).toLocaleString()}. Motion Level: ${motionLevel ? motionLevel.toFixed(2) + '%' : 'N/A'}`,
-        html: emailHtml,
-      };
-
-      // Add image attachment if provided
-      if (attachmentData && attachmentType === 'image') {
-        emailContent.attachments = [
-          {
-            filename: 'motion-capture.jpg',
-            content: attachmentData,
-            encoding: 'base64',
-          },
-        ];
-        console.log(`Image attachment added, data length=${attachmentData.length}`);
-      } else {
-        console.log('No attachment data provided');
-      }
-
-      // Send email
-      await client.send(emailContent);
-      
-      console.log('Motion alert email sent successfully');
-      
-      if (attachmentData) {
-        console.log('Email sent WITH attachment');
-      } else {
-        console.log('Email sent WITHOUT image');
-      }
-
-      await client.close();
-
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Email sent successfully'
-      }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      });
-    } catch (smtpError: any) {
-      console.error('SMTP Error:', smtpError);
-      try {
-        await client.close();
-      } catch (_) {
-        // Ignore close errors
-      }
-      throw smtpError;
+    // Remove attachment logic since we're embedding the image
+    if (attachmentData && attachmentType) {
+      console.log(`Image embedded directly in email: type=${attachmentType}, data length=${attachmentData.length}`);
+    } else {
+      console.log('No attachment data provided');
     }
+
+    const emailResponse = await resend.emails.send(emailData);
+    
+    if (emailResponse.error) {
+      console.error('Resend API error:', emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
+    
+    console.log(`Motion alert email sent successfully, email ID: ${emailResponse.data?.id}`);
+    
+    if (attachmentData) {
+      console.log('Email sent WITH embedded image');
+    } else {
+      console.log('Email sent WITHOUT image');
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      emailId: emailResponse.data?.id 
+    }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
   } catch (error: any) {
     console.error("Error sending motion alert:", error);
     return new Response(
