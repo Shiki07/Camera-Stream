@@ -1,10 +1,10 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
+// Initialize Resend - will check for API key in handler
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -59,6 +59,21 @@ const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Check if Resend API key is configured
+  if (!resend) {
+    console.error('RESEND_API_KEY is not configured in Supabase secrets');
+    return new Response(
+      JSON.stringify({ 
+        error: 'Email service not configured. Please add RESEND_API_KEY to your Supabase Edge Function secrets.',
+        success: false 
+      }),
+      { 
+        status: 503, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 
   try {
