@@ -5,6 +5,7 @@ import { usePiRecording } from "@/hooks/usePiRecording";
 import { useEnhancedMotionDetection } from "@/hooks/useEnhancedMotionDetection";
 import { useImageMotionDetection } from "@/hooks/useImageMotionDetection";
 import { useMotionNotification } from "@/hooks/useMotionNotification";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNetworkCamera, NetworkCameraConfig } from "@/hooks/useNetworkCamera";
 import { useConnectionMonitor } from "@/hooks/useConnectionMonitor";
 import { useEncryptedCameras } from "@/hooks/useEncryptedCameras";
@@ -97,11 +98,39 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
     isConnected
   );
 
+  // Use unified notification settings
+  const { 
+    settings: notificationSettings, 
+    getEffectiveEmail, 
+    canSendNotifications,
+    getMotionThresholds 
+  } = useNotificationSettings();
+
+  const effectiveEmail = getEffectiveEmail();
+  const notificationThresholds = getMotionThresholds();
+
   const motionNotification = useMotionNotification({
-    email: notificationEmail,
-    enabled: emailNotificationsEnabled,
-    includeAttachment: true
+    email: effectiveEmail,
+    enabled: notificationSettings.enabled,
+    includeAttachment: notificationSettings.includeSnapshot
   });
+
+  // Track last email notification time for cooldown
+  const lastEmailNotificationRef = useRef<number>(0);
+
+  const shouldSendEmailNotification = useCallback((motionLevel: number): boolean => {
+    if (!canSendNotifications()) return false;
+    
+    // Check if motion level exceeds the configured threshold based on sensitivity
+    if (motionLevel < notificationThresholds.motionThreshold) return false;
+    
+    // Check cooldown period
+    const now = Date.now();
+    const cooldownMs = notificationSettings.cooldownMinutes * 60 * 1000;
+    if (now - lastEmailNotificationRef.current < cooldownMs) return false;
+    
+    return true;
+  }, [canSendNotifications, notificationThresholds.motionThreshold, notificationSettings.cooldownMinutes]);
 
   // Webcam motion detection (video element)
   const motionDetection = useEnhancedMotionDetection({
@@ -120,8 +149,9 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
       
       const currentVideoRef = videoRef.current;
       
-      // Send email notification
-      if (emailNotificationsEnabled && notificationEmail && currentVideoRef instanceof HTMLVideoElement) {
+      // Send email notification using unified settings
+      if (shouldSendEmailNotification(motionLevel) && currentVideoRef instanceof HTMLVideoElement) {
+        lastEmailNotificationRef.current = Date.now();
         motionNotification.sendMotionAlert(currentVideoRef, motionLevel);
       }
       
@@ -162,8 +192,9 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
     onMotionDetected: (motionLevel) => {
       onMotionDetected(true);
       
-      // Send email notification for network cameras
-      if (emailNotificationsEnabled && notificationEmail) {
+      // Send email notification for network cameras using unified settings
+      if (shouldSendEmailNotification(motionLevel)) {
+        lastEmailNotificationRef.current = Date.now();
         const currentImageRef = networkCamera.videoRef.current;
         if (currentImageRef instanceof HTMLImageElement) {
           motionNotification.sendMotionAlert(undefined, motionLevel, currentImageRef);
