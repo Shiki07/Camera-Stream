@@ -205,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
     const emailData: any = {
-      from: "Camera Stream <noreply@resend.dev>",
+      from: "Camera Stream Support <support@camerastream.live>",
       to: [sanitizeInput(targetEmail)],
       subject: "🚨 Motion Detected - Camera Stream",
       html: `
