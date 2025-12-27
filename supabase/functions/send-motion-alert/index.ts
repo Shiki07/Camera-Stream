@@ -171,8 +171,12 @@ const handler = async (req: Request): Promise<Response> => {
     const sanitizedEmail = sanitizeInput(email);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
+    // Use verified domain email from secrets, fallback to resend.dev for testing
+    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
+    console.log('Sending from:', fromEmail);
+
     const emailData: any = {
-      from: "CameraStream <onboarding@resend.dev>",
+      from: `CameraStream <${fromEmail}>`,
       to: [sanitizeInput(email)],
       subject: "🚨 Motion Detected - CameraStream",
       html: `
