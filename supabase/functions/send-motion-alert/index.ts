@@ -204,8 +204,10 @@ const handler = async (req: Request): Promise<Response> => {
     const sanitizedEmail = sanitizeInput(targetEmail);
     console.log('Sending motion alert to:', sanitizedEmail.substring(0, 3) + '***@' + sanitizedEmail.split('@')[1]);
 
+    // Note: Using onboarding@resend.dev only works for sending to the Resend account owner's email
+    // For production, verify a domain at resend.com/domains and update this address
     const emailData: any = {
-      from: "Camera Stream <noreply@resend.dev>",
+      from: "Camera Stream <onboarding@resend.dev>",
       to: [sanitizeInput(targetEmail)],
       subject: "🚨 Motion Detected - Camera Stream",
       html: `
