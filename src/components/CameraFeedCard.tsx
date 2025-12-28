@@ -30,6 +30,7 @@ import { useMotionNotification } from '@/hooks/useMotionNotification';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
 import { useAutoRelay } from '@/hooks/useAutoRelay';
+import { useHomeAssistant } from '@/hooks/useHomeAssistant';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -115,7 +116,11 @@ export const CameraFeedCard = ({
   
   // Determine if webcam or network camera
   const isWebcam = config.source === 'webcam';
+  const isHomeAssistant = config.source === 'homeassistant';
   
+  // Home Assistant webhook integration for SD card recording
+  const { sendStartRecording, sendStopRecording, config: haConfig } = useHomeAssistant();
+  const haRecordingActiveRef = useRef(false);
   // Auto-relay for webcams (local: push frames, remote: pull frames)
   const autoRelay = useAutoRelay({
     cameraId,
@@ -237,8 +242,17 @@ export const CameraFeedCard = ({
         console.log('Network camera motion detected, sending email notification');
         motionNotification.sendMotionAlert(undefined, motionLevel, imgRef.current);
       }
-      // Auto-record on motion (Pi-based) - use ref for latest recording state
-      if (piRecording.piServiceConnected && !piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
+      
+      // Auto-record on motion - use appropriate method based on camera type
+      if (isHomeAssistant && haConfig.enabled && haConfig.webhookId) {
+        // Home Assistant camera: trigger SD card recording via webhook
+        if (!haRecordingActiveRef.current) {
+          haRecordingActiveRef.current = true;
+          sendStartRecording(config.name, config.haEntityId);
+          console.log('HA camera motion detected, sending start_recording webhook');
+        }
+      } else if (piRecording.piServiceConnected && !piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
+        // Network camera with Pi service: use Pi-based recording
         handleStartPiRecording(true);
       }
     },
@@ -253,8 +267,13 @@ export const CameraFeedCard = ({
       // Use configurable post-motion buffer from settings (default 3s)
       const bufferMs = (settingsRef.current.post_motion_buffer || 3) * 1000;
       motionClearTimeoutRef.current = setTimeout(() => {
-        // Use ref for latest recording state
-        if (piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
+        // Stop recording based on camera type
+        if (isHomeAssistant && haRecordingActiveRef.current) {
+          // Home Assistant camera: stop SD card recording via webhook
+          haRecordingActiveRef.current = false;
+          sendStopRecording(config.name, config.haEntityId);
+          console.log(`HA camera motion cleared (after ${bufferMs}ms buffer), sending stop_recording webhook`);
+        } else if (piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
           console.log(`Motion cleared (after ${bufferMs}ms buffer), stopping Pi recording`);
           handleStopPiRecording();
         }

@@ -164,6 +164,41 @@ export const HomeAssistantSettings = () => {
               <li>Add actions (notifications, lights, alarms, etc.)</li>
               <li>Motion events include: type, camera_name, motion_level, timestamp</li>
             </ol>
+            
+            <div className="mt-3 pt-3 border-t border-border">
+              <strong>SD Card Recording:</strong>
+              <p className="text-xs mt-1 text-muted-foreground">
+                When motion is detected, this app sends <code className="bg-muted px-1 rounded">start_recording</code> and <code className="bg-muted px-1 rounded">stop_recording</code> webhook events with <code className="bg-muted px-1 rounded">entity_id</code>. Create HA automations to trigger your camera's SD card recording.
+              </p>
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer hover:text-foreground">Example automation YAML</summary>
+                <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+{`alias: Camera SD Recording
+trigger:
+  - trigger: webhook
+    webhook_id: camera_stream_motion
+condition: []
+action:
+  - choose:
+      - conditions:
+          - "{{ trigger.json.type == 'start_recording' }}"
+        sequence:
+          - action: camera.record
+            target:
+              entity_id: "{{ trigger.json.entity_id }}"
+            data:
+              duration: 30
+              filename: "/media/{{ trigger.json.camera_name }}_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+      - conditions:
+          - "{{ trigger.json.type == 'stop_recording' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: "{{ trigger.json.camera_name }}"
+              message: "Recording stopped"`}
+                </pre>
+              </details>
+            </div>
           </AlertDescription>
         </Alert>
 

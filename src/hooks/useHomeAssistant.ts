@@ -301,6 +301,7 @@ export const useHomeAssistant = () => {
     camera_name?: string;
     motion_level?: number;
     timestamp?: string;
+    entity_id?: string;
   }): Promise<boolean> => {
     if (!config.enabled || !config.webhookId || !config.url) {
       return false;
@@ -343,6 +344,24 @@ export const useHomeAssistant = () => {
     });
   }, [sendWebhook]);
 
+  // Send start recording command (triggers HA automation to record to SD card)
+  const sendStartRecording = useCallback(async (cameraName: string, entityId?: string): Promise<boolean> => {
+    return sendWebhook({
+      type: 'start_recording',
+      camera_name: cameraName,
+      entity_id: entityId,
+    });
+  }, [sendWebhook]);
+
+  // Send stop recording command (triggers HA automation to stop SD card recording)
+  const sendStopRecording = useCallback(async (cameraName: string, entityId?: string): Promise<boolean> => {
+    return sendWebhook({
+      type: 'stop_recording',
+      camera_name: cameraName,
+      entity_id: entityId,
+    });
+  }, [sendWebhook]);
+
   return {
     config,
     saveConfig,
@@ -354,5 +373,7 @@ export const useHomeAssistant = () => {
     getCameraProxyUrl,
     sendMotionEvent,
     sendMotionClearedEvent,
+    sendStartRecording,
+    sendStopRecording,
   };
 };
