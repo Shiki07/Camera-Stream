@@ -85,6 +85,12 @@ export const CameraFeedCard = ({
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
   
+  // Keep a ref to settings so callbacks always have the latest values
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+  
   const imgRef = useRef<HTMLImageElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -161,8 +167,10 @@ export const CameraFeedCard = ({
       if (videoRef.current) {
         saveMotionThumbnail(eventId, videoRef.current);
       }
-      // Send email notification
-      if (settings.email_notifications && videoRef.current) {
+      // Send email notification - use ref for latest settings
+      const currentSettings = settingsRef.current;
+      if (currentSettings.email_notifications && videoRef.current) {
+        console.log('Webcam motion detected, sending email notification');
         motionNotification.sendMotionAlert(videoRef.current, motionLevel);
       }
       // Auto-record on motion
@@ -170,7 +178,7 @@ export const CameraFeedCard = ({
         browserRecording.startRecording(streamRef.current, {
           storageType: 'local',
           fileType: 'video',
-          quality: settings.quality,
+          quality: currentSettings.quality,
           motionDetected: true,
         });
       }
@@ -198,8 +206,10 @@ export const CameraFeedCard = ({
       if (imgRef.current) {
         saveMotionThumbnail(eventId, imgRef.current);
       }
-      // Send email notification
-      if (settings.email_notifications && imgRef.current) {
+      // Send email notification - use ref for latest settings
+      const currentSettings = settingsRef.current;
+      if (currentSettings.email_notifications && imgRef.current) {
+        console.log('Network camera motion detected, sending email notification');
         motionNotification.sendMotionAlert(undefined, motionLevel, imgRef.current);
       }
       // Auto-record on motion (Pi-based)
