@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -10,6 +10,19 @@ interface MotionNotificationOptions {
 
 export const useMotionNotification = (options: MotionNotificationOptions) => {
   const { toast } = useToast();
+  
+  // Use refs to always have the latest options without re-creating callbacks
+  const optionsRef = useRef(options);
+  
+  // Keep the ref updated when options change
+  useEffect(() => {
+    optionsRef.current = options;
+    console.log('Motion notification options updated:', {
+      enabled: options.enabled,
+      email: options.email ? '***' + options.email.slice(-10) : 'none',
+      includeAttachment: options.includeAttachment
+    });
+  }, [options.enabled, options.email, options.includeAttachment]);
 
   const captureFrameAsBase64 = useCallback((videoElement: HTMLVideoElement): string => {
     try {
@@ -72,21 +85,29 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
     motionLevel?: number,
     imageElement?: HTMLImageElement
   ) => {
-    if (!options.enabled || !options.email) {
-      console.log('Motion notifications disabled or no email provided');
+    // Use ref to get the latest options
+    const currentOptions = optionsRef.current;
+    
+    if (!currentOptions.enabled || !currentOptions.email) {
+      console.log('Motion notifications disabled or no email provided', {
+        enabled: currentOptions.enabled,
+        hasEmail: !!currentOptions.email
+      });
       return;
     }
+
+    console.log('Sending motion alert to:', currentOptions.email);
 
     try {
       let attachmentData: string | undefined;
       let attachmentType: 'image' | 'video' | undefined;
 
       // Capture frame if video element is provided and attachments are enabled
-      if (videoElement && options.includeAttachment) {
+      if (videoElement && currentOptions.includeAttachment) {
         console.log('Attempting to capture video frame for attachment');
         attachmentData = captureFrameAsBase64(videoElement);
         attachmentType = 'image';
-      } else if (imageElement && options.includeAttachment) {
+      } else if (imageElement && currentOptions.includeAttachment) {
         // Capture frame from network camera image
         console.log('Attempting to capture network camera image for attachment');
         attachmentData = captureImageAsBase64(imageElement);
@@ -95,13 +116,13 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
 
       if (attachmentData) {
         console.log('Attachment captured successfully, including in email');
-      } else if (options.includeAttachment) {
+      } else if (currentOptions.includeAttachment) {
         console.log('Failed to capture attachment, sending email without image');
       }
 
       const { data, error } = await supabase.functions.invoke('send-motion-alert', {
         body: {
-          email: options.email,
+          email: currentOptions.email,
           attachmentData,
           attachmentType,
           timestamp: new Date().toISOString(),
@@ -123,7 +144,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
       console.log('Motion alert sent successfully');
       toast({
         title: "Motion alert sent",
-        description: `Email notification sent to ${options.email}`,
+        description: `Email notification sent to ${currentOptions.email}`,
       });
 
     } catch (error) {
@@ -134,7 +155,7 @@ export const useMotionNotification = (options: MotionNotificationOptions) => {
         variant: "destructive"
       });
     }
-  }, [options, captureFrameAsBase64, captureImageAsBase64, toast]);
+  }, [captureFrameAsBase64, captureImageAsBase64, toast]);
 
   return {
     sendMotionAlert
