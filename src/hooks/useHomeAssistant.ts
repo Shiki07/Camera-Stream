@@ -8,6 +8,7 @@ export interface HomeAssistantConfig {
   token: string;
   webhookId: string;
   enabled: boolean;
+  recordingLocation: 'sd_card' | 'nas' | 'local_media';
 }
 
 export interface HACamera {
@@ -25,6 +26,7 @@ export const useHomeAssistant = () => {
     token: '',
     webhookId: '',
     enabled: false,
+    recordingLocation: 'sd_card',
   });
   const [cameras, setCameras] = useState<HACamera[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,6 +99,7 @@ export const useHomeAssistant = () => {
           webhookId: parsed.webhookId || '',
           enabled: false, // Disable until user re-enters token
           token: '', // Token needs to be re-entered
+          recordingLocation: parsed.recordingLocation || 'sd_card',
         });
         
         // Clean up legacy storage
@@ -124,6 +127,7 @@ export const useHomeAssistant = () => {
           webhookId: parsed.webhookId || '',
           enabled: false,
           token: '', // Don't load legacy tokens
+          recordingLocation: parsed.recordingLocation || 'sd_card',
         });
       } catch {
         // Silent failure
@@ -157,6 +161,7 @@ export const useHomeAssistant = () => {
             url: newConfig.url,
             webhookId: newConfig.webhookId,
             enabled: newConfig.enabled,
+            recordingLocation: newConfig.recordingLocation,
           }),
         }
       );
