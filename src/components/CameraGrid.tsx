@@ -12,7 +12,7 @@ interface CameraGridProps {
   // Live Feed Props
   isRecording: boolean;
   onRecordingChange: (recording: boolean) => void;
-  storageType: 'cloud' | 'local';
+  storageType: 'local';
   quality: 'high' | 'medium' | 'low';
   motionDetectionEnabled: boolean;
   onMotionDetected: (detected: boolean) => void;
@@ -44,7 +44,6 @@ interface CameraGridProps {
   storageLimitGB?: number;
 
   // Settings Props
-  onStorageTypeChange: (type: 'cloud' | 'local') => void;
   onQualityChange: (quality: 'high' | 'medium' | 'low') => void;
   onToggleRecording: () => void;
   motionDetected: boolean;
@@ -94,7 +93,6 @@ export const CameraGrid = ({
   storageUsedPercent = 0,
   storageWarningLevel = 'safe',
   storageLimitGB = 5,
-  onStorageTypeChange,
   onQualityChange,
   onToggleRecording,
   motionDetected,
@@ -155,8 +153,6 @@ export const CameraGrid = ({
         <DuckDNSSettings />
         
         <StorageSettings
-          storageType={storageType}
-          onStorageTypeChange={onStorageTypeChange}
           quality={quality}
           onQualityChange={onQualityChange}
         />
@@ -212,7 +208,6 @@ export const CameraGrid = ({
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         storageType={storageType}
-        onStorageTypeChange={onStorageTypeChange}
         quality={quality}
         onQualityChange={onQualityChange}
         dateOrganizedFolders={dateOrganizedFolders}

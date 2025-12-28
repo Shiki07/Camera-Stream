@@ -168,7 +168,7 @@ export const CameraFeedCard = ({
       // Auto-record on motion
       if (!browserRecording.isRecording && streamRef.current) {
         browserRecording.startRecording(streamRef.current, {
-          storageType: settings.storage_type,
+          storageType: 'local',
           fileType: 'video',
           quality: settings.quality,
           motionDetected: true,
@@ -840,7 +840,7 @@ export const CameraFeedCard = ({
   const handleStartBrowserRecording = useCallback(() => {
     if (!streamRef.current) return;
     browserRecording.startRecording(streamRef.current, {
-      storageType: settings.storage_type,
+      storageType: 'local',
       fileType: 'video',
       quality: settings.quality,
       motionDetected: false,
@@ -874,12 +874,12 @@ export const CameraFeedCard = ({
     if (!element) return;
 
     try {
-      await browserRecording.takeSnapshot(element, {
-        storageType: settings.storage_type,
-        fileType: 'image',
-        quality: settings.quality,
-        motionDetected: false,
-      });
+    await browserRecording.takeSnapshot(element, {
+      storageType: 'local',
+      fileType: 'image',
+      quality: settings.quality,
+      motionDetected: false,
+    });
       toast({ title: "Snapshot saved", description: "Image downloaded successfully" });
     } catch {
       toast({ title: "Snapshot failed", description: "Could not capture image", variant: "destructive" });

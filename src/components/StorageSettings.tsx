@@ -1,27 +1,18 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Cloud, HardDrive, Settings, Wifi, Check, AlertCircle } from 'lucide-react';
+import { HardDrive, Settings, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { CloudProvider, CloudStorageConfig } from '@/services/cloudStorage/types';
-import { CloudStorageFactory } from '@/services/cloudStorage/CloudStorageFactory';
-import { Badge } from '@/components/ui/badge';
 
 interface StorageSettingsProps {
-  storageType: 'cloud' | 'local';
-  onStorageTypeChange: (type: 'cloud' | 'local') => void;
   quality: 'high' | 'medium' | 'low';
   onQualityChange: (quality: 'high' | 'medium' | 'low') => void;
 }
 
 export const StorageSettings = ({ 
-  storageType, 
-  onStorageTypeChange, 
   quality, 
   onQualityChange 
 }: StorageSettingsProps) => {
@@ -32,11 +23,7 @@ export const StorageSettings = ({
       return '';
     }
   });
-  const [selectedProvider, setSelectedProvider] = useState<CloudProvider>('none');
-  const [isCloudConfigured, setIsCloudConfigured] = useState(false);
   const { toast } = useToast();
-
-  const providers = CloudStorageFactory.getSupportedProviders();
 
   useEffect(() => {
     try {
@@ -45,68 +32,6 @@ export const StorageSettings = ({
       // Silent failure
     }
   }, [piEndpoint]);
-
-  // Load saved cloud configuration on mount
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('cloudStorageConfig');
-    if (savedConfig) {
-      try {
-        const config: CloudStorageConfig = JSON.parse(savedConfig);
-        setSelectedProvider(config.provider);
-        checkCloudConfiguration(config);
-      } catch (error) {
-        console.error('Failed to load cloud storage config:', error);
-      }
-    }
-  }, []);
-
-  const checkCloudConfiguration = async (config: CloudStorageConfig) => {
-    if (config.provider === 'none') {
-      setIsCloudConfigured(false);
-      return;
-    }
-    const provider = CloudStorageFactory.getProvider(config.provider);
-    if (provider) {
-      const configured = await provider.configure(config);
-      setIsCloudConfigured(configured);
-    }
-  };
-
-  const handleProviderChange = (providerId: string) => {
-    const newProvider = providerId as CloudProvider;
-    setSelectedProvider(newProvider);
-    
-    if (newProvider === 'none') {
-      localStorage.removeItem('cloudStorageConfig');
-      setIsCloudConfigured(false);
-      toast({
-        title: "Cloud storage disabled",
-        description: "Recordings will be saved locally only"
-      });
-      return;
-    }
-
-    // Check if this provider was previously configured
-    const savedConfig = localStorage.getItem('cloudStorageConfig');
-    if (savedConfig) {
-      try {
-        const config: CloudStorageConfig = JSON.parse(savedConfig);
-        if (config.provider === newProvider) {
-          checkCloudConfiguration(config);
-          return;
-        }
-      } catch {
-        // Continue to show not configured
-      }
-    }
-
-    // Provider changed, needs configuration
-    setIsCloudConfigured(false);
-    toast({
-      title: "Provider selected",
-      description: `Please configure ${providers.find(p => p.id === newProvider)?.name} in Cloud Storage Settings`,
-    });
-  };
 
   const testPiConnection = async () => {
     if (!piEndpoint.trim()) {
@@ -119,7 +44,6 @@ export const StorageSettings = ({
     }
 
     try {
-      // Use cloud-based test via Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('test-pi-connection', {
         body: { pi_endpoint: piEndpoint.trim() }
       });
@@ -154,11 +78,6 @@ export const StorageSettings = ({
     }
   };
 
-  const getSelectedProviderName = () => {
-    if (selectedProvider === 'none') return 'Not configured';
-    return providers.find(p => p.id === selectedProvider)?.name || 'Unknown';
-  };
-
   return (
     <Card className="bg-card border-border">
       <CardHeader>
@@ -168,83 +87,11 @@ export const StorageSettings = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Storage Type Selection */}
-        <div>
-          <label className="text-sm text-muted-foreground mb-2 block">Storage Location</label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={storageType === 'cloud' ? 'default' : 'outline'}
-              onClick={() => onStorageTypeChange('cloud')}
-              className={`flex items-center gap-2 ${
-                storageType === 'cloud' 
-                  ? 'bg-blue-600 hover:bg-blue-700' 
-                  : 'border-border text-muted-foreground hover:bg-secondary'
-              }`}
-            >
-              <Cloud className="w-4 h-4" />
-              Cloud
-            </Button>
-            <Button
-              variant={storageType === 'local' ? 'default' : 'outline'}
-              onClick={() => onStorageTypeChange('local')}
-              className={`flex items-center gap-2 ${
-                storageType === 'local' 
-                  ? 'bg-green-600 hover:bg-green-700' 
-                  : 'border-border text-muted-foreground hover:bg-secondary'
-              }`}
-            >
-              <HardDrive className="w-4 h-4" />
-              Local
-            </Button>
-          </div>
+        {/* Storage Info */}
+        <div className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg">
+          <HardDrive className="w-5 h-5 text-green-500" />
+          <span className="text-foreground">Local Storage</span>
         </div>
-
-        {/* Cloud Provider Selection - Show when cloud is selected */}
-        {storageType === 'cloud' && (
-          <div className="space-y-3 p-3 bg-secondary/30 rounded-lg border border-border">
-            <Label className="text-foreground flex items-center gap-2">
-              <Cloud className="w-4 h-4" />
-              Cloud Provider
-            </Label>
-            <Select value={selectedProvider} onValueChange={handleProviderChange}>
-              <SelectTrigger className="bg-background border-border text-foreground">
-                <SelectValue placeholder="Select a cloud provider" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
-                <SelectItem value="none">None (Local only)</SelectItem>
-                {providers.map((provider) => (
-                  <SelectItem key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            {/* Configuration Status */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Status:</span>
-              <Badge variant={isCloudConfigured ? "default" : "secondary"} className="gap-1">
-                {isCloudConfigured ? (
-                  <>
-                    <Check className="w-3 h-3" />
-                    Configured
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-3 h-3" />
-                    {selectedProvider === 'none' ? 'Not Selected' : 'Needs Setup'}
-                  </>
-                )}
-              </Badge>
-            </div>
-            
-            {selectedProvider !== 'none' && !isCloudConfigured && (
-              <p className="text-xs text-amber-400">
-                ⚠️ Configure {getSelectedProviderName()} credentials in the "Cloud Storage Configuration" section below to enable uploads.
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Quality Settings */}
         <div>
@@ -268,18 +115,8 @@ export const StorageSettings = ({
           </div>
         </div>
 
-        {/* Storage Info */}
+        {/* Quality Info */}
         <div className="bg-secondary/30 rounded p-3 text-sm">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-muted-foreground">Current:</span>
-            <span className="text-foreground flex items-center gap-1">
-              {storageType === 'cloud' ? <Cloud className="w-3 h-3" /> : <HardDrive className="w-3 h-3" />}
-              {storageType === 'cloud' 
-                ? (selectedProvider !== 'none' ? getSelectedProviderName() : 'No Provider Selected')
-                : 'Local Storage'
-              }
-            </span>
-          </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Quality:</span>
             <span className="text-foreground">{quality} ({

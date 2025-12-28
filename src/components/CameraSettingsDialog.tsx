@@ -6,19 +6,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StorageSettings } from "./StorageSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { UnifiedMotionDetection } from "./UnifiedMotionDetection";
 import { FolderSettings } from "./FolderSettings";
-import { StorageTierSettings } from "./StorageTierSettings";
-import { CloudStorageSettings } from "./CloudStorageSettings";
+
 interface CameraSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   
   // Storage Settings
-  storageType: 'cloud' | 'local';
-  onStorageTypeChange: (type: 'cloud' | 'local') => void;
+  storageType: 'local';
   quality: 'high' | 'medium' | 'low';
   onQualityChange: (quality: 'high' | 'medium' | 'low') => void;
   
@@ -64,7 +61,6 @@ export const CameraSettingsDialog = ({
   open,
   onOpenChange,
   storageType,
-  onStorageTypeChange,
   quality,
   onQualityChange,
   dateOrganizedFolders,
@@ -109,32 +105,12 @@ export const CameraSettingsDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="storage" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 bg-secondary">
-            <TabsTrigger value="storage">Storage</TabsTrigger>
-            <TabsTrigger value="cloud">Cloud</TabsTrigger>
-            <TabsTrigger value="tier">Tier</TabsTrigger>
+        <Tabs defaultValue="folder" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-secondary">
             <TabsTrigger value="folder">Folder</TabsTrigger>
             <TabsTrigger value="motion">Motion</TabsTrigger>
             <TabsTrigger value="notifications">Alerts</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="storage" className="space-y-4 mt-4">
-            <StorageSettings
-              storageType={storageType}
-              onStorageTypeChange={onStorageTypeChange}
-              quality={quality}
-              onQualityChange={onQualityChange}
-            />
-          </TabsContent>
-
-          <TabsContent value="cloud" className="space-y-4 mt-4">
-            <CloudStorageSettings />
-          </TabsContent>
-
-          <TabsContent value="tier" className="space-y-4 mt-4">
-            <StorageTierSettings />
-          </TabsContent>
 
           <TabsContent value="folder" className="space-y-4 mt-4">
             <FolderSettings 
@@ -147,7 +123,6 @@ export const CameraSettingsDialog = ({
               onDateOrganizedTogglePi={onDateOrganizedTogglePi}
             />
           </TabsContent>
-
 
           <TabsContent value="motion" className="space-y-4 mt-4">
             <UnifiedMotionDetection
