@@ -1,14 +1,20 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { get, set, del } from 'idb-keyval';
+
+const DIRECTORY_HANDLE_KEY = 'selectedDirectoryHandle';
+const DIRECTORY_NAME_KEY = 'selectedDirectoryName';
 
 interface DirectoryContextType {
   directoryHandle: FileSystemDirectoryHandle | null;
   directoryPath: string | null;
   isSupported: boolean;
+  isRestoring: boolean;
   pickDirectory: () => Promise<FileSystemDirectoryHandle | null>;
   saveFileToDirectory: (blob: Blob, filename: string) => Promise<boolean>;
   clearDirectory: () => void;
   getStoredDirectoryName: () => string | null;
+  requestPermission: () => Promise<boolean>;
 }
 
 const DirectoryContext = createContext<DirectoryContextType | undefined>(undefined);
@@ -17,21 +23,94 @@ export const DirectoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { toast } = useToast();
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [directoryPath, setDirectoryPath] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(true);
   const isSupported = 'showDirectoryPicker' in window;
 
-  // Try to restore directory name from localStorage on mount
+  // Try to restore directory handle from IndexedDB on mount
   useEffect(() => {
-    const storedName = localStorage.getItem('selectedDirectoryName');
-    if (storedName) {
-      setDirectoryPath(storedName);
+    const restoreHandle = async () => {
+      try {
+        const storedHandle = await get<FileSystemDirectoryHandle>(DIRECTORY_HANDLE_KEY);
+        if (storedHandle) {
+          // Check if we still have permission
+          const permissionStatus = await (storedHandle as any).queryPermission({ mode: 'readwrite' });
+          
+          if (permissionStatus === 'granted') {
+            setDirectoryHandle(storedHandle);
+            setDirectoryPath(storedHandle.name);
+            console.log('Directory handle restored with permission:', storedHandle.name);
+          } else {
+            // Handle exists but permission expired - store it for later re-request
+            setDirectoryHandle(storedHandle);
+            setDirectoryPath(storedHandle.name);
+            console.log('Directory handle restored, permission needs re-grant:', storedHandle.name);
+          }
+        } else {
+          // Fallback to localStorage for name display
+          const storedName = localStorage.getItem(DIRECTORY_NAME_KEY);
+          if (storedName) {
+            setDirectoryPath(storedName);
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring directory handle:', error);
+        // Fallback to localStorage
+        const storedName = localStorage.getItem(DIRECTORY_NAME_KEY);
+        if (storedName) {
+          setDirectoryPath(storedName);
+        }
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+
+    if (isSupported) {
+      restoreHandle();
+    } else {
+      setIsRestoring(false);
     }
-  }, []);
+  }, [isSupported]);
+
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    if (!directoryHandle) {
+      return false;
+    }
+
+    try {
+      const permissionStatus = await (directoryHandle as any).queryPermission({ mode: 'readwrite' });
+      
+      if (permissionStatus === 'granted') {
+        return true;
+      }
+
+      // Request permission
+      const requestStatus = await (directoryHandle as any).requestPermission({ mode: 'readwrite' });
+      
+      if (requestStatus === 'granted') {
+        toast({
+          title: "Permission Granted",
+          description: `Recordings will save to: ${directoryHandle.name}`,
+        });
+        return true;
+      } else {
+        toast({
+          title: "Permission Denied",
+          description: "Recordings will save to browser storage instead.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      return false;
+    }
+  }, [directoryHandle, toast]);
 
   const pickDirectory = useCallback(async () => {
     if (!isSupported) {
       toast({
         title: "Not Supported",
-        description: "Your browser doesn't support folder selection. Files will be downloaded to your default Downloads folder.",
+        description: "Your browser doesn't support folder selection. Recordings will save automatically to browser storage.",
         variant: "destructive",
       });
       return null;
@@ -61,11 +140,12 @@ export const DirectoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setDirectoryHandle(dirHandle);
       setDirectoryPath(dirHandle.name);
 
-      // Save to localStorage
+      // Save handle to IndexedDB for persistence
       try {
-        localStorage.setItem('selectedDirectoryName', dirHandle.name);
+        await set(DIRECTORY_HANDLE_KEY, dirHandle);
+        localStorage.setItem(DIRECTORY_NAME_KEY, dirHandle.name);
       } catch (error) {
-        console.error('Error saving directory to localStorage:', error);
+        console.error('Error saving directory handle:', error);
       }
 
       toast({
@@ -92,15 +172,15 @@ export const DirectoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     filename: string
   ): Promise<boolean> => {
     if (!directoryHandle) {
-      console.log('No directory selected, falling back to regular download');
+      console.log('No directory selected, using OPFS fallback');
       return false;
     }
 
     try {
-      // Verify permission is still granted (using 'any' since TypeScript doesn't have full File System Access API types)
+      // Verify permission is still granted
       const permissionStatus = await (directoryHandle as any).queryPermission({ mode: 'readwrite' });
       if (permissionStatus !== 'granted') {
-        console.log('Directory permission expired, falling back to regular download');
+        console.log('Directory permission expired, using OPFS fallback');
         return false;
       }
 
@@ -114,34 +194,30 @@ export const DirectoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return true;
     } catch (error) {
       console.error('Error saving file to directory:', error);
-      toast({
-        title: "Save Error",
-        description: "Failed to save to selected folder. Using default download location.",
-        variant: "destructive",
-      });
       return false;
     }
-  }, [directoryHandle, toast]);
+  }, [directoryHandle]);
 
-  const clearDirectory = useCallback(() => {
+  const clearDirectory = useCallback(async () => {
     setDirectoryHandle(null);
     setDirectoryPath(null);
     
     try {
-      localStorage.removeItem('selectedDirectoryName');
+      await del(DIRECTORY_HANDLE_KEY);
+      localStorage.removeItem(DIRECTORY_NAME_KEY);
     } catch (error) {
-      console.error('Error clearing directory from localStorage:', error);
+      console.error('Error clearing directory:', error);
     }
 
     toast({
       title: "Folder Cleared",
-      description: "Recordings will use the default download location.",
+      description: "Recordings will save to browser storage automatically.",
     });
   }, [toast]);
 
   const getStoredDirectoryName = useCallback(() => {
     try {
-      return localStorage.getItem('selectedDirectoryName');
+      return localStorage.getItem(DIRECTORY_NAME_KEY);
     } catch (error) {
       console.error('Error reading directory from localStorage:', error);
       return null;
@@ -153,10 +229,12 @@ export const DirectoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       directoryHandle,
       directoryPath,
       isSupported,
+      isRestoring,
       pickDirectory,
       saveFileToDirectory,
       clearDirectory,
-      getStoredDirectoryName
+      getStoredDirectoryName,
+      requestPermission
     }}>
       {children}
     </DirectoryContext.Provider>

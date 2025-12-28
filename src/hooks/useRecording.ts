@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSharedDirectory } from '@/contexts/DirectoryContext';
+import { useOPFSStorage } from '@/hooks/useOPFSStorage';
 import { getRecordingPath } from '@/utils/folderStructure';
 
 export interface RecordingOptions {
@@ -20,6 +21,7 @@ export const useRecording = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { saveFileToDirectory, directoryPath } = useSharedDirectory();
+  const { saveToOPFS, isSupported: opfsSupported } = useOPFSStorage();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -259,19 +261,28 @@ export const useRecording = () => {
       // Try to save to selected directory first (if available)
       const savedToDirectory = await saveFileToDirectory(blob, filename);
       
+      let savedLocation = 'unknown';
+      
       if (savedToDirectory) {
         console.log(`Recording saved to selected directory: ${filename}`);
+        savedLocation = 'folder';
+      } else if (opfsSupported) {
+        // Fall back to OPFS (automatic, no prompts)
+        const savedToOPFS = await saveToOPFS(blob, filename);
+        if (savedToOPFS) {
+          console.log(`Recording saved to OPFS: ${filename}`);
+          savedLocation = 'browser';
+        } else {
+          // Final fallback to download
+          console.log(`OPFS save failed, downloading: ${filename}`);
+          triggerDownload(blob, filename);
+          savedLocation = 'download';
+        }
       } else {
-        // Fall back to regular download
-        console.log(`No directory selected, downloading: ${filename}`);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // No OPFS support, fall back to download
+        console.log(`No OPFS support, downloading: ${filename}`);
+        triggerDownload(blob, filename);
+        savedLocation = 'download';
       }
       
       const { error } = await supabase
@@ -287,14 +298,34 @@ export const useRecording = () => {
       
       if (error) throw error;
       
+      const locationMessage = {
+        folder: `Saved to ${directoryPath || 'selected folder'}`,
+        browser: 'Saved to browser storage',
+        download: 'Downloaded to device',
+        unknown: 'File saved'
+      };
+      
       toast({
-        title: "Saved locally",
-        description: `${fileType} downloaded and metadata saved`
+        title: locationMessage[savedLocation],
+        description: savedLocation === 'browser' 
+          ? 'View in Browser Storage section'
+          : `${fileType} saved successfully`
       });
     } catch (error) {
       console.error('Error saving locally:', error);
       throw error;
     }
+  };
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return {
