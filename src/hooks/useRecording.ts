@@ -97,16 +97,21 @@ export const useRecording = () => {
   }, [user, toast]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setRecordingDuration(0);
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-        durationIntervalRef.current = null;
-      }
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+
+    // Do not rely on React state here; callbacks can become stale.
+    if (recorder.state !== 'inactive') {
+      recorder.stop();
     }
-  }, [isRecording]);
+
+    setIsRecording(false);
+    setRecordingDuration(0);
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+  }, []);
 
   const handleImageSave = useCallback(async (blob: Blob, options: RecordingOptions) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
