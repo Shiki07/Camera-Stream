@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CameraSettings, DEFAULT_CAMERA_SETTINGS } from '@/types/camera';
+import { toast } from '@/hooks/use-toast';
 
 const STORAGE_KEY = 'camera_settings';
 const SETTINGS_CHANGED_EVENT = 'camera-settings-changed';
@@ -76,8 +77,17 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
       window.dispatchEvent(new CustomEvent<SettingsChangedEventDetail>(SETTINGS_CHANGED_EVENT, {
         detail: { cameraId, settings: updatedSettings }
       }));
+
+      toast({
+        title: "Settings saved",
+        description: "Camera settings updated successfully.",
+      });
     } catch {
-      // Silent fail
+      toast({
+        title: "Error",
+        description: "Failed to save settings.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
