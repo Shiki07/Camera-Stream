@@ -13,6 +13,7 @@ export interface CameraRecordingOptions {
 export const useCameraRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [piServiceConnected, setPiServiceConnected] = useState<boolean | null>(null);
@@ -127,7 +128,7 @@ export const useCameraRecording = () => {
     }
   }, [user, isRecording, getPiUrl]);
 
-  // Stop recording - optimistic UI update for instant response
+  // Stop recording - shows "stopping" state during the process
   const stopRecording = useCallback(async (cameraUrl: string) => {
     if (!recordingId) {
       setError('No active recording');
@@ -142,10 +143,8 @@ export const useCameraRecording = () => {
 
     const currentRecordingId = recordingId;
 
-    // Optimistic UI update - immediately show as stopped
-    setIsRecording(false);
-    setRecordingId(null);
-    setRecordingDuration(0);
+    // Show "stopping" state - recording still shows but with stopping indicator
+    setIsStopping(true);
     setIsProcessing(true);
 
     // Clear duration interval immediately
@@ -157,7 +156,7 @@ export const useCameraRecording = () => {
     try {
       // Fire and don't block UI - use shorter timeout via AbortController
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for graceful stop
 
       const { data, error: fnError } = await supabase.functions.invoke('pi-recording', {
         body: {
@@ -170,16 +169,28 @@ export const useCameraRecording = () => {
       clearTimeout(timeoutId);
 
       if (fnError) throw fnError;
-      if (!data?.success) throw new Error(data?.error || 'Failed to stop recording');
+      if (!data?.success && !data?.already_stopped) throw new Error(data?.error || 'Failed to stop recording');
+
+      // Now mark as fully stopped
+      setIsRecording(false);
+      setRecordingId(null);
+      setRecordingDuration(0);
 
       return data;
     } catch (err) {
-      // Log error but don't revert UI - recording is already stopped locally
+      // Log error but still mark as stopped locally
       console.warn('Stop recording request failed:', err instanceof Error ? err.message : err);
       setError(err instanceof Error ? err.message : 'Stop request failed - recording may still be active on Pi');
+      
+      // Still clear recording state on error
+      setIsRecording(false);
+      setRecordingId(null);
+      setRecordingDuration(0);
+      
       return null;
     } finally {
       setIsProcessing(false);
+      setIsStopping(false);
     }
   }, [recordingId, getPiUrl]);
 
@@ -193,6 +204,7 @@ export const useCameraRecording = () => {
   return {
     isRecording,
     isProcessing,
+    isStopping,
     recordingId,
     recordingDuration,
     formattedDuration: formatDuration(recordingDuration),

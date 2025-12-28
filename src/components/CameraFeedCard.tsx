@@ -1118,12 +1118,19 @@ export const CameraFeedCard = ({
         </div>
 
         {/* Recording Indicator */}
-        {isRecording && (
+        {(isRecording || piRecording.isStopping) && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2">
-            <Badge variant="destructive" className="text-xs animate-pulse">
-              <Circle className="h-3 w-3 mr-1 fill-current" />
-              REC {formatDuration(recordingDuration)}
-            </Badge>
+            {piRecording.isStopping ? (
+              <Badge variant="secondary" className="text-xs bg-amber-500/80 text-white">
+                <Square className="h-3 w-3 mr-1" />
+                Stopping...
+              </Badge>
+            ) : (
+              <Badge variant="destructive" className="text-xs animate-pulse">
+                <Circle className="h-3 w-3 mr-1 fill-current" />
+                REC {formatDuration(recordingDuration)}
+              </Badge>
+            )}
           </div>
         )}
 
