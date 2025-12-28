@@ -183,7 +183,14 @@ export const CameraFeedCard = ({
         });
       }
     },
-    onMotionCleared: () => setMotionDetected(false),
+    onMotionCleared: () => {
+      setMotionDetected(false);
+      // Stop browser recording when motion clears
+      if (browserRecording.isRecording) {
+        console.log('Motion cleared, stopping browser recording');
+        browserRecording.stopRecording();
+      }
+    },
   });
   
   // Motion detection for network camera (img element)
@@ -217,7 +224,14 @@ export const CameraFeedCard = ({
         handleStartPiRecording(true);
       }
     },
-    onMotionCleared: () => setMotionDetected(false),
+    onMotionCleared: () => {
+      setMotionDetected(false);
+      // Stop Pi recording when motion clears
+      if (piRecording.isRecording) {
+        console.log('Motion cleared, stopping Pi recording');
+        handleStopPiRecording();
+      }
+    },
   });
 
   // Connect to webcam
