@@ -185,11 +185,9 @@ export const CameraFeedCard = ({
     },
     onMotionCleared: () => {
       setMotionDetected(false);
-      // Stop browser recording when motion clears
-      if (browserRecording.isRecording) {
-        console.log('Motion cleared, stopping browser recording');
-        browserRecording.stopRecording();
-      }
+      // Stop browser recording when motion clears (don't rely on potentially stale isRecording flags)
+      console.log('Motion cleared, stopping browser recording');
+      browserRecording.stopRecording();
     },
   });
   
