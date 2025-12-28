@@ -748,48 +748,6 @@ The system now uses improved signal-based stopping for reliable recording termin
 
 ---
 
-## 📞 Support
-
-- **GitHub Issues**: Report bugs and feature requests
-- **Documentation**: Check troubleshooting section above
-- **Community**: Join discussions for help and tips
-
----
-
-## 🎉 You're All Set!
-
-Your Camera Stream system is now ready with:
-- ✅ Pi camera streaming (if configured)
-- ✅ Automatic recording storage to Pi's SD card
-- ✅ Motion detection with email alerts
-- ✅ Secure remote access via DuckDNS
-- ✅ Real-time monitoring from anywhere
-
-Your recordings are automatically saved to `/home/pi/Videos/` with filenames like:
-- `motion_2025-01-26T14-30-45-123Z_recording.webm`
-- `manual_2025-01-26T14-30-45-123Z_recording.webm`
-
----
-
-## 🔐 Security Notes
-
-1. **Change Default Passwords**:
-   - Change Pi user password: `passwd`
-   - Update router admin password
-   - Use strong Supabase passwords
-
-2. **Network Security**:
-   - Only forward necessary ports (8000, 3002)
-   - Consider using VPN for additional security
-   - Keep Pi OS updated: `sudo apt update && sudo apt upgrade`
-
-3. **Monitoring**:
-   - Check Pi service logs regularly
-   - Monitor storage space: `df -h`
-   - Review uploaded recordings periodically
-
----
-
 ## 🏠 Home Assistant Integration
 
 Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection with automatic recording to your preferred storage location.
@@ -1018,6 +976,48 @@ automation:
 - Verify the path exists and is writable
 - Check that the path is in `allowlist_external_dirs`
 - Review HA logs: `Settings > System > Logs`
+
+---
+
+## 📞 Support
+
+- **GitHub Issues**: Report bugs and feature requests
+- **Documentation**: Check troubleshooting section above
+- **Community**: Join discussions for help and tips
+
+---
+
+## 🎉 You're All Set!
+
+Your Camera Stream system is now ready with:
+- ✅ Pi camera streaming (if configured)
+- ✅ Automatic recording storage to Pi's SD card
+- ✅ Motion detection with email alerts
+- ✅ Secure remote access via DuckDNS
+- ✅ Real-time monitoring from anywhere
+
+Your recordings are automatically saved to `/home/pi/Videos/` with filenames like:
+- `motion_2025-01-26T14-30-45-123Z_recording.webm`
+- `manual_2025-01-26T14-30-45-123Z_recording.webm`
+
+---
+
+## 🔐 Security Notes
+
+1. **Change Default Passwords**:
+   - Change Pi user password: `passwd`
+   - Update router admin password
+   - Use strong Supabase passwords
+
+2. **Network Security**:
+   - Only forward necessary ports (8000, 3002)
+   - Consider using VPN for additional security
+   - Keep Pi OS updated: `sudo apt update && sudo apt upgrade`
+
+3. **Monitoring**:
+   - Check Pi service logs regularly
+   - Monitor storage space: `df -h`
+   - Review uploaded recordings periodically
 
 ---
 
