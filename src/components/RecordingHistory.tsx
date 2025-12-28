@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, Camera, HardDrive, Trash2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RecordingsLibrary } from '@/components/RecordingsLibrary';
 
 export const RecordingHistory = () => {
   const { user } = useAuth();
@@ -85,10 +86,15 @@ export const RecordingHistory = () => {
   const stats = getStorageStats();
 
   return (
-    <Card className="bg-gray-800 border-gray-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center justify-between">
-          <span>Recording History</span>
+    <div className="space-y-6">
+      {/* Browser Storage (OPFS) - Automatic saves */}
+      <RecordingsLibrary />
+      
+      {/* Recording Metadata History */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center justify-between">
+            <span>Recording History</span>
           <div className="text-sm text-gray-400 font-normal">
             {stats.totalFiles} files • {formatFileSize(stats.totalSize)}
           </div>
@@ -164,5 +170,6 @@ export const RecordingHistory = () => {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
