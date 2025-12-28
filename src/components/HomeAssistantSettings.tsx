@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHomeAssistant } from '@/hooks/useHomeAssistant';
-import { Home, TestTube, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Info } from 'lucide-react';
+import { Home, TestTube, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Info, HardDrive } from 'lucide-react';
 
 export const HomeAssistantSettings = () => {
   const {
@@ -151,6 +152,32 @@ export const HomeAssistantSettings = () => {
           />
           <p className="text-xs text-muted-foreground">
             Create an automation in HA with webhook trigger, use that webhook ID here
+          </p>
+        </div>
+
+        {/* Recording Location Selector */}
+        <div className="space-y-2">
+          <Label htmlFor="ha-recording-location" className="flex items-center gap-2">
+            <HardDrive className="h-4 w-4" />
+            Recording Save Location
+          </Label>
+          <Select
+            value={localConfig.recordingLocation}
+            onValueChange={(value: 'sd_card' | 'nas' | 'local_media') => 
+              setLocalConfig({ ...localConfig, recordingLocation: value })
+            }
+          >
+            <SelectTrigger id="ha-recording-location">
+              <SelectValue placeholder="Select where to save recordings" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sd_card">Camera SD Card</SelectItem>
+              <SelectItem value="nas">NAS / Network Storage</SelectItem>
+              <SelectItem value="local_media">Home Assistant /media folder</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Choose where HA should save recordings when motion is detected
           </p>
         </div>
 
