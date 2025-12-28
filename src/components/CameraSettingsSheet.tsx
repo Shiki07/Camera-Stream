@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { NetworkCameraConfig } from '@/hooks/useNetworkCamera';
 import { useCameraInstanceSettings } from '@/hooks/useCameraInstanceSettings';
-import { useDirectoryPicker } from '@/hooks/useDirectoryPicker';
+import { useSharedDirectory } from '@/contexts/DirectoryContext';
 import { Camera, Trash2, Video, Bell, Clock, Settings, HardDrive, FolderOpen, Folder, X, Home } from 'lucide-react';
 import { 
   AlertDialog,
@@ -54,7 +54,7 @@ export const CameraSettingsSheet = ({
     pickDirectory, 
     clearDirectory,
     getStoredDirectoryName
-  } = useDirectoryPicker();
+  } = useSharedDirectory();
   
   const storedFolderName = getStoredDirectoryName();
 
