@@ -196,6 +196,23 @@ export const CameraSettingsSheet = ({
                     step={5}
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label>Post-Motion Buffer</Label>
+                    <span className="text-sm text-muted-foreground">{settings.post_motion_buffer}s</span>
+                  </div>
+                  <Slider
+                    value={[settings.post_motion_buffer]}
+                    onValueChange={([v]) => updateSetting('post_motion_buffer', v)}
+                    min={1}
+                    max={10}
+                    step={1}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Continue recording for this many seconds after motion stops
+                  </p>
+                </div>
               </>
             )}
           </div>

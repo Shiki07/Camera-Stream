@@ -250,15 +250,16 @@ export const CameraFeedCard = ({
         clearTimeout(motionClearTimeoutRef.current);
       }
       
-      // Add a 3-second buffer before stopping (captures post-motion footage, prevents rapid cycling)
+      // Use configurable post-motion buffer from settings (default 3s)
+      const bufferMs = (settingsRef.current.post_motion_buffer || 3) * 1000;
       motionClearTimeoutRef.current = setTimeout(() => {
         // Use ref for latest recording state
         if (piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
-          console.log('Motion cleared (after 3s buffer), stopping Pi recording');
+          console.log(`Motion cleared (after ${bufferMs}ms buffer), stopping Pi recording`);
           handleStopPiRecording();
         }
         motionClearTimeoutRef.current = null;
-      }, 3000);
+      }, bufferMs);
     },
   });
 
