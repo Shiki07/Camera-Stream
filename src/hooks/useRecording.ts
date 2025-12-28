@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useDirectoryPicker } from './useDirectoryPicker';
+import { useSharedDirectory } from '@/contexts/DirectoryContext';
 import { getRecordingPath } from '@/utils/folderStructure';
 
 export interface RecordingOptions {
@@ -19,7 +19,7 @@ export const useRecording = () => {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { saveFileToDirectory } = useDirectoryPicker();
+  const { saveFileToDirectory, directoryPath } = useSharedDirectory();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -254,8 +254,11 @@ export const useRecording = () => {
       // Try to save to selected directory first (if available)
       const savedToDirectory = await saveFileToDirectory(blob, filename);
       
-      if (!savedToDirectory) {
+      if (savedToDirectory) {
+        console.log(`Recording saved to selected directory: ${filename}`);
+      } else {
         // Fall back to regular download
+        console.log(`No directory selected, downloading: ${filename}`);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
