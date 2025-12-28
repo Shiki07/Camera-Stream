@@ -15,7 +15,22 @@ const MIN_API_KEY_LENGTH = 32;
 const isApiKeyStrong = API_KEY && API_KEY.length >= MIN_API_KEY_LENGTH;
 
 // Recording state management
-const activeRecordings = new Map(); // Map<recordingId, { process, filename, startTime }>
+// Map<recordingId, { process, filename, startTime, stopping, stoppedBy }>
+const activeRecordings = new Map();
+
+// Rate-limit FFmpeg progress logging (once per second max)
+const lastLogTime = new Map();
+const LOG_INTERVAL_MS = 1000;
+
+function shouldLogProgress(recordingId) {
+  const now = Date.now();
+  const lastLog = lastLogTime.get(recordingId) || 0;
+  if (now - lastLog >= LOG_INTERVAL_MS) {
+    lastLogTime.set(recordingId, now);
+    return true;
+  }
+  return false;
+}
 
 // Middleware
 app.use(cors());
@@ -195,6 +210,14 @@ app.post('/recording/start', async (req, res) => {
 
     // Check if already recording
     if (activeRecordings.has(recording_id)) {
+      const existing = activeRecordings.get(recording_id);
+      // If it's stopping, wait a moment then re-check
+      if (existing.stopping) {
+        return res.status(409).json({ 
+          error: 'Recording is currently stopping',
+          message: 'Please wait for the current recording to finish stopping'
+        });
+      }
       return res.status(400).json({ error: 'Recording already in progress' });
     }
 
@@ -207,11 +230,10 @@ app.post('/recording/start', async (req, res) => {
     const filename = `${prefix}pi_${timestamp}.mp4`;
     const filepath = path.join(videosDir, filename);
 
-    console.log(`Starting recording: ${recording_id}`);
-    console.log(`Stream URL: ${stream_url}`);
-    console.log(`Output file: ${filepath}`);
-    console.log(`Video path: ${videosDir}`);
-    console.log(`Quality: ${quality}`);
+    console.log(`[${recording_id}] Starting recording`);
+    console.log(`[${recording_id}] Stream URL: ${stream_url}`);
+    console.log(`[${recording_id}] Output file: ${filepath}`);
+    console.log(`[${recording_id}] Quality: ${quality}`);
 
     // FFmpeg parameters based on quality
     const qualityPresets = {
@@ -224,7 +246,7 @@ app.post('/recording/start', async (req, res) => {
 
     // Use local stream URL to prevent feed freezing (FFmpeg connects to localhost:8000)
     const localStreamUrl = 'http://localhost:8000/stream.mjpg';
-    console.log(`Using local stream for recording: ${localStreamUrl}`);
+    console.log(`[${recording_id}] Using local stream: ${localStreamUrl}`);
     
     // FFmpeg command to capture from MJPEG stream
     const ffmpegArgs = [
@@ -241,19 +263,23 @@ app.post('/recording/start', async (req, res) => {
       filepath
     ];
 
-    console.log('FFmpeg command:', 'ffmpeg', ffmpegArgs.join(' '));
-
     const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
-    // Store recording info
-    activeRecordings.set(recording_id, {
+    // Store recording info with stopping flag
+    const recordingState = {
       process: ffmpeg,
       filename,
       filepath,
       startTime: Date.now(),
       quality,
-      motion_triggered
-    });
+      motion_triggered,
+      stopping: false,
+      stoppedBy: null, // 'api' or 'signal' or 'error'
+      exitCode: null,
+      exitSignal: null
+    };
+    
+    activeRecordings.set(recording_id, recordingState);
 
     // Send response immediately (async FFmpeg startup)
     res.json({
@@ -266,25 +292,54 @@ app.post('/recording/start', async (req, res) => {
 
     // Handle FFmpeg output (async after response sent)
     ffmpeg.stdout.on('data', (data) => {
-      console.log(`FFmpeg stdout: ${data}`);
+      if (shouldLogProgress(recording_id)) {
+        console.log(`[${recording_id}] FFmpeg stdout: ${data}`);
+      }
     });
 
     ffmpeg.stderr.on('data', (data) => {
-      // FFmpeg outputs progress to stderr
-      console.log(`FFmpeg: ${data}`);
+      // FFmpeg outputs progress to stderr - rate limit logging
+      const dataStr = data.toString();
+      // Always log errors and important messages
+      if (dataStr.includes('error') || dataStr.includes('Error') || dataStr.includes('failed')) {
+        console.error(`[${recording_id}] FFmpeg error: ${dataStr}`);
+      } else if (shouldLogProgress(recording_id)) {
+        // Rate-limited progress logging
+        const frameMatch = dataStr.match(/frame=\s*(\d+)/);
+        const timeMatch = dataStr.match(/time=([^\s]+)/);
+        if (frameMatch && timeMatch) {
+          console.log(`[${recording_id}] Progress: frame=${frameMatch[1]} time=${timeMatch[1]}`);
+        }
+      }
     });
 
     ffmpeg.on('error', (error) => {
-      console.error(`FFmpeg error for ${recording_id}:`, error);
+      console.error(`[${recording_id}] FFmpeg spawn error:`, error);
+      recordingState.stoppedBy = 'error';
       activeRecordings.delete(recording_id);
+      lastLogTime.delete(recording_id);
     });
 
-    ffmpeg.on('close', (code) => {
-      console.log(`FFmpeg process exited with code ${code} for ${recording_id}`);
-      if (code !== 0 && code !== null) {
-        console.error(`Recording ${recording_id} ended with error code ${code}`);
+    // Use 'close' event instead of 'exit' for reliable cleanup
+    ffmpeg.on('close', (code, signal) => {
+      recordingState.exitCode = code;
+      recordingState.exitSignal = signal;
+      
+      // Determine if this was a normal shutdown
+      const wasGraceful = signal === 'SIGINT' || signal === 'SIGTERM' || code === 0;
+      const wasApiStopped = recordingState.stoppedBy === 'api';
+      
+      if (wasGraceful || wasApiStopped) {
+        console.log(`[${recording_id}] Recording ended normally (code=${code}, signal=${signal})`);
+      } else if (code !== null && code !== 0) {
+        console.warn(`[${recording_id}] FFmpeg exited with code ${code} (signal=${signal})`);
       }
-      activeRecordings.delete(recording_id);
+      
+      // Only delete if not already deleted by stop endpoint
+      if (activeRecordings.has(recording_id)) {
+        activeRecordings.delete(recording_id);
+      }
+      lastLogTime.delete(recording_id);
     });
 
   } catch (error) {
@@ -296,7 +351,7 @@ app.post('/recording/start', async (req, res) => {
   }
 });
 
-// Stop recording endpoint
+// Stop recording endpoint - IDEMPOTENT
 app.post('/recording/stop', async (req, res) => {
   try {
     const { recording_id } = req.body;
@@ -307,52 +362,90 @@ app.post('/recording/stop', async (req, res) => {
 
     const recording = activeRecordings.get(recording_id);
 
+    // IDEMPOTENT: If recording doesn't exist, return success with already_stopped flag
     if (!recording) {
-      return res.status(404).json({ error: 'Recording not found or already stopped' });
+      console.log(`[${recording_id}] Stop requested but recording not found (already stopped)`);
+      return res.json({ 
+        success: true,
+        already_stopped: true,
+        message: 'Recording already stopped or not found',
+        recording_id
+      });
     }
 
-    console.log(`Stopping recording: ${recording_id}`);
+    // IDEMPOTENT: If already stopping, return success immediately
+    if (recording.stopping) {
+      console.log(`[${recording_id}] Stop already in progress, returning success`);
+      return res.json({
+        success: true,
+        already_stopping: true,
+        message: 'Recording stop already in progress',
+        recording_id
+      });
+    }
+
+    // Mark as stopping to prevent double-stop
+    recording.stopping = true;
+    recording.stoppedBy = 'api';
+    const stopTime = Date.now();
+
+    console.log(`[${recording_id}] Stopping recording...`);
 
     // Step 1: Send SIGINT for graceful FFmpeg shutdown
-    console.log('Sending SIGINT to FFmpeg process...');
     recording.process.kill('SIGINT');
     
-    // Step 2: Wait for FFmpeg to exit gracefully (max 2 seconds - optimized)
-    const exitPromise = new Promise((resolve) => {
-      recording.process.on('exit', () => {
-        console.log('FFmpeg exited gracefully');
+    // Step 2: Wait for FFmpeg to close gracefully (max 3 seconds)
+    let exitedGracefully = false;
+    let closeTimeout = null;
+    
+    const closePromise = new Promise((resolve) => {
+      const onClose = () => {
+        if (closeTimeout) {
+          clearTimeout(closeTimeout);
+          closeTimeout = null;
+        }
+        exitedGracefully = true;
+        console.log(`[${recording_id}] FFmpeg closed gracefully`);
         resolve(true);
-      });
-      setTimeout(() => {
-        console.log('FFmpeg graceful exit timeout, forcing stop');
+      };
+      
+      // Listen for close event (reliable, fires after stdio closed)
+      recording.process.once('close', onClose);
+      
+      closeTimeout = setTimeout(() => {
+        recording.process.removeListener('close', onClose);
+        console.log(`[${recording_id}] Graceful shutdown timeout`);
         resolve(false);
-      }, 2000);
+      }, 3000);
     });
     
-    const exitedGracefully = await exitPromise;
+    exitedGracefully = await closePromise;
     
     // Step 3: If still running, force kill with SIGKILL
     if (!exitedGracefully && !recording.process.killed) {
-      console.log('Forcing SIGKILL immediately');
+      console.log(`[${recording_id}] Forcing SIGKILL`);
       recording.process.kill('SIGKILL');
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // Step 4: Brief wait for file system to flush (optimized)
+    // Step 4: Brief wait for file system to flush
     await new Promise(resolve => setTimeout(resolve, 200));
 
     // Check if file exists and get stats
     let fileSize = 0;
-    let duration = 0;
+    let duration = Math.round((stopTime - recording.startTime) / 1000);
+    
     try {
       const stats = await fs.stat(recording.filepath);
       fileSize = stats.size;
-      duration = Math.round((Date.now() - recording.startTime) / 1000);
-      console.log(`Recording file stats: ${fileSize} bytes, ${duration} seconds`);
+      console.log(`[${recording_id}] File saved: ${fileSize} bytes, ${duration}s`);
     } catch (error) {
-      console.warn('Could not get file stats:', error);
+      console.warn(`[${recording_id}] Could not get file stats:`, error.message);
     }
 
+    // Cleanup
     activeRecordings.delete(recording_id);
+    lastLogTime.delete(recording_id);
 
     res.json({
       success: true,
@@ -362,7 +455,8 @@ app.post('/recording/stop', async (req, res) => {
       filepath: recording.filepath,
       file_size: fileSize,
       duration_seconds: duration,
-      stopped_at: new Date().toISOString()
+      stopped_at: new Date().toISOString(),
+      graceful: exitedGracefully
     });
 
   } catch (error) {
@@ -392,6 +486,7 @@ app.get('/recording/status/:recording_id', (req, res) => {
   res.json({
     recording_id,
     is_recording: true,
+    stopping: recording.stopping,
     filename: recording.filename,
     duration_seconds: duration,
     quality: recording.quality,
@@ -408,6 +503,7 @@ app.get('/recording/active', (req, res) => {
     duration_seconds: Math.round((Date.now() - rec.startTime) / 1000),
     quality: rec.quality,
     motion_triggered: rec.motion_triggered,
+    stopping: rec.stopping,
     started_at: new Date(rec.startTime).toISOString()
   }));
 
