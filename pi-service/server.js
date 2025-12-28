@@ -3,7 +3,7 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs-extra');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -30,6 +30,29 @@ function shouldLogProgress(recordingId) {
     return true;
   }
   return false;
+}
+
+// Get video duration using ffprobe (more accurate than calculating from timestamps)
+function getVideoDuration(filepath) {
+  return new Promise((resolve, reject) => {
+    execFile('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filepath
+    ], { timeout: 5000 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      const duration = parseFloat(stdout.trim());
+      if (isNaN(duration)) {
+        reject(new Error('Could not parse duration'));
+        return;
+      }
+      resolve(Math.round(duration));
+    });
+  });
 }
 
 // Middleware
@@ -434,10 +457,23 @@ app.post('/recording/stop', async (req, res) => {
     // Check if file exists and get stats
     let fileSize = 0;
     let duration = Math.round((stopTime - recording.startTime) / 1000);
+    let ffprobeDuration = null;
     
     try {
       const stats = await fs.stat(recording.filepath);
       fileSize = stats.size;
+      
+      // Use ffprobe for accurate duration if available
+      try {
+        ffprobeDuration = await getVideoDuration(recording.filepath);
+        if (ffprobeDuration !== null) {
+          console.log(`[${recording_id}] ffprobe duration: ${ffprobeDuration}s (calculated: ${duration}s)`);
+          duration = ffprobeDuration;
+        }
+      } catch (probeErr) {
+        console.warn(`[${recording_id}] ffprobe failed, using calculated duration:`, probeErr.message);
+      }
+      
       console.log(`[${recording_id}] File saved: ${fileSize} bytes, ${duration}s`);
     } catch (error) {
       console.warn(`[${recording_id}] Could not get file stats:`, error.message);
@@ -456,7 +492,8 @@ app.post('/recording/stop', async (req, res) => {
       file_size: fileSize,
       duration_seconds: duration,
       stopped_at: new Date().toISOString(),
-      graceful: exitedGracefully
+      graceful: exitedGracefully,
+      duration_source: ffprobeDuration !== null ? 'ffprobe' : 'calculated'
     });
 
   } catch (error) {
