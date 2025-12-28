@@ -792,7 +792,7 @@ Your recordings are automatically saved to `/home/pi/Videos/` with filenames lik
 
 ## 🏠 Home Assistant Integration
 
-Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection.
+Camera Stream integrates seamlessly with Home Assistant, allowing you to view your HA cameras directly in the webapp and trigger automations based on motion detection with automatic recording to your preferred storage location.
 
 ### What You Can Do
 
@@ -800,6 +800,7 @@ Camera Stream integrates seamlessly with Home Assistant, allowing you to view yo
 - **Motion detection** on HA camera feeds with email alerts
 - **Webhook notifications** to Home Assistant when motion is detected
 - **Trigger automations** in HA based on camera motion events
+- **Save recordings** to SD card, NAS, or Home Assistant /media folder
 
 ### Prerequisites
 
@@ -836,8 +837,12 @@ Follow these steps to connect your Camera Stream webapp to Home Assistant:
    - **Custom domain**: `https://your-ha-domain.com`
 6. Paste your **Long-Lived Access Token**
 7. (Optional) Enter a **Webhook ID** for motion event automations
-8. Click **Test Connection** to verify everything works
-9. Click **Save Configuration**
+8. **Select Recording Save Location** (where HA automations should save recordings):
+   - **Camera SD Card**: Save to the camera's built-in storage
+   - **NAS / Network Storage**: Save to a network-attached storage device
+   - **Home Assistant /media folder**: Save to HA's local media directory
+9. Click **Test Connection** to verify everything works
+10. Click **Save Configuration**
 
 ### Step 3: Add Home Assistant Cameras to Camera Stream
 
@@ -849,41 +854,138 @@ Follow these steps to connect your Camera Stream webapp to Home Assistant:
 
 Your Home Assistant cameras will now appear in Camera Stream alongside any other cameras you've configured.
 
-### Step 4: Set Up Motion Detection Webhooks (Optional)
+### Step 4: Set Up Motion Detection Webhooks
 
-Camera Stream can send webhooks to Home Assistant when motion is detected, allowing you to trigger automations like turning on lights, sending notifications, or recording video.
+Camera Stream sends webhooks to Home Assistant when motion is detected. The webhook payload includes the **recording location** you configured, allowing your automations to save recordings to the correct path.
 
 **Configure Webhook in Camera Stream:**
 1. Go to **Home Assistant Settings** in Camera Stream
 2. Enter a **Webhook ID** (e.g., `camera_stream_motion`)
-3. Motion events will automatically be sent to HA when detected
+3. Select your preferred **Recording Save Location**
+4. Motion events will automatically be sent to HA when detected
 
-**Create an Automation in Home Assistant:**
-
-Add this to your `automations.yaml` or create via the HA UI:
-```yaml
-automation:
-  - alias: "Camera Stream Motion Alert"
-    trigger:
-      - platform: webhook
-        webhook_id: camera_stream_motion
-    action:
-      - service: notify.mobile_app_your_phone
-        data:
-          title: "Motion Detected!"
-          message: "{{ trigger.json.camera_name }} detected motion at {{ trigger.json.timestamp }}"
-      # Add more actions: turn on lights, record video, etc.
-```
-
-**Webhook Payload Example:**
+**Webhook Payload:**
 ```json
 {
   "type": "motion_detected",
   "camera_name": "Front Door Camera",
   "motion_level": 75,
-  "timestamp": "2025-01-15T14:30:00.000Z"
+  "timestamp": "2025-01-15T14:30:00.000Z",
+  "source": "camera_stream",
+  "recording_location": "sd_card"
 }
 ```
+
+The `recording_location` field will be one of:
+- `sd_card` - Camera's built-in SD card storage
+- `nas` - Network-attached storage
+- `local_media` - Home Assistant's /media folder
+
+### Step 5: Create Recording Automations in Home Assistant
+
+Use the `recording_location` from the webhook to dynamically save recordings to the correct path.
+
+**Example Automation (automations.yaml):**
+```yaml
+automation:
+  - alias: "Camera Stream Motion - Save Recording"
+    trigger:
+      - platform: webhook
+        webhook_id: camera_stream_motion
+    variables:
+      save_paths:
+        sd_card: "/mnt/camera_sd"
+        nas: "/mnt/nas/recordings"
+        local_media: "/media/camera_recordings"
+      save_path: "{{ save_paths[trigger.json.recording_location] | default('/media/camera_recordings') }}"
+    action:
+      # Notify about motion
+      - service: notify.mobile_app_your_phone
+        data:
+          title: "Motion Detected!"
+          message: "{{ trigger.json.camera_name }} detected motion (level: {{ trigger.json.motion_level }})"
+      
+      # Start camera recording to the configured location
+      - service: camera.record
+        target:
+          entity_id: "camera.{{ trigger.json.camera_name | lower | replace(' ', '_') }}"
+        data:
+          filename: "{{ save_path }}/{{ trigger.json.camera_name | replace(' ', '_') }}_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+          duration: 30
+```
+
+**Simpler Automation with Conditional Actions:**
+```yaml
+automation:
+  - alias: "Camera Stream Motion Recording"
+    trigger:
+      - platform: webhook
+        webhook_id: camera_stream_motion
+    action:
+      - choose:
+          # Save to SD Card
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.recording_location == 'sd_card' }}"
+            sequence:
+              - service: camera.record
+                target:
+                  entity_id: camera.front_door
+                data:
+                  filename: "/mnt/sd_card/{{ now().strftime('%Y%m%d_%H%M%S') }}_motion.mp4"
+                  duration: 30
+          
+          # Save to NAS
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.recording_location == 'nas' }}"
+            sequence:
+              - service: camera.record
+                target:
+                  entity_id: camera.front_door
+                data:
+                  filename: "/mnt/nas/cameras/{{ now().strftime('%Y%m%d_%H%M%S') }}_motion.mp4"
+                  duration: 30
+          
+          # Save to HA Media folder (default)
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.recording_location == 'local_media' }}"
+            sequence:
+              - service: camera.record
+                target:
+                  entity_id: camera.front_door
+                data:
+                  filename: "/media/cameras/{{ now().strftime('%Y%m%d_%H%M%S') }}_motion.mp4"
+                  duration: 30
+```
+
+### Step 6: Configure Storage Paths in Home Assistant
+
+**For NAS Storage:**
+1. Mount your NAS in Home Assistant (via Samba or NFS)
+2. Add to `configuration.yaml`:
+   ```yaml
+   homeassistant:
+     allowlist_external_dirs:
+       - /mnt/nas/recordings
+   ```
+
+**For SD Card Storage (if camera has accessible SD):**
+1. Mount the SD card location
+2. Add to `configuration.yaml`:
+   ```yaml
+   homeassistant:
+     allowlist_external_dirs:
+       - /mnt/camera_sd
+   ```
+
+**For Local Media Folder:**
+1. The `/media` folder is available by default
+2. Create a subdirectory:
+   ```bash
+   mkdir -p /media/camera_recordings
+   ```
 
 ### Supported Home Assistant Camera Types
 
@@ -911,6 +1013,11 @@ automation:
 - Verify the webhook ID matches exactly in both systems
 - Check Home Assistant logs for incoming webhook requests
 - Ensure HA is accessible from Camera Stream's backend
+
+**Recording Not Saving:**
+- Verify the path exists and is writable
+- Check that the path is in `allowlist_external_dirs`
+- Review HA logs: `Settings > System > Logs`
 
 ---
 
