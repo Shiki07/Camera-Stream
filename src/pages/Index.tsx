@@ -5,13 +5,12 @@ import { RecordingHistory } from "@/components/RecordingHistory";
 import { SystemStatus } from "@/components/SystemStatus";
 import { DuckDNSSettings } from "@/components/DuckDNSSettings";
 import { StorageSettings } from "@/components/StorageSettings";
-import { MotionEventDashboard } from "@/components/MotionEventDashboard";
 import { FolderSettings } from "@/components/FolderSettings";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useState } from "react";
-import { Activity, Settings, History, AlertTriangle, RefreshCw } from "lucide-react";
+import { Settings, History, AlertTriangle, RefreshCw } from "lucide-react";
 
 const Index = () => {
   const [storageType, setStorageType] = useState<'local'>('local');
@@ -64,12 +63,8 @@ const Index = () => {
           <MultiCameraGrid />
           
           {/* Tabbed Sections */}
-          <Tabs defaultValue="motion" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="motion" className="flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                <span className="hidden sm:inline">Motion Events</span>
-              </TabsTrigger>
+          <Tabs defaultValue="recordings" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="recordings" className="flex items-center gap-2">
                 <History className="w-4 h-4" />
                 <span className="hidden sm:inline">Recordings</span>
@@ -79,10 +74,6 @@ const Index = () => {
                 <span className="hidden sm:inline">Settings</span>
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="motion">
-              <MotionEventDashboard />
-            </TabsContent>
 
             <TabsContent value="recordings">
               <RecordingHistory />
