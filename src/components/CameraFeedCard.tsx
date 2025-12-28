@@ -964,6 +964,38 @@ export const CameraFeedCard = ({
     browserRecording.stopRecording();
   }, [browserRecording]);
 
+  // HA webhook recording handlers
+  const [haManualRecording, setHaManualRecording] = useState(false);
+  
+  const handleStartHARecording = useCallback(async () => {
+    if (!haConfig.enabled || !haConfig.webhookId) {
+      toast({ 
+        title: "HA webhook not configured", 
+        description: "Enable Home Assistant and set a webhook ID in settings",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    const success = await sendStartRecording(config.name, config.haEntityId);
+    if (success) {
+      setHaManualRecording(true);
+      haRecordingActiveRef.current = true;
+      toast({ title: "Recording started", description: `Sent start_recording to Home Assistant` });
+    } else {
+      toast({ title: "Failed to start", description: "Could not send webhook to Home Assistant", variant: "destructive" });
+    }
+  }, [haConfig.enabled, haConfig.webhookId, sendStartRecording, config.name, config.haEntityId, toast]);
+  
+  const handleStopHARecording = useCallback(async () => {
+    const success = await sendStopRecording(config.name, config.haEntityId);
+    setHaManualRecording(false);
+    haRecordingActiveRef.current = false;
+    if (success) {
+      toast({ title: "Recording stopped", description: `Sent stop_recording to Home Assistant` });
+    }
+  }, [sendStopRecording, config.name, config.haEntityId, toast]);
+
   // Recording toggle
   const handleRecordingToggle = useCallback(() => {
     if (isWebcam) {
@@ -972,6 +1004,13 @@ export const CameraFeedCard = ({
       } else {
         handleStartBrowserRecording();
       }
+    } else if (isHomeAssistant) {
+      // Home Assistant camera: use webhook recording to SD card
+      if (haManualRecording || haRecordingActiveRef.current) {
+        handleStopHARecording();
+      } else {
+        handleStartHARecording();
+      }
     } else {
       if (piRecording.isRecording) {
         handleStopPiRecording();
@@ -979,7 +1018,7 @@ export const CameraFeedCard = ({
         handleStartPiRecording(false);
       }
     }
-  }, [isWebcam, browserRecording.isRecording, piRecording.isRecording]);
+  }, [isWebcam, isHomeAssistant, browserRecording.isRecording, piRecording.isRecording, haManualRecording, handleStartHARecording, handleStopHARecording]);
 
   // Snapshot handler
   const handleSnapshot = useCallback(async () => {
@@ -999,7 +1038,11 @@ export const CameraFeedCard = ({
     }
   }, [isWebcam, browserRecording, settings, toast]);
 
-  const isRecording = isWebcam ? browserRecording.isRecording : piRecording.isRecording;
+  const isRecording = isWebcam 
+    ? browserRecording.isRecording 
+    : isHomeAssistant 
+      ? (haManualRecording || haRecordingActiveRef.current)
+      : piRecording.isRecording;
   const isProcessing = isWebcam ? browserRecording.isProcessing : piRecording.isProcessing;
   const recordingDuration = isWebcam ? browserRecording.recordingDuration : piRecording.recordingDuration;
   const formatDuration = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -1106,10 +1149,18 @@ export const CameraFeedCard = ({
             </Badge>
           )}
           
-          {!isWebcam && piRecording.piServiceConnected !== null && (
+          {/* Show Pi status for network cameras, HA status for HA cameras */}
+          {!isWebcam && !isHomeAssistant && piRecording.piServiceConnected !== null && (
             <Badge variant={piRecording.piServiceConnected ? "secondary" : "outline"} className="text-xs">
               <HardDrive className="h-3 w-3 mr-1" />
               {piRecording.piServiceConnected ? 'Pi Ready' : 'Pi Offline'}
+            </Badge>
+          )}
+          
+          {isHomeAssistant && haConfig.enabled && (
+            <Badge variant="secondary" className="text-xs">
+              <HardDrive className="h-3 w-3 mr-1" />
+              SD Card
             </Badge>
           )}
           
@@ -1159,7 +1210,7 @@ export const CameraFeedCard = ({
             {config.name}
           </Badge>
           <Badge variant="secondary" className="text-xs">
-            {isWebcam ? 'Webcam' : 'Network'}
+            {isWebcam ? 'Webcam' : isHomeAssistant ? 'Home Assistant' : 'Network'}
           </Badge>
         </div>
 
@@ -1218,8 +1269,14 @@ export const CameraFeedCard = ({
             variant={isRecording ? "destructive" : "ghost"}
             className={cn("h-7 w-7", !isRecording && "bg-background/50 hover:bg-background/80")}
             onClick={handleRecordingToggle}
-            disabled={!isConnected || isProcessing}
-            title={isRecording ? 'Stop recording' : (piRecording.piServiceConnected === false ? 'Pi service offline - click to retry' : 'Start recording')}
+            disabled={!isConnected || (isProcessing && !isHomeAssistant)}
+            title={isRecording 
+              ? (isHomeAssistant ? 'Stop SD card recording' : 'Stop recording') 
+              : (isHomeAssistant 
+                  ? 'Record to SD card via Home Assistant' 
+                  : (piRecording.piServiceConnected === false ? 'Pi service offline - click to retry' : 'Start recording')
+                )
+            }
           >
             {isProcessing ? (
               <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
