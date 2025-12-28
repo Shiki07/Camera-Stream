@@ -108,6 +108,11 @@ export const CameraFeedCard = ({
   const MAX_BLOB_URLS = 5;
   const { toast } = useToast();
   
+  // Recording state refs to prevent stale closure issues
+  const piRecordingStateRef = useRef({ isRecording: false, recordingId: null as string | null });
+  const recordingLockRef = useRef(false);
+  const motionClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Determine if webcam or network camera
   const isWebcam = config.source === 'webcam';
   
@@ -122,6 +127,14 @@ export const CameraFeedCard = ({
   // Per-camera recording hooks
   const piRecording = useCameraRecording();
   const browserRecording = useRecording();
+  
+  // Keep Pi recording state ref in sync
+  useEffect(() => {
+    piRecordingStateRef.current = {
+      isRecording: piRecording.isRecording,
+      recordingId: piRecording.recordingId
+    };
+  }, [piRecording.isRecording, piRecording.recordingId]);
   
   // Motion notification
   const motionNotification = useMotionNotification({
@@ -205,6 +218,13 @@ export const CameraFeedCard = ({
     noiseReduction: settings.noise_reduction,
     onMotionDetected: (motionLevel) => {
       setMotionDetected(true);
+      
+      // Clear any pending stop timeout (motion resumed)
+      if (motionClearTimeoutRef.current) {
+        clearTimeout(motionClearTimeoutRef.current);
+        motionClearTimeoutRef.current = null;
+      }
+      
       // Generate event ID for thumbnail storage
       const eventId = `${cameraId}_${Date.now()}`;
       // Save thumbnail
@@ -217,18 +237,28 @@ export const CameraFeedCard = ({
         console.log('Network camera motion detected, sending email notification');
         motionNotification.sendMotionAlert(undefined, motionLevel, imgRef.current);
       }
-      // Auto-record on motion (Pi-based)
-      if (piRecording.piServiceConnected && !piRecording.isRecording) {
+      // Auto-record on motion (Pi-based) - use ref for latest recording state
+      if (piRecording.piServiceConnected && !piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
         handleStartPiRecording(true);
       }
     },
     onMotionCleared: () => {
       setMotionDetected(false);
-      // Stop Pi recording when motion clears
-      if (piRecording.isRecording) {
-        console.log('Motion cleared, stopping Pi recording');
-        handleStopPiRecording();
+      
+      // Clear any existing timeout
+      if (motionClearTimeoutRef.current) {
+        clearTimeout(motionClearTimeoutRef.current);
       }
+      
+      // Add a 3-second buffer before stopping (captures post-motion footage, prevents rapid cycling)
+      motionClearTimeoutRef.current = setTimeout(() => {
+        // Use ref for latest recording state
+        if (piRecordingStateRef.current.isRecording && !recordingLockRef.current) {
+          console.log('Motion cleared (after 3s buffer), stopping Pi recording');
+          handleStopPiRecording();
+        }
+        motionClearTimeoutRef.current = null;
+      }, 3000);
     },
   });
 
@@ -778,6 +808,11 @@ export const CameraFeedCard = ({
         clearInterval(stallCheckIntervalRef.current);
         stallCheckIntervalRef.current = null;
       }
+      // Clean up motion clear timeout
+      if (motionClearTimeoutRef.current) {
+        clearTimeout(motionClearTimeoutRef.current);
+        motionClearTimeoutRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -834,27 +869,63 @@ export const CameraFeedCard = ({
     updateSetting('motion_enabled', !settings.motion_enabled);
   }, [settings.motion_enabled, updateSetting]);
 
-  // Pi Recording handlers
+  // Pi Recording handlers with lock mechanism to prevent overlapping operations
   const handleStartPiRecording = useCallback(async (motionTriggered = false) => {
-    const result = await piRecording.startRecording({
-      cameraUrl: config.url,
-      cameraName: config.name,
-      quality: settings.quality,
-      motionTriggered,
-      videoPath: settings.video_path,
-    });
+    // Prevent overlapping operations
+    if (recordingLockRef.current) {
+      console.log('Recording operation in progress, skipping start');
+      return;
+    }
+    
+    // Check ref for latest state
+    if (piRecordingStateRef.current.isRecording) {
+      console.log('Already recording, skipping start');
+      return;
+    }
+    
+    recordingLockRef.current = true;
+    
+    try {
+      const result = await piRecording.startRecording({
+        cameraUrl: config.url,
+        cameraName: config.name,
+        quality: settings.quality,
+        motionTriggered,
+        videoPath: settings.video_path,
+      });
 
-    if (result) {
-      toast({ title: "Recording started", description: `Recording ${config.name} to Pi` });
-    } else if (piRecording.error) {
-      toast({ title: "Recording failed", description: piRecording.error, variant: "destructive" });
+      if (result) {
+        toast({ title: "Recording started", description: `Recording ${config.name} to Pi` });
+      } else if (piRecording.error) {
+        toast({ title: "Recording failed", description: piRecording.error, variant: "destructive" });
+      }
+    } finally {
+      recordingLockRef.current = false;
     }
   }, [config, settings, piRecording, toast]);
 
   const handleStopPiRecording = useCallback(async () => {
-    const result = await piRecording.stopRecording(config.url);
-    if (result) {
-      toast({ title: "Recording saved", description: `Saved ${result.filename}` });
+    // Prevent overlapping operations
+    if (recordingLockRef.current) {
+      console.log('Recording operation in progress, skipping stop');
+      return;
+    }
+    
+    // Check ref for latest state
+    if (!piRecordingStateRef.current.isRecording) {
+      console.log('Not recording, skipping stop');
+      return;
+    }
+    
+    recordingLockRef.current = true;
+    
+    try {
+      const result = await piRecording.stopRecording(config.url);
+      if (result) {
+        toast({ title: "Recording saved", description: `Saved ${result.filename}` });
+      }
+    } finally {
+      recordingLockRef.current = false;
     }
   }, [config.url, piRecording, toast]);
 
