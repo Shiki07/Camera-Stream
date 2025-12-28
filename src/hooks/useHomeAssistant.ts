@@ -307,6 +307,7 @@ export const useHomeAssistant = () => {
     motion_level?: number;
     timestamp?: string;
     entity_id?: string;
+    recording_location?: string;
   }): Promise<boolean> => {
     if (!config.enabled || !config.webhookId || !config.url) {
       return false;
@@ -323,6 +324,7 @@ export const useHomeAssistant = () => {
           ...eventData,
           source: 'camera_stream',
           timestamp: eventData.timestamp || new Date().toISOString(),
+          recording_location: config.recordingLocation,
         }),
       });
 
@@ -330,7 +332,7 @@ export const useHomeAssistant = () => {
     } catch {
       return false;
     }
-  }, [config.enabled, config.webhookId, config.url]);
+  }, [config.enabled, config.webhookId, config.url, config.recordingLocation]);
 
   // Send motion detected event
   const sendMotionEvent = useCallback(async (cameraName: string, motionLevel: number): Promise<boolean> => {
