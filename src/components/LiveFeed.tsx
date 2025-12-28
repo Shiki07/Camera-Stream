@@ -19,7 +19,7 @@ import { useToast } from "@/components/ui/use-toast";
 interface LiveFeedProps {
   isRecording: boolean;
   onRecordingChange: (recording: boolean) => void;
-  storageType: 'cloud' | 'local';
+  storageType: 'local';
   quality: 'high' | 'medium' | 'low';
   motionDetectionEnabled: boolean;
   onMotionDetected: (detected: boolean) => void;
@@ -163,7 +163,7 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
           (now - lastRecordingAttemptRef.current > minRecordingInterval)) {
         lastRecordingAttemptRef.current = now;
         recording.startRecording(currentStream, {
-          storageType,
+          storageType: 'local',
           fileType: 'video',
           quality,
           motionDetected: true,
@@ -430,7 +430,7 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
       onRecordingChange(false);
     } else {
       recording.startRecording(currentStream, {
-        storageType,
+        storageType: 'local',
         fileType: 'video',
         quality,
         motionDetected: false,
@@ -448,7 +448,7 @@ export const LiveFeed = forwardRef<LiveFeedHandle, LiveFeedProps>(({
     if (!(currentVideoRef instanceof HTMLVideoElement) && !(currentVideoRef instanceof HTMLImageElement)) return;
     
     recording.takeSnapshot(currentVideoRef, {
-      storageType,
+      storageType: 'local',
       fileType: 'image',
       quality,
       motionDetected: cameraSource === 'webcam' ? motionDetection.motionDetected : imageMotionDetection.motionDetected,
