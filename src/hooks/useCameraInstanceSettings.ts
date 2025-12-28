@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { CameraSettings, DEFAULT_CAMERA_SETTINGS } from '@/types/camera';
 
 const STORAGE_KEY = 'camera_settings';
+const SETTINGS_CHANGED_EVENT = 'camera-settings-changed';
+
+// Custom event type for type safety
+interface SettingsChangedEventDetail {
+  cameraId: string;
+  settings: CameraSettings;
+}
 
 export const useCameraInstanceSettings = (cameraId: string | undefined) => {
   const [settings, setSettings] = useState<CameraSettings>(DEFAULT_CAMERA_SETTINGS);
@@ -9,10 +16,9 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Load settings from localStorage
-  useEffect(() => {
+  const loadSettings = useCallback(() => {
     if (!cameraId) {
       setSettings(DEFAULT_CAMERA_SETTINGS);
-      setIsLoading(false);
       return;
     }
 
@@ -26,12 +32,31 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
       }
     } catch {
       // Use defaults on error
-    } finally {
-      setIsLoading(false);
     }
   }, [cameraId]);
 
-  // Save settings to localStorage
+  // Initial load
+  useEffect(() => {
+    loadSettings();
+    setIsLoading(false);
+  }, [loadSettings]);
+
+  // Listen for settings changes from other components
+  useEffect(() => {
+    if (!cameraId) return;
+
+    const handleSettingsChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<SettingsChangedEventDetail>;
+      if (customEvent.detail.cameraId === cameraId) {
+        setSettings(prev => ({ ...prev, ...customEvent.detail.settings }));
+      }
+    };
+
+    window.addEventListener(SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+  }, [cameraId]);
+
+  // Save settings to localStorage and emit event
   const saveSettings = useCallback((newSettings: Partial<CameraSettings>) => {
     if (!cameraId) return;
     
@@ -41,10 +66,16 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
       const stored = localStorage.getItem(STORAGE_KEY);
       const allSettings = stored ? JSON.parse(stored) : {};
       
-      allSettings[cameraId] = { ...settings, ...newSettings };
+      const updatedSettings = { ...settings, ...newSettings };
+      allSettings[cameraId] = updatedSettings;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allSettings));
       
-      setSettings(prev => ({ ...prev, ...newSettings }));
+      setSettings(updatedSettings);
+
+      // Emit custom event to notify other components
+      window.dispatchEvent(new CustomEvent<SettingsChangedEventDetail>(SETTINGS_CHANGED_EVENT, {
+        detail: { cameraId, settings: updatedSettings }
+      }));
     } catch {
       // Silent fail
     } finally {
