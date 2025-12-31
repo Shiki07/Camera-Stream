@@ -280,13 +280,19 @@ const Auth = () => {
                   Please click the verification link in your email to activate your account and access your camera control system.
                 </AlertDescription>
               </Alert>
+              <Alert className="bg-amber-500/20 border-amber-500">
+                <Mail className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-amber-200">
+                  <strong>Can't find the email?</strong> Please check your spam or junk folder. The email may take a few minutes to arrive.
+                </AlertDescription>
+              </Alert>
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
               <p className="text-sm text-muted-foreground">
-                Didn't receive the email? Check your spam folder or click the button below.
+                Still didn't receive the email? Click the button below to resend.
               </p>
             </div>
           </CardContent>
