@@ -20,7 +20,8 @@ import { format } from 'date-fns';
 export const RecordingsLibrary = () => {
   const { toast } = useToast();
   const { 
-    isSupported, 
+    isSupported,
+    isAuthenticated,
     listOPFSFiles, 
     deleteOPFSFile, 
     downloadOPFSFile,
@@ -48,12 +49,12 @@ export const RecordingsLibrary = () => {
   };
 
   useEffect(() => {
-    if (isSupported) {
+    if (isSupported && isAuthenticated) {
       loadFiles();
     } else {
       setIsLoading(false);
     }
-  }, [isSupported]);
+  }, [isSupported, isAuthenticated]);
 
   const handleDownload = async (filename: string) => {
     const success = await downloadOPFSFile(filename);
