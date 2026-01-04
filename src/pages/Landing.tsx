@@ -210,7 +210,7 @@ const Landing = () => {
                         <Eye className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-xs font-medium">4 Cameras</p>
+                        <p className="text-xs font-medium">16 Cameras</p>
                         <p className="text-[10px] text-muted-foreground">All Online</p>
                       </div>
                     </div>
