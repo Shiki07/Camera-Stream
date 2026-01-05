@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from "@/components/SEOHead";
+import { StructuredData } from "@/components/StructuredData";
 import { Camera, ArrowLeft } from "lucide-react";
 
 const PrivacyPolicy = () => {
@@ -9,8 +10,13 @@ const PrivacyPolicy = () => {
       <SEOHead 
         title="Privacy Policy - Camera Stream | Your Privacy Matters"
         description="Learn how Camera Stream protects your privacy. Our privacy-first approach means your camera data stays on your devices."
-        keywords="camera stream privacy policy, data protection, privacy-focused camera, security camera privacy"
-        canonical="https://www.rpicamalert.xyz/privacy"
+        keywords="camera stream privacy policy, data protection, privacy-focused camera, security camera privacy, GDPR compliance, data security"
+        canonical="https://www.camerastream.live/privacy"
+      />
+      <StructuredData 
+        type="page"
+        pageTitle="Privacy Policy"
+        pageDescription="How Camera Stream protects your privacy and data"
       />
       
       <div className="min-h-screen bg-background">

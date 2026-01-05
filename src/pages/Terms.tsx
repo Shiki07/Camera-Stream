@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from "@/components/SEOHead";
+import { StructuredData } from "@/components/StructuredData";
 import { Camera, ArrowLeft } from "lucide-react";
 
 const Terms = () => {
@@ -8,9 +9,14 @@ const Terms = () => {
     <>
       <SEOHead 
         title="Terms of Service - Camera Stream | User Agreement"
-        description="Terms and conditions for using Camera Stream security camera monitoring service."
-        keywords="camera stream terms of service, user agreement, terms and conditions"
+        description="Terms and conditions for using Camera Stream security camera monitoring service. Read our user agreement and service policies."
+        keywords="camera stream terms of service, user agreement, terms and conditions, service policy, legal terms"
         canonical="https://www.camerastream.live/terms"
+      />
+      <StructuredData 
+        type="page"
+        pageTitle="Terms of Service"
+        pageDescription="Terms and conditions for using Camera Stream"
       />
       
       <div className="min-h-screen bg-background">
