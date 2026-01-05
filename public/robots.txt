@@ -8,6 +8,7 @@ Disallow: /.env
 Disallow: /config/
 Disallow: /supabase/
 Disallow: /dashboard
+Disallow: /auth
 
 # Crawl-delay for politeness
 Crawl-delay: 1

@@ -27,6 +27,18 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Prevent search engines from indexing auth page
+  useEffect(() => {
+    const metaRobots = document.createElement('meta');
+    metaRobots.name = 'robots';
+    metaRobots.content = 'noindex, nofollow';
+    document.head.appendChild(metaRobots);
+    
+    return () => {
+      document.head.removeChild(metaRobots);
+    };
+  }, []);
+
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
