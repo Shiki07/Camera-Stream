@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEOHead } from "@/components/SEOHead";
 import { StructuredData, HowToStructuredData } from "@/components/StructuredData";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   Camera, ArrowLeft, Monitor, Bell, Settings, 
-  HardDrive, Shield, Wifi, Play, Plus, Video
+  HardDrive, Shield, Wifi, Play, Plus, Video, HelpCircle
 } from "lucide-react";
 
 const setupSteps = [
@@ -14,6 +15,41 @@ const setupSteps = [
   { name: "Add your first camera", text: "Click 'Add Camera' and choose between webcam or IP camera options." },
   { name: "Configure motion detection", text: "Enable motion detection and adjust sensitivity for your environment." },
   { name: "Set up email alerts", text: "Enter your email to receive instant notifications when motion is detected." }
+];
+
+const faqItems = [
+  {
+    question: "Is Camera Stream free to use?",
+    answer: "Yes, Camera Stream offers a free tier that allows you to monitor cameras, enable motion detection, and receive email alerts. All core security features are available at no cost."
+  },
+  {
+    question: "Are my camera feeds private and secure?",
+    answer: "Absolutely. Camera Stream processes video locally in your browser — streams never pass through our servers. Camera credentials are encrypted, and all recordings stay on your device. We don't track your camera usage or video content."
+  },
+  {
+    question: "What types of cameras does Camera Stream support?",
+    answer: "Camera Stream supports USB webcams, IP cameras with MJPEG or RTSP streams, Home Assistant camera integrations, and Raspberry Pi cameras. Most network-enabled cameras work with our platform."
+  },
+  {
+    question: "How does motion detection work?",
+    answer: "Motion detection analyzes video frames directly in your browser to detect movement. You can adjust sensitivity levels, set detection zones, configure cooldown periods, and receive instant email or push notifications when motion is detected."
+  },
+  {
+    question: "Where are my recordings stored?",
+    answer: "Recordings are stored locally on your device for maximum privacy. They save to your browser's download folder or a custom location you configure. No video data is uploaded to external servers."
+  },
+  {
+    question: "Can I access my cameras remotely?",
+    answer: "Yes, Camera Stream supports remote viewing through our stream relay feature and DuckDNS integration. You can securely access your cameras from anywhere while maintaining end-to-end privacy."
+  },
+  {
+    question: "Does Camera Stream work with Home Assistant?",
+    answer: "Yes, Camera Stream integrates with Home Assistant. You can connect your Home Assistant instance to view and manage your HA cameras directly within the Camera Stream dashboard."
+  },
+  {
+    question: "What browsers are supported?",
+    answer: "Camera Stream works on all modern browsers including Chrome, Firefox, Safari, and Edge. For the best experience, we recommend using the latest version of Chrome or Firefox."
+  }
 ];
 
 const Documentation = () => {
@@ -26,9 +62,10 @@ const Documentation = () => {
         canonical="https://www.camerastream.live/documentation"
       />
       <StructuredData 
-        type="page"
+        type="faq"
         pageTitle="Camera Stream Documentation"
         pageDescription="Complete setup guide and user manual for Camera Stream security camera system"
+        faqItems={faqItems}
       />
       <HowToStructuredData
         name="How to Set Up Camera Stream Security System"
@@ -240,6 +277,27 @@ const Documentation = () => {
                 </ul>
               </CardContent>
             </Card>
+          </section>
+
+          {/* FAQ Section */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <HelpCircle className="h-6 w-6 text-primary" />
+              Frequently Asked Questions
+            </h2>
+            
+            <Accordion type="single" collapsible className="w-full">
+              {faqItems.map((item, index) => (
+                <AccordionItem key={index} value={`item-${index}`}>
+                  <AccordionTrigger className="text-left">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </section>
 
           {/* Support */}
