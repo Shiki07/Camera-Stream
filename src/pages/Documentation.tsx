@@ -2,19 +2,38 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEOHead } from "@/components/SEOHead";
+import { StructuredData, HowToStructuredData } from "@/components/StructuredData";
 import { 
   Camera, ArrowLeft, Monitor, Bell, Settings, 
   HardDrive, Shield, Wifi, Play, Plus, Video
 } from "lucide-react";
 
+const setupSteps = [
+  { name: "Create your free account", text: "Sign up at Camera Stream with your email address to access the dashboard." },
+  { name: "Access your dashboard", text: "Once logged in, you'll be taken to your camera dashboard where you can manage all cameras." },
+  { name: "Add your first camera", text: "Click 'Add Camera' and choose between webcam or IP camera options." },
+  { name: "Configure motion detection", text: "Enable motion detection and adjust sensitivity for your environment." },
+  { name: "Set up email alerts", text: "Enter your email to receive instant notifications when motion is detected." }
+];
+
 const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Documentation - Camera Stream | Setup Guide & User Manual"
-        description="Learn how to set up and use Camera Stream for security monitoring. Step-by-step guides for webcams, IP cameras, motion detection, and alerts."
-        keywords="camera stream documentation, setup guide, webcam setup, IP camera configuration, motion detection guide"
+        title="Documentation - Camera Stream | Complete Setup Guide & User Manual"
+        description="Complete guide to set up Camera Stream for security monitoring. Step-by-step tutorials for webcams, IP cameras, motion detection, email alerts, and local recording."
+        keywords="camera stream documentation, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, home security DIY, surveillance setup"
         canonical="https://www.camerastream.live/documentation"
+      />
+      <StructuredData 
+        type="page"
+        pageTitle="Camera Stream Documentation"
+        pageDescription="Complete setup guide and user manual for Camera Stream security camera system"
+      />
+      <HowToStructuredData
+        name="How to Set Up Camera Stream Security System"
+        description="Step-by-step guide to set up your free security camera monitoring system with Camera Stream"
+        steps={setupSteps}
       />
       
       <div className="min-h-screen bg-background">

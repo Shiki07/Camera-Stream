@@ -12,6 +12,7 @@ import {
   Eye, Lock, Settings, Monitor, HardDrive, Wifi, HelpCircle, Home, Play, ArrowRight
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
+import { StructuredData } from "@/components/StructuredData";
 
 // FAQ data for schema markup
 const faqData = [
@@ -66,11 +67,16 @@ const Landing = () => {
   return (
     <>
       <SEOHead 
-        title="Camera Stream - Smart Security Camera Monitoring System | Motion Detection & Alerts"
-        description="Professional security camera monitoring system with real-time motion detection, instant email alerts, local storage, and privacy-focused design. Free and open-source camera management."
-        keywords="security camera system, camera motion detection, home security system, webcam monitoring, surveillance system, motion alerts, privacy camera, local storage camera, multi-camera dashboard"
+        title="Camera Stream - Free Security Camera System | Motion Detection & Alerts"
+        description="Professional security camera monitoring with real-time motion detection, instant email alerts, and local storage. 100% free, privacy-focused, open-source. Monitor up to 16 cameras."
+        keywords="free security camera, home security system, camera motion detection, webcam monitoring, surveillance system, IP camera software, privacy-focused camera, local storage camera, multi-camera dashboard, DIY security"
         canonical="https://www.camerastream.live/"
         jsonLd={faqJsonLd}
+      />
+      <StructuredData 
+        type="page"
+        pageTitle="Camera Stream - Free Security Camera Monitoring System"
+        pageDescription="Professional security camera monitoring with motion detection and privacy-focused design"
       />
       
       <div className="min-h-screen bg-background overflow-hidden">

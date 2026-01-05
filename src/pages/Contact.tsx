@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Camera, Mail, MessageSquare, ArrowLeft } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
+import { StructuredData } from "@/components/StructuredData";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -67,10 +68,15 @@ const Contact = () => {
   return (
     <>
       <SEOHead
-        title="Contact Us - Camera Stream Support"
-        description="Get in touch with the Camera Stream team. We're here to help with any questions about our security camera monitoring system."
-        keywords="contact camera stream, camera support, security camera help"
+        title="Contact Us - Camera Stream Support | Get Help"
+        description="Get in touch with the Camera Stream team. We're here to help with questions about security camera setup, motion detection, and troubleshooting."
+        keywords="contact camera stream, camera support, security camera help, technical support, camera troubleshooting"
         canonical="https://www.camerastream.live/contact"
+      />
+      <StructuredData 
+        type="page"
+        pageTitle="Contact Camera Stream Support"
+        pageDescription="Get help with your security camera monitoring system"
       />
 
       <div className="min-h-screen bg-background">

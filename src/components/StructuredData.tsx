@@ -33,6 +33,10 @@ const routeBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { name: 'Home', url: BASE_URL },
     { name: 'Documentation', url: `${BASE_URL}/documentation` }
   ],
+  '/blog': [
+    { name: 'Home', url: BASE_URL },
+    { name: 'Blog', url: `${BASE_URL}/blog` }
+  ],
   '/contact': [
     { name: 'Home', url: BASE_URL },
     { name: 'Contact', url: `${BASE_URL}/contact` }
@@ -44,10 +48,6 @@ const routeBreadcrumbs: Record<string, BreadcrumbItem[]> = {
   '/terms': [
     { name: 'Home', url: BASE_URL },
     { name: 'Terms of Service', url: `${BASE_URL}/terms` }
-  ],
-  '/landing': [
-    { name: 'Home', url: BASE_URL },
-    { name: 'Features', url: `${BASE_URL}/landing` }
   ]
 };
 

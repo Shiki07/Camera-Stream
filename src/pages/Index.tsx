@@ -8,6 +8,7 @@ import { StorageSettings } from "@/components/StorageSettings";
 import { FolderSettings } from "@/components/FolderSettings";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SEOHead } from "@/components/SEOHead";
 
 import { useState } from "react";
 import { Settings, History, AlertTriangle, RefreshCw } from "lucide-react";
@@ -21,6 +22,13 @@ const Index = () => {
 
   return (
     <AuthGuard>
+      <SEOHead 
+        title="Dashboard - Camera Stream | Security Camera Monitoring"
+        description="Manage your security cameras, view live feeds, and access recordings. Real-time motion detection and alerts."
+        keywords="camera dashboard, security monitoring, live camera feed, motion detection, camera recordings"
+        canonical="https://www.camerastream.live/dashboard"
+        noindex={true}
+      />
       <div className="min-h-screen bg-background">
         <Header />
         
