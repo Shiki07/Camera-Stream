@@ -285,8 +285,8 @@ export const useHomeAssistant = () => {
     }
   }, [config.url, config.token, toast]);
 
-  // Generate proxy URL for a camera
-  const getCameraProxyUrl = useCallback((entityId: string): string => {
+  // Generate proxy URL for a camera - returns URL and auth token for authenticated requests
+  const getCameraProxyUrl = useCallback((entityId: string): { url: string; authToken?: string } => {
     // Normalize HA base URL to origin
     let haOrigin = config.url;
     try {
@@ -297,8 +297,13 @@ export const useHomeAssistant = () => {
 
     const encodedUrl = encodeURIComponent(`${haOrigin}/api/camera_proxy_stream/${entityId}`);
     const encodedToken = encodeURIComponent(config.token);
-    return `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-camera-proxy?url=${encodedUrl}&token=${encodedToken}`;
-  }, [config.url, config.token]);
+    const proxyUrl = `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-camera-proxy?url=${encodedUrl}&token=${encodedToken}`;
+    
+    return {
+      url: proxyUrl,
+      authToken: session?.access_token,
+    };
+  }, [config.url, config.token, session?.access_token]);
 
   // Send webhook to Home Assistant
   const sendWebhook = useCallback(async (eventData: {

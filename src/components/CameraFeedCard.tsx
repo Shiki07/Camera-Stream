@@ -436,6 +436,7 @@ export const CameraFeedCard = ({
         };
         shouldTestPi = false;
         isHomeAssistant = true;
+        requiresSupabaseJwt = true; // ha-camera-proxy now requires JWT authentication
         console.log('CameraFeedCard: Using ha-camera-proxy with fetch-based MJPEG parsing');
       } else if (functionName === 'camera-proxy') {
         const inner = parsedUrl?.searchParams.get('url') || '';
@@ -448,6 +449,7 @@ export const CameraFeedCard = ({
           };
           shouldTestPi = false;
           isHomeAssistant = true;
+          requiresSupabaseJwt = true; // ha-camera-proxy now requires JWT authentication
           console.log('CameraFeedCard: Unwrapped ha-camera-proxy from camera-proxy');
         } else {
           streamUrl = config.url;
