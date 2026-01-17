@@ -222,9 +222,20 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("Missing or invalid authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!vapidPublicKey || !vapidPrivateKey) {
@@ -232,13 +243,43 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("VAPID keys not configured");
     }
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Supabase credentials not configured");
       throw new Error("Supabase credentials not configured");
     }
 
+    // Create client with user's auth to verify their identity
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify the JWT and get user claims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Invalid token:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub;
+    console.log(`Authenticated user: ${authenticatedUserId}`);
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { userId, title, body, url, cameraId } = await req.json() as PushRequest;
+
+    // Authorization check: users can only send notifications to themselves
+    if (userId !== authenticatedUserId) {
+      console.error(`Authorization denied: user ${authenticatedUserId} attempted to send notification to ${userId}`);
+      return new Response(
+        JSON.stringify({ error: "Not authorized to send notifications to this user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Sending push to user: ${userId}, title: ${title}`);
 
