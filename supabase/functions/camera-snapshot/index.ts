@@ -9,23 +9,60 @@ const corsHeaders = {
 // In-memory snapshot store (for demo - in production use Supabase Storage)
 const snapshotStore = new Map<string, { data: string; contentType: string; timestamp: number }>();
 
-// Generate a secure share token
-function generateShareToken(cameraId: string, userId: string): string {
-  const data = `${cameraId}:${userId}:${Date.now()}`;
-  // Simple hash for demo - in production use proper HMAC
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36) + Date.now().toString(36);
+// Token expiration time: 24 hours
+const TOKEN_EXPIRATION_MS = 24 * 60 * 60 * 1000;
+
+// Generate a cryptographically secure share token
+function generateSecureToken(): string {
+  return crypto.randomUUID();
 }
 
-// Verify share token (simplified for demo)
-function verifyShareToken(token: string | null): boolean {
-  // In production, verify against stored tokens in database
-  return token !== null && token.length > 10;
+// Create Supabase admin client for token operations
+function createAdminClient() {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+// Verify share token against database
+async function verifyShareToken(token: string | null, cameraId: string): Promise<boolean> {
+  if (!token || token.length < 10) {
+    return false;
+  }
+
+  try {
+    const supabase = createAdminClient();
+    
+    const { data, error } = await supabase
+      .from('camera_share_tokens')
+      .select('id, expires_at, revoked_at, camera_id')
+      .eq('token', token)
+      .eq('camera_id', cameraId)
+      .single();
+
+    if (error || !data) {
+      console.log('Token not found in database');
+      return false;
+    }
+
+    // Check if token is revoked
+    if (data.revoked_at) {
+      console.log('Token has been revoked');
+      return false;
+    }
+
+    // Check if token is expired
+    const expiresAt = new Date(data.expires_at);
+    if (expiresAt < new Date()) {
+      console.log('Token has expired');
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error verifying token:', err);
+    return false;
+  }
 }
 
 serve(async (req) => {
@@ -50,8 +87,10 @@ serve(async (req) => {
         });
       }
 
-      if (!verifyShareToken(token)) {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+      // Verify token against database with proper validation
+      const isValid = await verifyShareToken(token, cameraId);
+      if (!isValid) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -120,7 +159,7 @@ serve(async (req) => {
         timestamp: Date.now(),
       });
 
-      console.log(`Snapshot stored for camera ${camera_id} by user ${user.id}`);
+      console.log(`Snapshot stored for camera ${camera_id}`);
 
       return new Response(JSON.stringify({ 
         success: true, 
@@ -165,8 +204,27 @@ serve(async (req) => {
         });
       }
 
-      // Generate share token
-      const shareToken = generateShareToken(camera_id, user.id);
+      // Generate cryptographically secure token
+      const shareToken = generateSecureToken();
+      const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION_MS);
+      
+      // Store token in database for validation
+      const { error: insertError } = await supabase
+        .from('camera_share_tokens')
+        .insert({
+          user_id: user.id,
+          camera_id: camera_id,
+          token: shareToken,
+          expires_at: expiresAt.toISOString()
+        });
+
+      if (insertError) {
+        console.error('Error storing share token:', insertError);
+        return new Response(JSON.stringify({ error: 'Failed to generate share token' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       
       // Build the snapshot URL
       const snapshotUrl = `${supabaseUrl}/functions/v1/camera-snapshot?action=get&camera_id=${encodeURIComponent(camera_id)}&token=${shareToken}`;
@@ -179,7 +237,7 @@ camera:
     still_image_url: "${snapshotUrl}"
     scan_interval: 10  # Update every 10 seconds`;
 
-      console.log(`Share config generated for camera ${camera_id} by user ${user.id}`);
+      console.log(`Share config generated for camera ${camera_id}`);
 
       return new Response(JSON.stringify({
         success: true,
@@ -188,6 +246,66 @@ camera:
         ha_config: haConfig,
         camera_id,
         camera_name,
+        expires_at: expiresAt.toISOString(),
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST: Revoke a share token
+    if (req.method === 'POST' && action === 'revoke-token') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const body = await req.json();
+      const { token } = body;
+
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'Missing token' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Revoke the token (only if owned by user due to RLS)
+      const { error: updateError } = await supabase
+        .from('camera_share_tokens')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('token', token)
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error revoking token:', updateError);
+        return new Response(JSON.stringify({ error: 'Failed to revoke token' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Token revoked for user ${user.id}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Token revoked successfully'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -200,8 +318,7 @@ camera:
 
   } catch (error) {
     console.error('Camera snapshot error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

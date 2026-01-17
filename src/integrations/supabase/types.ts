@@ -148,6 +148,36 @@ export type Database = {
           },
         ]
       }
+      camera_share_tokens: {
+        Row: {
+          camera_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          camera_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          revoked_at?: string | null
+          token: string
+          user_id: string
+        }
+        Update: {
+          camera_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       motion_events: {
         Row: {
           camera_id: string | null
