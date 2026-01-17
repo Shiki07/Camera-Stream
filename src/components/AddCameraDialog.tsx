@@ -136,7 +136,7 @@ export const AddCameraDialog = ({ open, onOpenChange, onAdd }: AddCameraDialogPr
         return;
       }
 
-      const proxyUrl = getCameraProxyUrl(selectedHACamera);
+      const { url: proxyUrl } = getCameraProxyUrl(selectedHACamera);
       
       const config: CameraConfig = {
         source: 'homeassistant',

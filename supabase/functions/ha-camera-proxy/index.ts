@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,11 +101,50 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn('HA camera proxy: Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Missing or invalid authorization' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Create Supabase client to validate the JWT
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Validate the JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.warn('HA camera proxy: Invalid JWT token');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log('HA camera proxy: Authenticated user request');
+
     const url = new URL(req.url);
     const targetUrl = url.searchParams.get('url');
-    const token = url.searchParams.get('token');
+    const haToken = url.searchParams.get('token');
 
-    if (!targetUrl || !token) {
+    if (!targetUrl || !haToken) {
       console.warn('Missing url or token parameter');
       return new Response(
         JSON.stringify({ error: 'Missing url or token parameter' }),
@@ -120,7 +160,7 @@ serve(async (req: Request): Promise<Response> => {
     const validation = validateHomeAssistantUrl(decodedUrl);
     
     if (!validation.valid) {
-      console.warn('URL validation failed:', validation.error, 'URL:', decodedUrl.substring(0, 100));
+      console.warn('URL validation failed:', validation.error);
       return new Response(
         JSON.stringify({ error: validation.error || 'Invalid camera URL' }),
         { 
@@ -130,7 +170,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('Proxying Home Assistant camera stream:', decodedUrl.substring(0, 50) + '...');
+    console.log('Proxying Home Assistant camera stream');
 
     // Create AbortController for long-running streams with extended timeout
     const controller = new AbortController();
@@ -144,7 +184,7 @@ serve(async (req: Request): Promise<Response> => {
       // Fetch from Home Assistant with auth and keep-alive settings
       const response = await fetch(decodedUrl, {
         headers: {
-          'Authorization': `Bearer ${decodeURIComponent(token)}`,
+          'Authorization': `Bearer ${decodeURIComponent(haToken)}`,
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
