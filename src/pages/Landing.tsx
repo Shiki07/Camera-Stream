@@ -50,18 +50,6 @@ const faqData = [
   }
 ];
 
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": faqData.map(item => ({
-    "@type": "Question",
-    "name": item.question,
-    "acceptedAnswer": {
-      "@type": "Answer",
-      "text": item.answer
-    }
-  }))
-};
 
 const Landing = () => {
   return (
@@ -71,12 +59,12 @@ const Landing = () => {
         description="Professional security camera monitoring with real-time motion detection, instant email alerts, and local storage. 100% free, privacy-focused, open-source. Monitor up to 16 cameras."
         keywords="free security camera, home security system, camera motion detection, webcam monitoring, surveillance system, IP camera software, privacy-focused camera, local storage camera, multi-camera dashboard, DIY security"
         canonical="https://www.camerastream.live/"
-        jsonLd={faqJsonLd}
       />
       <StructuredData 
-        type="page"
+        type="faq"
         pageTitle="Camera Stream - Free Security Camera Monitoring System"
         pageDescription="Professional security camera monitoring with motion detection and privacy-focused design"
+        faqItems={faqData}
       />
       
       <div className="min-h-screen bg-background overflow-hidden">
