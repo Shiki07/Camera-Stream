@@ -115,9 +115,6 @@ const Landing = () => {
                   <span className="text-sm font-medium">100% Free & Privacy-First</span>
                 </div>
 
-                <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold mb-6 bg-gradient-to-r from-cyan-400 via-primary to-blue-400 text-gradient animate-fade-in-up opacity-0 animation-delay-100">
-                  A Real Free Fast and Complete Tool to Monitor your House Without Too Much Hassle
-                </h2>
 
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 animate-fade-in-up opacity-0 animation-delay-100">
                   Your Cameras, One
