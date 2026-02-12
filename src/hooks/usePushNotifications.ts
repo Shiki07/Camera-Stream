@@ -60,7 +60,7 @@ export const usePushNotifications = () => {
 
       try {
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
+        const subscription = await (registration as any).pushManager.getSubscription();
         
         if (subscription) {
           // Verify it's in the database
@@ -140,7 +140,7 @@ export const usePushNotifications = () => {
       const keyView = new Uint8Array(keyBuffer);
       keyView.set(applicationServerKey);
 
-      const subscription = await registration.pushManager.subscribe({
+      const subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: keyBuffer
       });
@@ -194,7 +194,7 @@ export const usePushNotifications = () => {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
 
       if (subscription) {
         await subscription.unsubscribe();
