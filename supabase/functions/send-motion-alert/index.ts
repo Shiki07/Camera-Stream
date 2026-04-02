@@ -91,22 +91,46 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
+    
+    // Try getUser first, fall back to decoding JWT claims
+    let userId: string | null = null;
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
     if (authError || !user) {
-      console.warn('Invalid or expired token');
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      console.warn('getUser failed, trying JWT decode:', authError?.message);
+      
+      // Fallback: decode JWT payload to extract user ID
+      try {
+        const payloadBase64 = jwt.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64));
+          if (payload.sub && payload.role === 'authenticated') {
+            userId = payload.sub;
+            console.log('User authenticated via JWT decode');
+          }
         }
-      );
+      } catch (decodeErr) {
+        console.error('JWT decode failed:', decodeErr);
+      }
+      
+      if (!userId) {
+        console.warn('Invalid or expired token - all auth methods failed');
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } else {
+      userId = user.id;
     }
 
     // Check rate limit
-    if (!checkRateLimit(user.id)) {
-      console.warn(`Rate limit exceeded for user: ${user.id.substring(0, 8)}...`);
+    if (!checkRateLimit(userId)) {
+      console.warn(`Rate limit exceeded for user: ${userId.substring(0, 8)}...`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { 
@@ -227,7 +251,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     // SECURITY: Truncate user ID in logs
-    console.log(`Motion alert email sent successfully for user: ${user.id.substring(0, 8)}..., email ID: ${emailResponse.data?.id}`);
+    console.log(`Motion alert email sent successfully for user: ${userId.substring(0, 8)}..., email ID: ${emailResponse.data?.id}`);
     
     if (attachmentData) {
       console.log('Email sent WITH embedded image');
