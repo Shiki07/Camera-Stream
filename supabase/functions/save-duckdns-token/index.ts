@@ -134,7 +134,7 @@ serve(async (req) => {
     }
 
     // Encrypt the token using the database function
-    const { data: encryptedToken, error: encryptError } = await supabase.rpc('encrypt_credential', {
+    const { data: encryptedToken, error: encryptError } = await supabaseUser.rpc('encrypt_credential', {
       plaintext: token,
       user_id: user.id
     });
