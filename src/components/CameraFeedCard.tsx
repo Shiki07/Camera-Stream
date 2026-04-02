@@ -107,6 +107,8 @@ export const CameraFeedCard = ({
   // Memory leak prevention: track and limit blob URLs
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const MAX_BLOB_URLS = 5;
+  // Persistent reconnection tracking - never give up
+  const reconnectAttemptsRef = useRef<number>(0);
   const { toast } = useToast();
   
   // Recording state refs to prevent stale closure issues
