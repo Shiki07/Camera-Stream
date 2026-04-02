@@ -202,7 +202,7 @@ serve(async (req) => {
       const metadata = parts[1] ? JSON.parse(parts[1]) : {};
 
       // Decrypt the token
-      const { data: decryptedToken, error: decryptError } = await supabase.rpc('decrypt_credential', {
+      const { data: decryptedToken, error: decryptError } = await supabaseUserClient.rpc('decrypt_credential', {
         ciphertext: encryptedToken,
         user_id: user.id
       });
