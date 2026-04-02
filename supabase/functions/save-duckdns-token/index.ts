@@ -80,9 +80,7 @@ serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
 
-    // Verify the JWT token
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt);
     
     if (authError || !user) {
       console.warn('Invalid or expired token');
