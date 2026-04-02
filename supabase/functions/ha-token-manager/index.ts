@@ -98,8 +98,9 @@ const toBase64 = (input: ArrayBuffer | Uint8Array): string => {
   return btoa(String.fromCharCode(...bytes));
 };
 
-const fromBase64 = (value: string): Uint8Array => {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+const fromBase64 = (value: string): ArrayBuffer => {
+  const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 };
 
 const deriveEncryptionKey = async (userId: string): Promise<CryptoKey> => {
