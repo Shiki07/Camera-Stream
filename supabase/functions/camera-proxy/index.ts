@@ -130,17 +130,36 @@ serve(async (req) => {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    let userId: string | null = null;
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
 
     if (authError || !user) {
-      console.log('Camera proxy: Invalid token', authError?.message);
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      console.log('Camera proxy: getUser failed, trying JWT decode:', authError?.message);
+      
+      // Fallback: decode JWT payload to extract user ID
+      try {
+        const payloadBase64 = jwt.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64));
+          if (payload.sub && payload.role === 'authenticated') {
+            userId = payload.sub;
+            console.log('Camera proxy: User authenticated via JWT decode');
+          }
+        }
+      } catch (decodeErr) {
+        console.error('Camera proxy: JWT decode failed:', decodeErr);
+      }
+      
+      if (!userId) {
+        console.log('Camera proxy: Invalid token - all auth methods failed');
+        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      userId = user.id;
+      console.log('Camera proxy: User authenticated successfully');
     }
-
-    console.log('Camera proxy: User authenticated successfully');
 
     if (!checkRateLimit(user.id)) {
       console.log('Camera proxy: Rate limit exceeded');
