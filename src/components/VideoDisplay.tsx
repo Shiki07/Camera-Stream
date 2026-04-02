@@ -172,8 +172,8 @@ export const VideoDisplay = ({
             <>
               <p className="text-red-400 mb-4 max-w-md">{error}</p>
               <Button 
-                onClick={cameraSource === 'webcam' ? onStartWebcam : onForceReconnect}
-                disabled={isLoading || isConnecting}
+                onClick={cameraSource === 'webcam' ? onStartWebcam : (onForceReconnect ?? onStartWebcam)}
+                disabled={isLoading || isConnecting || (cameraSource === 'network' && !onForceReconnect)}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {isLoading || isConnecting ? 'Connecting...' : 'Try Again'}
