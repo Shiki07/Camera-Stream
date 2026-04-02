@@ -74,6 +74,11 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const jwt = authHeader.replace('Bearer ', '');
+    
+    // Create a user-context client for RPC calls that check auth.uid()
+    const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
     if (authError || !user) {
@@ -111,7 +116,7 @@ serve(async (req) => {
       }
 
       // Encrypt the token
-      const { data: encryptedToken, error: encryptError } = await supabase.rpc('encrypt_credential', {
+      const { data: encryptedToken, error: encryptError } = await supabaseUserClient.rpc('encrypt_credential', {
         plaintext: token,
         user_id: user.id
       });
@@ -197,7 +202,7 @@ serve(async (req) => {
       const metadata = parts[1] ? JSON.parse(parts[1]) : {};
 
       // Decrypt the token
-      const { data: decryptedToken, error: decryptError } = await supabase.rpc('decrypt_credential', {
+      const { data: decryptedToken, error: decryptError } = await supabaseUserClient.rpc('decrypt_credential', {
         ciphertext: encryptedToken,
         user_id: user.id
       });
