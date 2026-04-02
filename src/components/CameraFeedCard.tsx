@@ -680,18 +680,22 @@ export const CameraFeedCard = ({
         stallCheckIntervalRef.current = null;
       }
 
-      // Distinguish natural MJPEG cycles from actual connection errors
+      // Auto-reconnect: NEVER give up - always retry with exponential backoff
       if (streamEnded && isActiveRef.current && shouldAutoReconnect) {
         const connectionAge = Date.now() - connectionAgeRef.current;
         const framesProcessed = frameCountRef.current;
         
         if (connectionAge < 10000 && framesProcessed < 5) {
           // Short-lived connection with few frames = actual error, use exponential backoff
-          console.log(`CameraFeedCard: Connection error detected for ${config.name} (age: ${connectionAge}ms, frames: ${framesProcessed}), reconnecting with delay...`);
+          reconnectAttemptsRef.current++;
+          const attempt = reconnectAttemptsRef.current;
+          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+          const delay = Math.min(2000 * Math.pow(2, attempt - 1), 30000);
+          console.log(`CameraFeedCard: Connection error for ${config.name} (attempt ${attempt}, age: ${connectionAge}ms, frames: ${framesProcessed}), retrying in ${delay}ms...`);
           setIsConnected(false);
           setIsConnecting(true);
-          const delay = Math.min(3000 * Math.max(1, Math.floor(connectionAge / 1000)), 10000);
-          setTimeout(() => {
+          setError(`Reconnecting... (attempt ${attempt})`);
+          reconnectTimeoutRef.current = setTimeout(() => {
             if (isActiveRef.current) {
               connectToNetworkStream();
             }
@@ -699,6 +703,7 @@ export const CameraFeedCard = ({
         } else {
           // Natural stream cycle (long-running, many frames) = immediate seamless restart
           console.log(`CameraFeedCard: Natural stream cycle for ${config.name} (age: ${connectionAge}ms, frames: ${framesProcessed}), immediate restart...`);
+          reconnectAttemptsRef.current = 0; // Reset on successful long connection
           setIsConnected(false);
           setIsConnecting(true);
           setTimeout(() => {
