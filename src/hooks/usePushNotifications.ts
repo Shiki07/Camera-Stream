@@ -140,7 +140,7 @@ export const usePushNotifications = () => {
       const keyView = new Uint8Array(keyBuffer);
       keyView.set(applicationServerKey);
 
-      const subscription = await (registration as any).pushManager.subscribe({
+      const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: keyBuffer
       });
