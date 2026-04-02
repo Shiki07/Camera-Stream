@@ -7,20 +7,26 @@ const corsHeaders = {
 };
 
 // Helper to verify JWT and get user
-async function verifyUser(req: Request, supabase: any): Promise<{ userId: string | null; error: string | null }> {
+async function verifyUser(req: Request): Promise<{ userId: string | null; error: string | null }> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return { userId: null, error: 'Missing or invalid authorization header' };
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
   const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data, error } = await userClient.auth.getClaims(token);
   
-  if (error || !user) {
+  if (error || !data?.claims?.sub) {
     return { userId: null, error: 'Invalid or expired token' };
   }
 
-  return { userId: user.id, error: null };
+  return { userId: data.claims.sub as string, error: null };
 }
 
 serve(async (req) => {
