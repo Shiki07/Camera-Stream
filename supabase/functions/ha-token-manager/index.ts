@@ -74,6 +74,11 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const jwt = authHeader.replace('Bearer ', '');
+    
+    // Create a user-context client for RPC calls that check auth.uid()
+    const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
     if (authError || !user) {
