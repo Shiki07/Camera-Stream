@@ -61,6 +61,14 @@ export const useHomeAssistant = () => {
 
         if (response.ok && data.success && data.config) {
           setConfig(data.config);
+
+          if (data.requiresTokenReset) {
+            toast({
+              title: 'Token needs to be re-entered',
+              description: 'Your saved Home Assistant token could not be decrypted, so please save it again.',
+              variant: 'destructive',
+            });
+          }
           
           // Clean up legacy localStorage if server has data
           localStorage.removeItem(LEGACY_STORAGE_KEY);
