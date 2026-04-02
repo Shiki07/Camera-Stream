@@ -10,6 +10,8 @@ import { useDuckDNS } from '@/hooks/useDuckDNS';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+const DUCKDNS_TOKEN_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-duckdns-token`;
+
 export const DuckDNSSettings = () => {
   const {
     config,
@@ -39,12 +41,24 @@ export const DuckDNSSettings = () => {
 
     setIsSavingToken(true);
     try {
-      const { error } = await supabase.functions.invoke('save-duckdns-token', {
-        body: { token: token.trim() }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Please log in before saving your DuckDNS token');
+      }
+
+      const response = await fetch(DUCKDNS_TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ token: token.trim() }),
       });
 
-      if (error) {
-        throw new Error(error.message);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save DuckDNS token');
       }
 
       toast({
@@ -56,7 +70,7 @@ export const DuckDNSSettings = () => {
       console.error('Error saving token:', error);
       toast({
         title: "Error", 
-        description: "Failed to save DuckDNS token",
+        description: error instanceof Error ? error.message : 'Failed to save DuckDNS token',
         variant: "destructive"
       });
     } finally {
