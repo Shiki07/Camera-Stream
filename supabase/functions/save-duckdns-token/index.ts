@@ -36,6 +36,57 @@ const validateDuckDNSToken = (token: string): boolean => {
   return tokenRegex.test(token) && token.length === 36;
 };
 
+const textEncoder = new TextEncoder();
+
+const getTokenEncryptionSecret = (): string => {
+  const secret = Deno.env.get('TOKEN_ENCRYPTION_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!secret) {
+    throw new Error('Missing token encryption secret');
+  }
+
+  return secret;
+};
+
+const toBase64 = (input: ArrayBuffer | Uint8Array): string => {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  return btoa(String.fromCharCode(...bytes));
+};
+
+const deriveEncryptionKey = async (userId: string): Promise<CryptoKey> => {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(getTokenEncryptionSecret()),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: textEncoder.encode(`token:${userId}`),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+};
+
+const encryptToken = async (plaintext: string, userId: string): Promise<string> => {
+  const key = await deriveEncryptionKey(userId);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    textEncoder.encode(plaintext)
+  );
+
+  return `${toBase64(iv)}:${toBase64(ciphertext)}`;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -134,14 +185,11 @@ serve(async (req) => {
       );
     }
 
-    // Encrypt the token using the database function
-    const { data: encryptedToken, error: encryptError } = await supabaseUser.rpc('encrypt_credential', {
-      plaintext: token,
-      user_id: userId
-    });
-
-    if (encryptError || !encryptedToken) {
-      console.error('Error encrypting token:', encryptError);
+    let encryptedToken: string;
+    try {
+      encryptedToken = await encryptToken(token, userId);
+    } catch (error) {
+      console.error('Error encrypting token:', error);
       return new Response(
         JSON.stringify({ error: 'Failed to encrypt token' }),
         { 

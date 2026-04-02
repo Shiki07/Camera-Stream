@@ -72,6 +72,67 @@ const sanitizeInput = (input: string): string => {
   return input.trim().replace(/[<>'"&]/g, '');
 };
 
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+const getTokenEncryptionSecret = (): string => {
+  const secret = Deno.env.get('TOKEN_ENCRYPTION_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!secret) {
+    throw new Error('Missing token encryption secret');
+  }
+
+  return secret;
+};
+
+const fromBase64 = (value: string): ArrayBuffer => {
+  const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+};
+
+const deriveEncryptionKey = async (userId: string): Promise<CryptoKey> => {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(getTokenEncryptionSecret()),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: textEncoder.encode(`token:${userId}`),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+};
+
+const decryptToken = async (ciphertext: string, userId: string): Promise<string | null> => {
+  const [ivBase64, encryptedBase64] = ciphertext.split(':');
+  if (!ivBase64 || !encryptedBase64) {
+    return null;
+  }
+
+  try {
+    const key = await deriveEncryptionKey(userId);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(ivBase64) },
+      key,
+      fromBase64(encryptedBase64)
+    );
+
+    return textDecoder.decode(decrypted);
+  } catch (error) {
+    console.warn('Error decrypting token:', error);
+    return null;
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -197,14 +258,10 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt the token using the database function
-    const { data: decryptedToken, error: decryptError } = await supabase.rpc('decrypt_credential', {
-      ciphertext: tokenRecord.encrypted_token,
-      user_id: user.id
-    });
+    const decryptedToken = await decryptToken(tokenRecord.encrypted_token, user.id);
 
-    if (decryptError || !decryptedToken) {
-      console.error('Error decrypting token:', decryptError);
+    if (!decryptedToken) {
+      console.error('Error decrypting token: token could not be decrypted');
       return new Response(
         JSON.stringify({ error: 'Failed to decrypt token. Please re-save your DuckDNS token.' }),
         { 
