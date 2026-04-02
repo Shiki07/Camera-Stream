@@ -80,10 +80,11 @@ serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
 
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt);
-    
-    if (authError || !user) {
-      console.warn('Invalid or expired token');
+    const { data: claimsData, error: authError } = await supabaseUser.auth.getClaims(jwt);
+    const userId = claimsData?.claims?.sub;
+
+    if (authError || !userId) {
+      console.warn('Invalid or expired token', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         { 
@@ -94,8 +95,8 @@ serve(async (req) => {
     }
 
     // Check rate limit
-    if (!checkRateLimit(user.id)) {
-      console.warn(`Rate limit exceeded for user: ${user.id}`);
+    if (!checkRateLimit(userId)) {
+      console.warn(`Rate limit exceeded for user: ${userId}`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { 
@@ -136,7 +137,7 @@ serve(async (req) => {
     // Encrypt the token using the database function
     const { data: encryptedToken, error: encryptError } = await supabaseUser.rpc('encrypt_credential', {
       plaintext: token,
-      user_id: user.id
+      user_id: userId
     });
 
     if (encryptError || !encryptedToken) {
@@ -154,7 +155,7 @@ serve(async (req) => {
     const { data: existingToken, error: fetchError } = await supabaseAdmin
       .from('user_tokens')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('token_type', 'duckdns')
       .maybeSingle();
 
@@ -178,7 +179,7 @@ serve(async (req) => {
       const { error } = await supabaseAdmin
         .from('user_tokens')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           token_type: 'duckdns',
           encrypted_token: encryptedToken,
           created_at: new Date().toISOString(),

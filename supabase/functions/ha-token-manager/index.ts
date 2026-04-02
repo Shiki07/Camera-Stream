@@ -109,24 +109,24 @@ serve(async (req) => {
 
     const jwt = authHeader.replace('Bearer ', '');
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-    
-    // Verify JWT using admin client (reliable for all token types)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
 
-    if (authError || !user) {
-      console.warn('Auth verification failed:', authError?.message || 'No user returned');
+    // User-authenticated client for claims verification and encrypt/decrypt RPC (requires auth.uid())
+    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
+
+    const { data: claimsData, error: authError } = await supabaseUserClient.auth.getClaims(jwt);
+    const userId = claimsData?.claims?.sub;
+
+    if (authError || !userId) {
+      console.warn('Auth verification failed:', authError?.message || 'No user claims returned');
       return new Response(
         JSON.stringify({ error: 'Invalid or expired session. Please log in again.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // User-authenticated client for encrypt/decrypt RPC (requires auth.uid())
-    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } }
-    });
-
-    if (!checkRateLimit(user.id)) {
+    if (!checkRateLimit(userId)) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -155,7 +155,7 @@ serve(async (req) => {
 
       const { data: encryptedToken, error: encryptError } = await supabaseUserClient.rpc('encrypt_credential', {
         plaintext: token,
-        user_id: user.id
+        user_id: userId
       });
 
       if (encryptError || !encryptedToken) {
@@ -176,7 +176,7 @@ serve(async (req) => {
       const { data: existingToken } = await supabase
         .from('user_tokens')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('token_type', 'homeassistant')
         .maybeSingle();
 
@@ -194,7 +194,7 @@ serve(async (req) => {
         const { error } = await supabase
           .from('user_tokens')
           .insert({
-            user_id: user.id,
+            user_id: userId,
             token_type: 'homeassistant',
             encrypted_token: `${encryptedToken}|||${metadata}`,
             created_at: new Date().toISOString(),
@@ -222,7 +222,7 @@ serve(async (req) => {
       const { data: tokenRecord } = await supabase
         .from('user_tokens')
         .select('encrypted_token')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('token_type', 'homeassistant')
         .maybeSingle();
 
@@ -244,7 +244,7 @@ serve(async (req) => {
 
       const { data: decryptedToken, error: decryptError } = await supabaseUserClient.rpc('decrypt_credential', {
         ciphertext: encryptedToken,
-        user_id: user.id
+        user_id: userId
       });
 
       if (decryptError || !decryptedToken) {
@@ -272,7 +272,7 @@ serve(async (req) => {
       await supabase
         .from('user_tokens')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('token_type', 'homeassistant');
 
       console.log('Home Assistant configuration deleted');
