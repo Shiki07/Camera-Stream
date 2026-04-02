@@ -55,11 +55,12 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase clients
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
       console.error('Missing Supabase configuration');
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -70,7 +71,14 @@ serve(async (req) => {
       );
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Service role client for auth verification and DB writes
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // User-authenticated client for encrypt_credential (requires auth.uid())
+    const jwt = authHeader.replace('Bearer ', '');
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
 
     // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
