@@ -109,18 +109,22 @@ serve(async (req) => {
 
     const jwt = authHeader.replace('Bearer ', '');
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } }
-    });
-
-    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser(jwt);
+    
+    // Verify JWT using admin client (reliable for all token types)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
 
     if (authError || !user) {
+      console.warn('Auth verification failed:', authError?.message || 'No user returned');
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
+        JSON.stringify({ error: 'Invalid or expired session. Please log in again.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // User-authenticated client for encrypt/decrypt RPC (requires auth.uid())
+    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
 
     if (!checkRateLimit(user.id)) {
       return new Response(
