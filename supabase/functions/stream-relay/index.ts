@@ -7,20 +7,26 @@ const corsHeaders = {
 };
 
 // Helper to verify JWT and get user
-async function verifyUser(req: Request, supabase: any): Promise<{ userId: string | null; error: string | null }> {
+async function verifyUser(req: Request): Promise<{ userId: string | null; error: string | null }> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return { userId: null, error: 'Missing or invalid authorization header' };
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
   const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data, error } = await userClient.auth.getClaims(token);
   
-  if (error || !user) {
+  if (error || !data?.claims?.sub) {
     return { userId: null, error: 'Invalid or expired token' };
   }
 
-  return { userId: user.id, error: null };
+  return { userId: data.claims.sub as string, error: null };
 }
 
 serve(async (req) => {
@@ -44,7 +50,7 @@ serve(async (req) => {
     // List active rooms (rooms with frames updated in last 30 seconds)
     // REQUIRES AUTHENTICATION - only show user's own rooms
     if (action === 'list-rooms') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -78,7 +84,7 @@ serve(async (req) => {
     // Push a frame (host) - upsert to database
     // REQUIRES AUTHENTICATION
     if (action === 'push' && req.method === 'POST') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -130,7 +136,7 @@ serve(async (req) => {
     // Get latest frame (viewer) - read from database
     // REQUIRES AUTHENTICATION - user can only view their own streams
     if (action === 'pull') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -185,7 +191,7 @@ serve(async (req) => {
     // Stop a stream (host) - delete from database
     // REQUIRES AUTHENTICATION
     if (action === 'stop') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
