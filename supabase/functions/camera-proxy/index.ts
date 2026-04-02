@@ -161,7 +161,7 @@ serve(async (req) => {
       console.log('Camera proxy: User authenticated successfully');
     }
 
-    if (!checkRateLimit(user.id)) {
+    if (!checkRateLimit(userId)) {
       console.log('Camera proxy: Rate limit exceeded');
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
