@@ -6,33 +6,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Rate limiting store
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
+
+type RecordingLocation = 'sd_card' | 'nas' | 'local_media';
+
+type HomeAssistantStoredMetadata = {
+  url?: string;
+  webhookId?: string;
+  enabled?: boolean;
+  recordingLocation?: RecordingLocation;
+};
 
 const checkRateLimit = (userId: string): boolean => {
   const now = Date.now();
   const limit = rateLimits.get(userId);
-  
+
   if (!limit || now > limit.resetTime) {
     rateLimits.set(userId, { count: 1, resetTime: now + 60000 });
     return true;
   }
-  
+
   if (limit.count >= 10) {
     return false;
   }
-  
+
   limit.count++;
   return true;
 };
 
-// Validate Home Assistant URL format
 const validateHAUrl = (url: string): boolean => {
   if (!url || typeof url !== 'string') return false;
-  
+
   try {
     const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol) && 
+    return ['http:', 'https:'].includes(parsed.protocol) &&
            parsed.hostname.length > 0 &&
            !['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
   } catch {
@@ -40,12 +47,39 @@ const validateHAUrl = (url: string): boolean => {
   }
 };
 
-// Validate Home Assistant token format (long-lived access tokens are typically 180+ chars)
 const validateHAToken = (token: string): boolean => {
   if (!token || typeof token !== 'string') return false;
-  // HA tokens are JWT-like, at least 100 characters
   return token.length >= 100 && token.length <= 500 && /^[A-Za-z0-9._-]+$/.test(token);
 };
+
+const parseStoredConfiguration = (storedValue: string): {
+  encryptedToken: string;
+  metadata: HomeAssistantStoredMetadata;
+} => {
+  const [encryptedToken = '', rawMetadata] = storedValue.split('|||');
+
+  if (!rawMetadata) {
+    return { encryptedToken, metadata: {} };
+  }
+
+  try {
+    return {
+      encryptedToken,
+      metadata: JSON.parse(rawMetadata) as HomeAssistantStoredMetadata,
+    };
+  } catch (error) {
+    console.warn('Failed to parse stored Home Assistant metadata:', error);
+    return { encryptedToken, metadata: {} };
+  }
+};
+
+const buildConfig = (token: string, metadata: HomeAssistantStoredMetadata, enabledOverride?: boolean) => ({
+  token,
+  url: metadata.url || '',
+  webhookId: metadata.webhookId || '',
+  enabled: enabledOverride ?? metadata.enabled ?? false,
+  recordingLocation: metadata.recordingLocation || 'sd_card',
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -62,25 +96,25 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+    if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAnonKey) {
       console.error('Missing Supabase configuration');
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const jwt = authHeader.replace('Bearer ', '');
-    
-    // Create a user-context client for RPC calls that check auth.uid()
-    const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey, {
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
+
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser(jwt);
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
@@ -99,8 +133,8 @@ serve(async (req) => {
     const { action } = requestBody;
 
     if (action === 'save') {
-      const { token, url, webhookId, enabled } = requestBody;
-      
+      const { token, url, webhookId, enabled, recordingLocation } = requestBody;
+
       if (!validateHAToken(token)) {
         return new Response(
           JSON.stringify({ error: 'Invalid Home Assistant token format' }),
@@ -115,28 +149,26 @@ serve(async (req) => {
         );
       }
 
-      // Encrypt the token
       const { data: encryptedToken, error: encryptError } = await supabaseUserClient.rpc('encrypt_credential', {
         plaintext: token,
         user_id: user.id
       });
 
       if (encryptError || !encryptedToken) {
-        console.error('Error encrypting token');
+        console.error('Error encrypting token:', encryptError);
         return new Response(
           JSON.stringify({ error: 'Failed to encrypt token' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Build metadata object (non-sensitive data)
       const metadata = JSON.stringify({
         url: url || '',
         webhookId: webhookId || '',
-        enabled: enabled ?? false
+        enabled: enabled ?? false,
+        recordingLocation: (recordingLocation || 'sd_card') as RecordingLocation,
       });
 
-      // Check for existing token
       const { data: existingToken } = await supabase
         .from('user_tokens')
         .select('id')
@@ -168,7 +200,7 @@ serve(async (req) => {
       }
 
       if (upsertError) {
-        console.error('Error saving token');
+        console.error('Error saving token:', upsertError);
         return new Response(
           JSON.stringify({ error: 'Failed to save configuration' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -180,8 +212,9 @@ serve(async (req) => {
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
 
-    } else if (action === 'load') {
+    if (action === 'load') {
       const { data: tokenRecord } = await supabase
         .from('user_tokens')
         .select('encrypted_token')
@@ -196,39 +229,42 @@ serve(async (req) => {
         );
       }
 
-      // Parse the combined encrypted token and metadata
-      const parts = tokenRecord.encrypted_token.split('|||');
-      const encryptedToken = parts[0];
-      const metadata = parts[1] ? JSON.parse(parts[1]) : {};
+      const { encryptedToken, metadata } = parseStoredConfiguration(tokenRecord.encrypted_token);
 
-      // Decrypt the token
+      if (!encryptedToken) {
+        return new Response(
+          JSON.stringify({ success: true, config: buildConfig('', metadata, false), requiresTokenReset: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { data: decryptedToken, error: decryptError } = await supabaseUserClient.rpc('decrypt_credential', {
         ciphertext: encryptedToken,
         user_id: user.id
       });
 
-      if (decryptError) {
-        console.error('Error decrypting token');
+      if (decryptError || !decryptedToken) {
+        console.warn('Unable to decrypt stored Home Assistant token, returning metadata only', decryptError);
         return new Response(
-          JSON.stringify({ error: 'Failed to decrypt configuration' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            success: true,
+            config: buildConfig('', metadata, false),
+            requiresTokenReset: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          config: {
-            token: decryptedToken || '',
-            url: metadata.url || '',
-            webhookId: metadata.webhookId || '',
-            enabled: metadata.enabled ?? false
-          }
+        JSON.stringify({
+          success: true,
+          config: buildConfig(decryptedToken, metadata),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
 
-    } else if (action === 'delete') {
+    if (action === 'delete') {
       await supabase
         .from('user_tokens')
         .delete()
@@ -240,14 +276,12 @@ serve(async (req) => {
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Invalid action' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
+    return new Response(
+      JSON.stringify({ error: 'Invalid action' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('HA token manager error:', error);
     return new Response(

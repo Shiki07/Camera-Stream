@@ -11,6 +11,11 @@ const getCorsHeaders = (req: Request) => ({
 
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 
+type ProxyFetchError = Error & {
+  code?: string;
+  cause?: { code?: string; message?: string };
+};
+
 const checkRateLimit = (userId: string): boolean => {
   const now = Date.now();
   const limit = rateLimits.get(userId);
@@ -30,24 +35,22 @@ const validateCameraURL = async (url: string): Promise<boolean> => {
 
     const hostname = urlObj.hostname.toLowerCase();
     const port = urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80');
-    
-    // Allow common camera ports
+
     if (!['80', '443', '8000', '8080', '554', '8554'].includes(port)) {
       console.log(`Camera proxy: Rejecting port ${port}`);
       return false;
     }
-    
+
     if (['localhost', '127.0.0.1', '::1'].includes(hostname)) {
       console.log('Camera proxy: Rejecting localhost');
       return false;
     }
-    
-    // Allow dynamic DNS domains
+
     if (hostname.includes('.duckdns.org') || hostname.includes('.no-ip.') || hostname.includes('.ddns.net')) {
       console.log(`Camera proxy: Allowing dynamic DNS domain: ${hostname}`);
       return true;
     }
-    
+
     return true;
   } catch (err) {
     console.error('Camera proxy: URL validation error:', err);
@@ -55,9 +58,48 @@ const validateCameraURL = async (url: string): Promise<boolean> => {
   }
 };
 
+const buildUpstreamErrorResponse = (req: Request, error: unknown, upstreamName: string) => {
+  const err = error as ProxyFetchError;
+  const code = err.code || err.cause?.code || '';
+  const details = `${err.message || ''} ${err.cause?.message || ''}`;
+
+  if (err.name === 'AbortError') {
+    return new Response(JSON.stringify({ error: 'Stream timeout - please reconnect', code: 'STREAM_TIMEOUT' }), {
+      status: 408,
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (code === 'EHOSTUNREACH' || details.includes('No route to host')) {
+    return new Response(JSON.stringify({ error: `${upstreamName} is unreachable`, code: 'UPSTREAM_UNREACHABLE' }), {
+      status: 502,
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (code === 'ECONNREFUSED' || details.includes('Connection refused')) {
+    return new Response(JSON.stringify({ error: `${upstreamName} refused the connection`, code: 'UPSTREAM_REFUSED' }), {
+      status: 502,
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (code === 'ENOTFOUND' || details.includes('dns') || details.includes('Name or service not known')) {
+    return new Response(JSON.stringify({ error: `${upstreamName} hostname could not be resolved`, code: 'UPSTREAM_DNS_FAILED' }), {
+      status: 502,
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify({ error: `${upstreamName} request failed`, code: 'UPSTREAM_REQUEST_FAILED' }), {
+    status: 502,
+    headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+  });
+};
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  
+
   if (req.method === 'OPTIONS') {
     console.log('Camera proxy: Handling CORS preflight');
     return new Response(null, { headers: corsHeaders });
@@ -67,29 +109,34 @@ serve(async (req) => {
     const url = new URL(req.url);
     const targetUrl = url.searchParams.get('url');
     const authHeader = req.headers.get('authorization');
-    
+
     console.log(`Camera proxy: ${req.method} request received`);
-    
+
     const jwt = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
-    
+
     if (!jwt) {
       console.log('Camera proxy: No auth token provided');
-      return new Response(JSON.stringify({ error: 'Authentication required' }), { 
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!, 
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
+
     if (authError || !user) {
       console.log('Camera proxy: Invalid token', authError?.message);
-      return new Response(JSON.stringify({ error: 'Invalid token' }), { 
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -97,55 +144,60 @@ serve(async (req) => {
 
     if (!checkRateLimit(user.id)) {
       console.log('Camera proxy: Rate limit exceeded');
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { 
-        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
+
     if (!targetUrl || !(await validateCameraURL(targetUrl))) {
       console.log('Camera proxy: Invalid or disallowed URL');
-      return new Response(JSON.stringify({ error: 'Invalid URL' }), { 
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ error: 'Invalid URL' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     console.log('Camera proxy: Proxying stream');
 
-    // NO hard timeout - the stream will stay open as long as data flows
-    // Client-side stall detection handles frozen streams
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'User-Agent': 'CameraProxy/1.0',
-        'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      },
-      keepalive: true
-    });
+    try {
+      const response = await fetch(targetUrl, {
+        method: req.method,
+        headers: {
+          'User-Agent': 'CameraProxy/1.0',
+          'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        keepalive: true
+      });
 
-    if (!response.ok) {
-      console.log(`Camera proxy: Upstream error ${response.status}`);
-      throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        console.log(`Camera proxy: Upstream error ${response.status}`);
+        return new Response(JSON.stringify({ error: `Camera source error: ${response.status}`, code: 'UPSTREAM_HTTP_ERROR' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.log(`Camera proxy: Connected successfully, status ${response.status}`);
+
+      const responseHeaders = new Headers(corsHeaders);
+      const contentType = response.headers.get('content-type');
+      if (contentType) responseHeaders.set('content-type', contentType);
+      responseHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      responseHeaders.set('X-Accel-Buffering', 'no');
+
+      return new Response(response.body, {
+        status: response.status,
+        headers: responseHeaders
+      });
+    } catch (fetchError) {
+      console.error('Camera proxy upstream error:', fetchError);
+      return buildUpstreamErrorResponse(req, fetchError, 'Camera source');
     }
-
-    console.log(`Camera proxy: Connected successfully, status ${response.status}`);
-
-    const responseHeaders = new Headers(corsHeaders);
-    const contentType = response.headers.get('content-type');
-    if (contentType) responseHeaders.set('content-type', contentType);
-    responseHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    responseHeaders.set('X-Accel-Buffering', 'no');
-
-    return new Response(response.body, { 
-      status: response.status, 
-      headers: responseHeaders 
-    });
-
   } catch (error) {
     console.error('Camera proxy error:', error);
-    return new Response(JSON.stringify({ error: 'Connection failed' }), { 
-      status: 502, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } 
+    return new Response(JSON.stringify({ error: 'Internal proxy error', code: 'PROXY_INTERNAL_ERROR' }), {
+      status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
     });
   }
 });
