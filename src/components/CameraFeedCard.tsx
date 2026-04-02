@@ -741,12 +741,17 @@ export const CameraFeedCard = ({
       }
 
       if (isActiveRef.current) {
+        reconnectAttemptsRef.current++;
+        const attempt = reconnectAttemptsRef.current;
+        const delay = Math.min(2000 * Math.pow(2, attempt - 1), 30000);
+        console.log(`CameraFeedCard: Error reconnect for ${config.name} (attempt ${attempt}), retrying in ${delay}ms...`);
+        setError(`Reconnecting... (attempt ${attempt})`);
         setIsConnecting(true);
         reconnectTimeoutRef.current = setTimeout(() => {
           if (isActiveRef.current) {
             connectToNetworkStream();
           }
-        }, 300);
+        }, delay);
       } else {
         setIsConnecting(false);
       }
