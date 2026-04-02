@@ -55,11 +55,12 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase clients
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
       console.error('Missing Supabase configuration');
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
@@ -70,11 +71,16 @@ serve(async (req) => {
       );
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Verify the JWT token
+    // Service role client for auth verification and DB writes
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // User-authenticated client for encrypt_credential (requires auth.uid())
     const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt);
     
     if (authError || !user) {
       console.warn('Invalid or expired token');
@@ -128,7 +134,7 @@ serve(async (req) => {
     }
 
     // Encrypt the token using the database function
-    const { data: encryptedToken, error: encryptError } = await supabase.rpc('encrypt_credential', {
+    const { data: encryptedToken, error: encryptError } = await supabaseUser.rpc('encrypt_credential', {
       plaintext: token,
       user_id: user.id
     });
@@ -145,7 +151,7 @@ serve(async (req) => {
     }
 
     // First try to find existing token
-    const { data: existingToken, error: fetchError } = await supabase
+    const { data: existingToken, error: fetchError } = await supabaseAdmin
       .from('user_tokens')
       .select('id')
       .eq('user_id', user.id)
@@ -159,7 +165,7 @@ serve(async (req) => {
     let upsertError;
     if (existingToken) {
       // Update existing record
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('user_tokens')
         .update({
           encrypted_token: encryptedToken,
@@ -169,7 +175,7 @@ serve(async (req) => {
       upsertError = error;
     } else {
       // Insert new record
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('user_tokens')
         .insert({
           user_id: user.id,
