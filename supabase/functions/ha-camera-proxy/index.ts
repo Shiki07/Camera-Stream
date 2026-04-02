@@ -7,25 +7,26 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
 };
 
-// Validate that a URL is a legitimate Home Assistant camera URL
-// Prevents SSRF attacks by blocking internal/private networks
+type ProxyFetchError = Error & {
+  code?: string;
+  cause?: { code?: string; message?: string };
+};
+
 const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: string } => {
   try {
     const url = new URL(urlString);
     const hostname = url.hostname.toLowerCase();
 
-    // Block private IP ranges (RFC 1918 + loopback + link-local)
     const privatePatterns = [
-      /^10\./,                          // 10.0.0.0/8
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,  // 172.16.0.0/12
-      /^192\.168\./,                    // 192.168.0.0/16
-      /^127\./,                         // 127.0.0.0/8 (loopback)
-      /^169\.254\./,                    // 169.254.0.0/16 (link-local, AWS metadata)
-      /^0\./,                           // 0.0.0.0/8
-      /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // 100.64.0.0/10 (CGN)
+      /^10\./,
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+      /^192\.168\./,
+      /^127\./,
+      /^169\.254\./,
+      /^0\./,
+      /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./,
     ];
 
-    // Block cloud metadata endpoints
     const blockedHostnames = [
       'metadata.google.internal',
       'metadata.gke.io',
@@ -33,12 +34,10 @@ const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: 
       'kubernetes.default.svc',
     ];
 
-    // Check for IP-based hostname
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const ipMatch = hostname.match(ipv4Regex);
-    
+
     if (ipMatch) {
-      // It's an IP address - check against private ranges
       for (const pattern of privatePatterns) {
         if (pattern.test(hostname)) {
           return { valid: false, error: 'Private IP addresses are not allowed' };
@@ -46,17 +45,14 @@ const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: 
       }
     }
 
-    // Block localhost variants
     if (hostname === 'localhost' || hostname === '::1' || hostname.endsWith('.localhost')) {
       return { valid: false, error: 'Localhost is not allowed' };
     }
 
-    // Block known metadata endpoints
     if (blockedHostnames.includes(hostname)) {
       return { valid: false, error: 'Blocked hostname' };
     }
 
-    // Block IPv6 private ranges
     if (hostname.startsWith('[')) {
       const ipv6Prefixes = ['fc', 'fd', 'fe80:', '::1', 'ff'];
       const cleanHostname = hostname.replace(/[\[\]]/g, '').toLowerCase();
@@ -67,78 +63,132 @@ const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: 
       }
     }
 
-    // Require HTTPS for non-local domains (security best practice)
-    // Exception: Allow HTTP for *.local, *.home, *.lan (common HA setups)
     const localDomainPatterns = ['.local', '.home', '.lan', '.internal'];
-    const isLocalDomain = localDomainPatterns.some(p => hostname.endsWith(p));
-    
+    const isLocalDomain = localDomainPatterns.some((p) => hostname.endsWith(p));
+
     if (url.protocol !== 'https:' && !isLocalDomain) {
-      // Allow HTTP only for local domains commonly used with Home Assistant
       return { valid: false, error: 'HTTPS required for non-local domains' };
     }
 
-    // Validate path contains camera_proxy endpoint
     const pathname = url.pathname.toLowerCase();
     if (!pathname.includes('/api/camera_proxy')) {
       return { valid: false, error: 'Invalid camera endpoint path' };
     }
 
-    // Block path traversal attempts
     if (pathname.includes('..') || pathname.includes('//')) {
       return { valid: false, error: 'Path traversal detected' };
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid URL format' };
   }
 };
 
+const buildUpstreamErrorResponse = (error: unknown, upstreamName: string) => {
+  const err = error as ProxyFetchError;
+  const code = err.code || err.cause?.code || '';
+  const details = `${err.message || ''} ${err.cause?.message || ''}`;
+
+  if (err.name === 'AbortError') {
+    return new Response(
+      JSON.stringify({ error: 'Stream timeout - please reconnect', code: 'STREAM_TIMEOUT' }),
+      {
+        status: 408,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  if (code === 'EHOSTUNREACH' || details.includes('No route to host')) {
+    return new Response(
+      JSON.stringify({ error: `${upstreamName} is unreachable`, code: 'UPSTREAM_UNREACHABLE' }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  if (code === 'ECONNREFUSED' || details.includes('Connection refused')) {
+    return new Response(
+      JSON.stringify({ error: `${upstreamName} refused the connection`, code: 'UPSTREAM_REFUSED' }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  if (code === 'ENOTFOUND' || details.includes('dns') || details.includes('Name or service not known')) {
+    return new Response(
+      JSON.stringify({ error: `${upstreamName} hostname could not be resolved`, code: 'UPSTREAM_DNS_FAILED' }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ error: `${upstreamName} request failed`, code: 'UPSTREAM_REQUEST_FAILED' }),
+    {
+      status: 502,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    }
+  );
+};
+
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate JWT authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       console.warn('HA camera proxy: Missing or invalid Authorization header');
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Missing or invalid authorization' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Create Supabase client to validate the JWT
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Validate the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
+
     if (claimsError || !claimsData?.claims) {
       console.warn('HA camera proxy: Invalid JWT token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    const userId = claimsData.claims.sub;
-    console.log('HA camera proxy: Authenticated user request');
+    console.log('HA camera proxy: Authenticated user request', claimsData.claims.sub);
 
     const url = new URL(req.url);
     const targetUrl = url.searchParams.get('url');
@@ -148,40 +198,37 @@ serve(async (req: Request): Promise<Response> => {
       console.warn('Missing url or token parameter');
       return new Response(
         JSON.stringify({ error: 'Missing url or token parameter' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Decode and validate the target URL
     const decodedUrl = decodeURIComponent(targetUrl);
     const validation = validateHomeAssistantUrl(decodedUrl);
-    
+
     if (!validation.valid) {
       console.warn('URL validation failed:', validation.error);
       return new Response(
         JSON.stringify({ error: validation.error || 'Invalid camera URL' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
     console.log('Proxying Home Assistant camera stream');
 
-    // Create AbortController for long-running streams with extended timeout
     const controller = new AbortController();
-    const STREAM_TIMEOUT_MS = 300000; // 5 minutes for MJPEG streams
+    const streamTimeoutMs = 300000;
     const timeoutId = setTimeout(() => {
       console.log('HA camera proxy: Stream timeout after 5 minutes, aborting');
       controller.abort();
-    }, STREAM_TIMEOUT_MS);
+    }, streamTimeoutMs);
 
     try {
-      // Fetch from Home Assistant with auth and keep-alive settings
       const response = await fetch(decodedUrl, {
         headers: {
           'Authorization': `Bearer ${decodeURIComponent(haToken)}`,
@@ -198,19 +245,17 @@ serve(async (req: Request): Promise<Response> => {
         clearTimeout(timeoutId);
         console.error('Home Assistant returned error:', response.status);
         return new Response(
-          JSON.stringify({ error: `Home Assistant error: ${response.status}` }),
-          { 
-            status: response.status, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          JSON.stringify({ error: `Home Assistant error: ${response.status}`, code: 'UPSTREAM_HTTP_ERROR' }),
+          {
+            status: response.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         );
       }
 
-      // Get content type from response
       const contentType = response.headers.get('content-type') || 'image/jpeg';
       console.log('HA camera proxy: Content-Type:', contentType);
 
-      // Build response headers for streaming
       const responseHeaders: Record<string, string> = {
         ...corsHeaders,
         'Content-Type': contentType,
@@ -219,22 +264,17 @@ serve(async (req: Request): Promise<Response> => {
         'Expires': '0',
       };
 
-      // For MJPEG streams, stream the response with proper handling
       if (contentType.includes('multipart')) {
         console.log('HA camera proxy: Streaming multipart MJPEG response');
-        
-        // Stream the MJPEG response - the timeout will be cleared when the stream ends naturally
-        // or aborted after 5 minutes to allow client-side reconnection
         return new Response(response.body, {
           status: 200,
           headers: responseHeaders,
         });
       }
 
-      // For single images (snapshot), clear timeout and return the image data
       clearTimeout(timeoutId);
       const imageData = await response.arrayBuffer();
-      
+
       return new Response(imageData, {
         status: 200,
         headers: {
@@ -245,28 +285,16 @@ serve(async (req: Request): Promise<Response> => {
       });
     } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
-      const err = fetchError as Error & { name?: string };
-      
-      if (err.name === 'AbortError') {
-        console.log('HA camera proxy: Stream aborted (timeout or client disconnect)');
-        return new Response(
-          JSON.stringify({ error: 'Stream timeout - please reconnect' }),
-          { 
-            status: 408, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-      
-      throw fetchError;
+      console.error('HA camera proxy upstream error:', fetchError);
+      return buildUpstreamErrorResponse(fetchError, 'Home Assistant');
     }
   } catch (error) {
     console.error('HA camera proxy error:', error);
     return new Response(
-      JSON.stringify({ error: 'Proxy error' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      JSON.stringify({ error: 'Internal proxy error', code: 'PROXY_INTERNAL_ERROR' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
