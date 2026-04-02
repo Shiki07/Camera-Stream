@@ -151,7 +151,7 @@ serve(async (req) => {
     }
 
     // First try to find existing token
-    const { data: existingToken, error: fetchError } = await supabase
+    const { data: existingToken, error: fetchError } = await supabaseAdmin
       .from('user_tokens')
       .select('id')
       .eq('user_id', user.id)
