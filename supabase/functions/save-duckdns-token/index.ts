@@ -165,7 +165,7 @@ serve(async (req) => {
     let upsertError;
     if (existingToken) {
       // Update existing record
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('user_tokens')
         .update({
           encrypted_token: encryptedToken,
@@ -175,7 +175,7 @@ serve(async (req) => {
       upsertError = error;
     } else {
       // Insert new record
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('user_tokens')
         .insert({
           user_id: user.id,
