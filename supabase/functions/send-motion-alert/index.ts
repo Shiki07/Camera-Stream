@@ -129,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check rate limit
-    if (!checkRateLimit(user.id)) {
+    if (!checkRateLimit(userId)) {
       console.warn(`Rate limit exceeded for user: ${user.id.substring(0, 8)}...`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
