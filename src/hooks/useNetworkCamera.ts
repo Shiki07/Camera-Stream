@@ -387,43 +387,36 @@ export const useNetworkCamera = () => {
             stallCheckIntervalRef.current = null;
           }
           
-          // Auto-reconnect when stream ends - distinguish natural cycle vs error
+          // Auto-reconnect when stream ends - NEVER give up
           if (streamEnded && isActiveRef.current && configRef.current) {
             const connectionAge = Date.now() - connectionAgeRef.current;
             const framesProcessed = frameCountRef.current;
             
             console.log(`useNetworkCamera: Stream ended. Age: ${connectionAge}ms, Frames: ${framesProcessed}`);
             
-            // Distinguish between natural cycling and actual errors
             if (connectionAge < 10000 && framesProcessed < 5) {
-              // Less than 10 seconds and very few frames = ERROR - use backoff
-              console.log('useNetworkCamera: Connection error detected, reconnecting with delay...');
-              if (reconnectAttempts < 3) {
-                setReconnectAttempts(prev => prev + 1);
-                const delay = Math.min(3000 * (reconnectAttempts + 1), 10000);
-                setIsConnected(false);
-                setIsConnecting(true);
-                setTimeout(() => {
-                  if (isActiveRef.current && configRef.current) {
-                    frameCountRef.current = 0;
-                    connectionAgeRef.current = Date.now();
-                    startOverlappingConnection(imgElement, configRef.current);
-                  }
-                }, delay);
-              } else {
-                setConnectionError('Connection failed after multiple attempts');
-                setIsConnected(false);
-                setIsConnecting(false);
-              }
+              // Connection error - exponential backoff, but never stop trying
+              const attempts = reconnectAttempts + 1;
+              setReconnectAttempts(attempts);
+              const delay = Math.min(2000 * Math.pow(2, attempts - 1), 30000);
+              console.log(`useNetworkCamera: Error detected, retry attempt ${attempts} in ${delay}ms...`);
+              setIsConnected(false);
+              setIsConnecting(true);
+              setTimeout(() => {
+                if (isActiveRef.current && configRef.current) {
+                  frameCountRef.current = 0;
+                  connectionAgeRef.current = Date.now();
+                  startOverlappingConnection(imgElement, configRef.current);
+                }
+              }, delay);
             } else {
-              // NATURAL stream cycling - immediate seamless restart
-              console.log('useNetworkCamera: Natural stream cycle detected, immediate seamless restart...');
+              // Natural stream cycling - immediate seamless restart
+              console.log('useNetworkCamera: Natural stream cycle, immediate seamless restart...');
               setReconnectAttempts(0);
               setIsConnected(false);
               setIsConnecting(true);
               frameCountRef.current = 0;
               connectionAgeRef.current = Date.now();
-              // Zero-delay restart for natural cycles
               if (isActiveRef.current && configRef.current) {
                 startOverlappingConnection(imgElement, configRef.current);
               }
