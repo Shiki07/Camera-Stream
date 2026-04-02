@@ -235,16 +235,27 @@ export const useHomeAssistant = () => {
           description: data.message || 'Successfully connected to your Home Assistant instance',
         });
         return true;
+      } else if (response.status === 401) {
+        throw new Error('TOKEN_UNAUTHORIZED');
       } else {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
     } catch (error) {
       setConnected(false);
-      toast({
-        title: 'Connection failed',
-        description: error instanceof Error ? error.message : 'Could not connect to Home Assistant',
-        variant: 'destructive',
-      });
+      const errorMsg = error instanceof Error ? error.message : '';
+      if (errorMsg === 'TOKEN_UNAUTHORIZED' || errorMsg.includes('401')) {
+        toast({
+          title: 'Token rejected by Home Assistant',
+          description: 'Your Long-Lived Access Token is invalid or expired. Go to HA → Profile → Security → Long-Lived Access Tokens and create a new one.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Connection failed',
+          description: errorMsg || 'Could not connect to Home Assistant',
+          variant: 'destructive',
+        });
+      }
       return false;
     } finally {
       setLoading(false);
@@ -275,18 +286,30 @@ export const useHomeAssistant = () => {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        if (response.status === 401) {
+          throw new Error('TOKEN_UNAUTHORIZED');
+        }
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
       setCameras(data.cameras || []);
       return data.cameras || [];
     } catch (error) {
-      console.error('Failed to fetch cameras');
-      toast({
-        title: 'Failed to fetch cameras',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
+      const errorMsg = error instanceof Error ? error.message : '';
+      if (errorMsg === 'TOKEN_UNAUTHORIZED' || errorMsg.includes('401')) {
+        toast({
+          title: 'Token rejected by Home Assistant',
+          description: 'Your Long-Lived Access Token is invalid or expired. Create a new one in HA → Profile → Security.',
+          variant: 'destructive',
+        });
+      } else {
+        console.error('Failed to fetch cameras');
+        toast({
+          title: 'Failed to fetch cameras',
+          description: errorMsg || 'Unknown error',
+          variant: 'destructive',
+        });
+      }
       return [];
     } finally {
       setLoading(false);
