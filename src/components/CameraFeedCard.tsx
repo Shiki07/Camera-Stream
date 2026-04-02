@@ -547,6 +547,8 @@ export const CameraFeedCard = ({
 
       setIsConnected(true);
       setIsConnecting(false);
+      setError(null);
+      reconnectAttemptsRef.current = 0; // Reset on successful connection
 
       // Test Pi service connection (only for non-HA cameras)
       if (shouldTestPi) {
