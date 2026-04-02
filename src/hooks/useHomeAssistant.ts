@@ -235,16 +235,27 @@ export const useHomeAssistant = () => {
           description: data.message || 'Successfully connected to your Home Assistant instance',
         });
         return true;
+      } else if (response.status === 401) {
+        throw new Error('TOKEN_UNAUTHORIZED');
       } else {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
     } catch (error) {
       setConnected(false);
-      toast({
-        title: 'Connection failed',
-        description: error instanceof Error ? error.message : 'Could not connect to Home Assistant',
-        variant: 'destructive',
-      });
+      const errorMsg = error instanceof Error ? error.message : '';
+      if (errorMsg === 'TOKEN_UNAUTHORIZED' || errorMsg.includes('401')) {
+        toast({
+          title: 'Token rejected by Home Assistant',
+          description: 'Your Long-Lived Access Token is invalid or expired. Go to HA → Profile → Security → Long-Lived Access Tokens and create a new one.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Connection failed',
+          description: errorMsg || 'Could not connect to Home Assistant',
+          variant: 'destructive',
+        });
+      }
       return false;
     } finally {
       setLoading(false);
