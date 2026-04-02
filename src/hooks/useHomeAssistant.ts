@@ -78,7 +78,7 @@ export const useHomeAssistant = () => {
           await migrateLegacyConfig();
         }
       } catch (error) {
-        console.error('Failed to load Home Assistant config');
+        console.error('Failed to load Home Assistant config', error);
         // Fallback to legacy localStorage if server fails
         await loadLegacyConfig();
       } finally {
