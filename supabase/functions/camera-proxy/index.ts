@@ -130,6 +130,7 @@ serve(async (req) => {
       });
     }
 
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     let userId: string | null = null;
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
 
