@@ -866,7 +866,7 @@ export const CameraFeedCard = ({
     };
   }, [config.url, config.deviceId, isWebcam, isRemoteWebcam]);
 
-  // Auto-reconnect when disconnected
+  // Auto-reconnect when disconnected (persistent retry)
   useEffect(() => {
     if (isConnected || isConnecting) return;
     
@@ -875,17 +875,31 @@ export const CameraFeedCard = ({
     
     const reconnectInterval = setInterval(() => {
       if (!isConnected && !isConnecting && isTabVisible) {
-        console.log(`Auto-reconnecting camera: ${config.name}`);
+        console.log(`Auto-reconnecting camera: ${config.name} (periodic retry)`);
+        reconnectAttemptsRef.current = 0; // Reset for fresh attempt cycle
         if (isWebcam) {
           connectToWebcam();
         } else {
           connectToNetworkStream();
         }
       }
-    }, 15000); // Try every 15 seconds
+    }, 30000); // Periodic retry every 30 seconds as safety net
 
     return () => clearInterval(reconnectInterval);
   }, [isConnected, isConnecting, error, isTabVisible, isWebcam, config.name, connectToWebcam, connectToNetworkStream]);
+
+  // Reconnect immediately when tab becomes visible and camera is disconnected
+  useEffect(() => {
+    if (isTabVisible && !isConnected && !isConnecting && error && isActiveRef.current) {
+      console.log(`Tab visible, reconnecting camera: ${config.name}`);
+      reconnectAttemptsRef.current = 0; // Fresh start on visibility
+      if (isWebcam) {
+        connectToWebcam();
+      } else {
+        connectToNetworkStream();
+      }
+    }
+  }, [isTabVisible]);
 
   // Start motion detection when connected
   useEffect(() => {
