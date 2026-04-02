@@ -50,7 +50,7 @@ serve(async (req) => {
     // List active rooms (rooms with frames updated in last 30 seconds)
     // REQUIRES AUTHENTICATION - only show user's own rooms
     if (action === 'list-rooms') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -84,7 +84,7 @@ serve(async (req) => {
     // Push a frame (host) - upsert to database
     // REQUIRES AUTHENTICATION
     if (action === 'push' && req.method === 'POST') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -136,7 +136,7 @@ serve(async (req) => {
     // Get latest frame (viewer) - read from database
     // REQUIRES AUTHENTICATION - user can only view their own streams
     if (action === 'pull') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
@@ -191,7 +191,7 @@ serve(async (req) => {
     // Stop a stream (host) - delete from database
     // REQUIRES AUTHENTICATION
     if (action === 'stop') {
-      const { userId, error: authError } = await verifyUser(req, supabase);
+      const { userId, error: authError } = await verifyUser(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
           status: 401,
