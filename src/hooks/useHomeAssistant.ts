@@ -201,8 +201,11 @@ export const useHomeAssistant = () => {
   }, [session?.access_token, toast]);
 
   // Test connection to Home Assistant via edge function (avoids CORS)
-  const testConnection = useCallback(async (): Promise<boolean> => {
-    if (!config.url || !config.token) {
+  const testConnection = useCallback(async (configOverride?: Partial<HomeAssistantConfig>): Promise<boolean> => {
+    const effectiveUrl = configOverride?.url ?? config.url;
+    const effectiveToken = configOverride?.token ?? config.token;
+
+    if (!effectiveUrl || !effectiveToken) {
       toast({
         title: 'Missing configuration',
         description: 'Please enter Home Assistant URL and token',
@@ -219,8 +222,8 @@ export const useHomeAssistant = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url: config.url,
-            token: config.token,
+            url: effectiveUrl,
+            token: effectiveToken,
             action: 'test',
           }),
         }
@@ -252,8 +255,11 @@ export const useHomeAssistant = () => {
   }, [config.url, config.token, toast]);
 
   // Fetch available cameras from Home Assistant via edge function
-  const fetchCameras = useCallback(async (): Promise<HACamera[]> => {
-    if (!config.url || !config.token) {
+  const fetchCameras = useCallback(async (configOverride?: Partial<HomeAssistantConfig>): Promise<HACamera[]> => {
+    const effectiveUrl = configOverride?.url ?? config.url;
+    const effectiveToken = configOverride?.token ?? config.token;
+
+    if (!effectiveUrl || !effectiveToken) {
       return [];
     }
 
@@ -265,8 +271,8 @@ export const useHomeAssistant = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url: config.url,
-            token: config.token,
+            url: effectiveUrl,
+            token: effectiveToken,
             action: 'fetch_cameras',
           }),
         }

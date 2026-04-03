@@ -39,11 +39,10 @@ export const HomeAssistantSettings = () => {
   };
 
   const handleTest = async () => {
-    // Save first, then test
     setIsSaving(true);
     try {
       await saveConfig(localConfig);
-      await testConnection();
+      await testConnection(localConfig);
     } finally {
       setIsSaving(false);
     }
@@ -53,7 +52,7 @@ export const HomeAssistantSettings = () => {
     setIsSaving(true);
     try {
       await saveConfig(localConfig);
-      await fetchCameras();
+      await fetchCameras(localConfig);
     } finally {
       setIsSaving(false);
     }
