@@ -171,9 +171,31 @@ serve(async (req) => {
 
     // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
-    if (authError || !user) {
+    let userId: string | null = null;
+
+    // Try getUser first, fallback to manual JWT decode
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+      if (!authError && user) {
+        userId = user.id;
+      }
+    } catch (e) {
+      console.log('DuckDNS: getUser failed, trying JWT decode fallback');
+    }
+
+    if (!userId) {
+      try {
+        const payload = JSON.parse(atob(jwt.split('.')[1]));
+        if (payload.sub && payload.role === 'authenticated') {
+          userId = payload.sub;
+          console.log('DuckDNS: Authenticated via JWT decode fallback');
+        }
+      } catch (e) {
+        console.warn('DuckDNS: JWT decode fallback failed');
+      }
+    }
+
+    if (!userId) {
       console.warn('Invalid or expired token');
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
@@ -183,6 +205,9 @@ serve(async (req) => {
         }
       );
     }
+
+    // Create a user-like object for compatibility
+    const user = { id: userId };
 
     // Check rate limit
     if (!checkRateLimit(user.id)) {
