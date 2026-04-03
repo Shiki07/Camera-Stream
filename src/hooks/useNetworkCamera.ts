@@ -231,6 +231,7 @@ export const useNetworkCamera = () => {
 
   const connectToMJPEGStream = useCallback(async (imgElement: HTMLImageElement, config: NetworkCameraConfig) => {
     const STALL_TIMEOUT_MS = 8000;
+    const MAX_CONNECTION_AGE_MS = 140000; // Pre-emptive reconnect before edge function ~150s timeout
     const STALL_CHECK_INTERVAL_MS = 2000;
     
     try {
