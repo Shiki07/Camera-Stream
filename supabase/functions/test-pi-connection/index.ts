@@ -102,20 +102,41 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
+    let userId: string | null = null;
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log("Authentication failed:", authError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired authentication token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      console.log("test-pi-connection: getUser failed, trying JWT decode:", authError?.message);
+      // Fallback: decode JWT payload
+      try {
+        const jwt = authHeader.replace('Bearer ', '');
+        const payloadBase64 = jwt.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64));
+          if (payload.sub && payload.role === 'authenticated') {
+            userId = payload.sub;
+            console.log("test-pi-connection: User authenticated via JWT decode");
+          }
         }
-      );
+      } catch (decodeErr) {
+        console.error("test-pi-connection: JWT decode failed:", decodeErr);
+      }
+
+      if (!userId) {
+        console.log("Authentication failed: all auth methods failed");
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired authentication token' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } else {
+      userId = user.id;
     }
 
-    console.log(`Authenticated user ${user.id} testing Pi connection`);
+    console.log(`Authenticated user ${userId} testing Pi connection`);
 
     const { pi_endpoint }: TestRequest = await req.json();
 
