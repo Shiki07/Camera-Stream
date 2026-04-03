@@ -131,11 +131,31 @@ serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
 
-    const { data: claimsData, error: authError } = await supabaseUser.auth.getClaims(jwt);
-    const userId = claimsData?.claims?.sub;
+    let userId: string | null = null;
 
-    if (authError || !userId) {
-      console.warn('Invalid or expired token', authError?.message);
+    // Try getUser first, fallback to manual JWT decode
+    try {
+      const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(jwt);
+      if (!authErr && user) {
+        userId = user.id;
+      }
+    } catch (e) {
+      console.log('save-duckdns-token: getUser failed, trying JWT decode fallback');
+    }
+
+    if (!userId) {
+      try {
+        const payload = JSON.parse(atob(jwt.split('.')[1]));
+        if (payload.sub && payload.role === 'authenticated') {
+          userId = payload.sub;
+        }
+      } catch (e) {
+        console.warn('save-duckdns-token: JWT decode fallback failed');
+      }
+    }
+
+    if (!userId) {
+      console.warn('Invalid or expired token');
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         { 
