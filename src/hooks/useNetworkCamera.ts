@@ -426,11 +426,10 @@ export const useNetworkCamera = () => {
                 }
               }, delay);
             } else {
-              // Natural stream cycling - immediate seamless restart
-              console.log('useNetworkCamera: Natural stream cycle, immediate seamless restart...');
+              // Natural stream cycling - seamless restart WITHOUT UI state changes
+              console.log('useNetworkCamera: Natural stream cycle, seamless background restart...');
               setReconnectAttempts(0);
-              setIsConnected(false);
-              setIsConnecting(true);
+              // Do NOT set isConnected=false or isConnecting=true — keep last frame visible
               frameCountRef.current = 0;
               connectionAgeRef.current = Date.now();
               if (isActiveRef.current && configRef.current) {
