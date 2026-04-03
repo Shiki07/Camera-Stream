@@ -5,8 +5,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Strip invisible characters, BOM, zero-width spaces, trailing newlines
+const sanitizeToken = (token: string): string => {
+  return token
+    .replace(/^\uFEFF/, '') // BOM
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') // zero-width & nbsp
+    .replace(/[\r\n\t]/g, '') // newlines/tabs
+    .trim();
+};
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,6 +29,10 @@ serve(async (req) => {
       );
     }
 
+    // Sanitize the token
+    const cleanToken = sanitizeToken(token);
+    console.log(`Token sanitized: original length=${token.length}, clean length=${cleanToken.length}`);
+
     // Validate URL format
     let haUrl: URL;
     try {
@@ -32,39 +44,67 @@ serve(async (req) => {
       );
     }
 
-    // Determine the endpoint based on action
-    let endpoint = '/api/';
-    if (action === 'fetch_cameras') {
-      endpoint = '/api/states';
-    }
+    // Always test basic API connectivity first
+    const baseApiUrl = `${haUrl.origin}/api/`;
+    console.log(`Testing basic API connectivity: ${baseApiUrl}`);
 
-    const targetUrl = `${haUrl.origin}${endpoint}`;
-    console.log(`Proxying request to: ${targetUrl}, token length: ${token.length}, prefix: ${token.substring(0, 10)}...`);
-
-    const response = await fetch(targetUrl, {
+    const testResponse = await fetch(baseApiUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cleanToken}`,
       },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Home Assistant API error: ${response.status} - ${errorText}`);
+    const testBody = await testResponse.text();
+    console.log(`Basic API test: status=${testResponse.status}, body=${testBody.substring(0, 200)}`);
+
+    if (!testResponse.ok) {
+      console.error(`Home Assistant basic API auth failed: ${testResponse.status} - ${testBody}`);
+      
+      let errorMessage = `Home Assistant returned ${testResponse.status}`;
+      if (testResponse.status === 401) {
+        errorMessage = 'Home Assistant rejected the token (401 Unauthorized). Please verify: ' +
+          '1) The token is a Long-Lived Access Token from Profile → Security, ' +
+          '2) The token was not revoked, ' +
+          '3) Copy the full token without extra spaces';
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: `Home Assistant returned ${response.status}`,
-          details: errorText.substring(0, 200)
+          error: errorMessage,
+          status: testResponse.status,
+          details: testBody.substring(0, 200),
+          tokenInfo: { length: cleanToken.length, prefix: cleanToken.substring(0, 15) }
         }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: testResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
-
-    // Filter for cameras if fetching states
+    // Basic auth works! Now handle the actual action
     if (action === 'fetch_cameras') {
+      const statesUrl = `${haUrl.origin}/api/states`;
+      console.log(`Fetching camera states from: ${statesUrl}`);
+
+      const statesResponse = await fetch(statesUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`,
+        },
+      });
+
+      if (!statesResponse.ok) {
+        const errorText = await statesResponse.text();
+        console.error(`Home Assistant states API error: ${statesResponse.status} - ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Home Assistant returned ${statesResponse.status}`,
+            details: errorText.substring(0, 200)
+          }),
+          { status: statesResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const data = await statesResponse.json();
       const cameras = data
         .filter((entity: any) => entity.entity_id?.startsWith('camera.'))
         .map((entity: any) => ({
@@ -72,14 +112,25 @@ serve(async (req) => {
           name: entity.attributes?.friendly_name || entity.entity_id,
         }));
       
+      console.log(`Found ${cameras.length} cameras out of ${data.length} entities`);
+      
       return new Response(
         JSON.stringify({ success: true, cameras }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Default: test connection result
+    let apiMessage = 'Connected to Home Assistant';
+    try {
+      const parsed = JSON.parse(testBody);
+      apiMessage = parsed.message || apiMessage;
+    } catch {
+      // use default
+    }
+
     return new Response(
-      JSON.stringify({ success: true, message: data.message || 'Connected to Home Assistant' }),
+      JSON.stringify({ success: true, message: apiMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
