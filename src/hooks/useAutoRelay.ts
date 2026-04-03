@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
 const FRAME_INTERVAL = 66; // 15 fps
 const HEARTBEAT_INTERVAL = 10000; // 10 seconds
+const STALE_RETRY_INTERVAL = 3000; // retry after stale every 3s
+const MAX_STALE_COUNT = 5; // after 5 stale responses, re-fetch room ID from DB
 
 interface UseAutoRelayProps {
   cameraId: string;
