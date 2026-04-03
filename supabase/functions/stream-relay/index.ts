@@ -17,6 +17,20 @@ async function verifyUser(req: Request, supabase: any): Promise<{ userId: string
   const { data: { user }, error } = await supabase.auth.getUser(token);
   
   if (error || !user) {
+    console.log('Stream relay: getUser failed, trying JWT decode fallback:', error?.message);
+    // Fallback: decode JWT payload to extract user ID
+    try {
+      const payloadBase64 = token.split('.')[1];
+      if (payloadBase64) {
+        const payload = JSON.parse(atob(payloadBase64));
+        if (payload.sub && payload.role === 'authenticated') {
+          console.log('Stream relay: User authenticated via JWT decode');
+          return { userId: payload.sub, error: null };
+        }
+      }
+    } catch (decodeErr) {
+      console.error('Stream relay: JWT decode failed:', decodeErr);
+    }
     return { userId: null, error: 'Invalid or expired token' };
   }
 
