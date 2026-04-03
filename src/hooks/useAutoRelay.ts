@@ -101,6 +101,29 @@ export const useAutoRelay = ({
     }
   }, [captureFrame, user, getAuthToken]);
 
+  // Re-fetch room ID from database (push side may have restarted with new ID)
+  const refreshRoomIdFromDB = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('camera_credentials')
+        .select('relay_room_id, relay_active')
+        .eq('camera_url', cameraId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (data?.relay_active && data.relay_room_id && data.relay_room_id !== relayRoomIdRef.current) {
+        console.log('Relay room ID changed in DB, switching to:', data.relay_room_id);
+        relayRoomIdRef.current = data.relay_room_id;
+        setRelayRoomId(data.relay_room_id);
+        staleCountRef.current = 0;
+        setRelayError(null);
+      }
+    } catch (err) {
+      console.error('Failed to refresh room ID:', err);
+    }
+  }, [cameraId, user]);
+
   // Pull frame from relay server (for remote viewing)
   const pullFrame = useCallback(async () => {
     const currentRoomId = relayRoomIdRef.current;
@@ -125,8 +148,26 @@ export const useAutoRelay = ({
         return;
       }
       
-      if (response.status === 404 || response.status === 410) {
-        setRelayError('Stream not available');
+      if (response.status === 410) {
+        // Stream stale — don't give up, keep retrying
+        staleCountRef.current++;
+        console.log(`Stream stale (count: ${staleCountRef.current}/${MAX_STALE_COUNT})`);
+        
+        if (staleCountRef.current >= MAX_STALE_COUNT) {
+          // Push side likely restarted with a new room ID — re-fetch from DB
+          staleCountRef.current = 0;
+          await refreshRoomIdFromDB();
+        }
+        return; // Keep polling, don't set error
+      }
+
+      if (response.status === 404) {
+        // Room doesn't exist yet or was cleaned up — try refreshing from DB
+        staleCountRef.current++;
+        if (staleCountRef.current >= MAX_STALE_COUNT) {
+          staleCountRef.current = 0;
+          await refreshRoomIdFromDB();
+        }
         return;
       }
 
@@ -136,11 +177,12 @@ export const useAutoRelay = ({
       if (data.frame) {
         setRemoteFrameUrl(data.frame);
         setRelayError(null);
+        staleCountRef.current = 0; // Reset on successful frame
       }
     } catch (error) {
       console.error('Pull frame error:', error);
     }
-  }, [isLocalWebcam, getAuthToken]);
+  }, [isLocalWebcam, getAuthToken, refreshRoomIdFromDB]);
 
   // Heartbeat to keep relay alive
   const sendHeartbeat = useCallback(async () => {
