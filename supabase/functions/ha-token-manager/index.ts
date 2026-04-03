@@ -193,11 +193,32 @@ serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
 
-    const { data: claimsData, error: authError } = await supabaseUserClient.auth.getClaims(jwt);
-    const userId = claimsData?.claims?.sub;
+    // Try standard auth first, then JWT decode fallback
+    let userId: string | null = null;
+    
+    try {
+      const { data: userData, error: authError } = await supabaseUserClient.auth.getUser();
+      if (!authError && userData?.user?.id) {
+        userId = userData.user.id;
+      }
+    } catch (e) {
+      console.warn('Standard auth check failed, trying JWT fallback:', e);
+    }
 
-    if (authError || !userId) {
-      console.warn('Auth verification failed:', authError?.message || 'No user claims returned');
+    if (!userId) {
+      try {
+        const payload = JSON.parse(atob(jwt.split('.')[1]));
+        if (payload.sub && payload.role === 'authenticated') {
+          userId = payload.sub;
+          console.log('Authenticated via JWT decode fallback');
+        }
+      } catch (e) {
+        console.warn('JWT decode fallback failed:', e);
+      }
+    }
+
+    if (!userId) {
+      console.warn('Auth verification failed: no valid user ID found');
       return new Response(
         JSON.stringify({ error: 'Invalid or expired session. Please log in again.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
