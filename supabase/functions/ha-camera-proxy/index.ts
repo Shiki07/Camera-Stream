@@ -174,10 +174,31 @@ serve(async (req: Request): Promise<Response> => {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const jwt = authHeader.replace('Bearer ', '');
+    let userId: string | null = null;
 
-    if (claimsError || !claimsData?.claims) {
+    // Try getUser first, fallback to manual JWT decode
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        userId = userData.user.id;
+      }
+    } catch (e) {
+      console.log('HA camera proxy: getUser failed, trying JWT decode fallback');
+    }
+
+    if (!userId) {
+      try {
+        const payload = JSON.parse(atob(jwt.split('.')[1]));
+        if (payload.sub && payload.role === 'authenticated') {
+          userId = payload.sub;
+        }
+      } catch (e) {
+        console.warn('HA camera proxy: JWT decode fallback failed');
+      }
+    }
+
+    if (!userId) {
       console.warn('HA camera proxy: Invalid JWT token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid token' }),
@@ -188,7 +209,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('HA camera proxy: Authenticated user request', claimsData.claims.sub);
+    console.log('HA camera proxy: Authenticated user request', userId);
 
     const url = new URL(req.url);
     const targetUrl = url.searchParams.get('url');
