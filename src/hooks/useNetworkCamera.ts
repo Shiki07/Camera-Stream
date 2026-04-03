@@ -231,6 +231,7 @@ export const useNetworkCamera = () => {
 
   const connectToMJPEGStream = useCallback(async (imgElement: HTMLImageElement, config: NetworkCameraConfig) => {
     const STALL_TIMEOUT_MS = 8000;
+    const MAX_CONNECTION_AGE_MS = 140000; // Pre-emptive reconnect before edge function ~150s timeout
     const STALL_CHECK_INTERVAL_MS = 2000;
     
     try {
@@ -288,21 +289,36 @@ export const useNetworkCamera = () => {
         connectionAgeRef.current = Date.now();
 
         // Start stall detection interval
+        // Start stall detection and pre-emptive reconnection interval
+        const preemptiveReconnectingRef = { current: false };
         stallCheckIntervalRef.current = setInterval(() => {
           const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
+          const connectionAge = Date.now() - connectionAgeRef.current;
+          
+          // Pre-emptive reconnection before edge function timeout
+          if (connectionAge > MAX_CONNECTION_AGE_MS && isActiveRef.current && !preemptiveReconnectingRef.current) {
+            preemptiveReconnectingRef.current = true;
+            console.log(`useNetworkCamera: Pre-emptive reconnect (connection age: ${Math.round(connectionAge / 1000)}s)`);
+            // Keep UI stable - no state changes, just start overlapping connection
+            frameCountRef.current = 0;
+            connectionAgeRef.current = Date.now();
+            if (configRef.current) {
+              startOverlappingConnection(imgElement, configRef.current);
+            }
+            return;
+          }
+          
           if (timeSinceLastFrame > STALL_TIMEOUT_MS && isActiveRef.current) {
             console.log(`useNetworkCamera: Stream stalled (${Math.round(timeSinceLastFrame / 1000)}s since last frame), restarting...`);
             
-            // Clear interval first to prevent multiple triggers
             if (stallCheckIntervalRef.current) {
               clearInterval(stallCheckIntervalRef.current);
               stallCheckIntervalRef.current = null;
             }
             
-            // Abort the frozen connection
             try { fetchControllerRef.current?.abort(); } catch {}
             
-            // Start a new overlapping connection immediately
+            // Only show connecting state for actual stalls
             setIsConnected(false);
             setIsConnecting(true);
             setTimeout(() => {
@@ -410,11 +426,10 @@ export const useNetworkCamera = () => {
                 }
               }, delay);
             } else {
-              // Natural stream cycling - immediate seamless restart
-              console.log('useNetworkCamera: Natural stream cycle, immediate seamless restart...');
+              // Natural stream cycling - seamless restart WITHOUT UI state changes
+              console.log('useNetworkCamera: Natural stream cycle, seamless background restart...');
               setReconnectAttempts(0);
-              setIsConnected(false);
-              setIsConnecting(true);
+              // Do NOT set isConnected=false or isConnecting=true — keep last frame visible
               frameCountRef.current = 0;
               connectionAgeRef.current = Date.now();
               if (isActiveRef.current && configRef.current) {
