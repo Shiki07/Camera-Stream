@@ -35,6 +35,7 @@ export const useAutoRelay = ({
   const isActiveRef = useRef(true);
   const relayRoomIdRef = useRef<string | null>(null);
   const isRelayingRef = useRef(false);
+  const staleCountRef = useRef(0);
 
   // Keep refs in sync with state
   useEffect(() => {
