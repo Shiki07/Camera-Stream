@@ -39,7 +39,7 @@ serve(async (req) => {
     }
 
     const targetUrl = `${haUrl.origin}${endpoint}`;
-    console.log(`Proxying request to: ${targetUrl}`);
+    console.log(`Proxying request to: ${targetUrl}, token length: ${token.length}, prefix: ${token.substring(0, 10)}...`);
 
     const response = await fetch(targetUrl, {
       method: 'GET',

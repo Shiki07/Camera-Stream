@@ -342,6 +342,7 @@ serve(async (req) => {
       const decryptedToken = await decryptToken(encryptedToken, userId);
 
       if (!decryptedToken) {
+        console.warn('HA token decryption returned null for user', userId);
         return new Response(
           JSON.stringify({
             success: true,
@@ -351,6 +352,9 @@ serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      // Log token length and prefix for debugging (never log full token)
+      console.log(`HA token loaded: length=${decryptedToken.length}, prefix=${decryptedToken.substring(0, 10)}...`);
 
       return new Response(
         JSON.stringify({
