@@ -15,6 +15,7 @@ import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import CookieConsent from "./components/CookieConsent";
 
 // Lazy load the main dashboard and remote viewer to reduce initial bundle size
 const Index = lazy(() => import("./pages/Index"));
@@ -29,6 +30,7 @@ const App = () => (
         <DirectoryProvider>
         <Toaster />
         <Sonner />
+        <CookieConsent />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />

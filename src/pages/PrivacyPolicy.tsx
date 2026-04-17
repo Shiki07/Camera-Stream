@@ -154,6 +154,22 @@ const PrivacyPolicy = () => {
             </section>
 
             <section>
+              <h2 className="text-2xl font-bold mb-4">Cookies & Consent</h2>
+              <p className="text-muted-foreground">
+                We use strictly necessary cookies for authentication and core functionality.
+                With your consent, we also use analytics and marketing cookies. You can
+                change your preferences at any time:
+              </p>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-cookie-settings"))}
+                className="mt-3 text-primary hover:underline"
+              >
+                Manage cookie preferences
+              </button>
+            </section>
+
+            <section>
               <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
               <p className="text-muted-foreground">
                 If you have questions about this Privacy Policy or our privacy practices, please contact us at:
