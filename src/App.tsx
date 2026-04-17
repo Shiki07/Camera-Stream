@@ -30,6 +30,7 @@ const App = () => (
         <DirectoryProvider>
         <Toaster />
         <Sonner />
+        <CookieConsent />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
