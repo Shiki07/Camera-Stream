@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Cookie, X } from "lucide-react";
-import { Link } from "react-router-dom";
+
 
 const STORAGE_KEY = "cookie_consent_v1";
 
