@@ -4,6 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- Google Consent Mode v2 - default denied (GDPR/ePrivacy) -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      // Apply stored consent if present, else default deny
+      (function(){
+        var stored = null;
+        try { stored = JSON.parse(localStorage.getItem('cookie_consent_v1') || 'null'); } catch(e){}
+        var consent = {
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied',
+          analytics_storage: 'denied',
+          functionality_storage: 'granted',
+          security_storage: 'granted'
+        };
+        if (stored && stored.analytics) {
+          consent.analytics_storage = 'granted';
+        }
+        if (stored && stored.marketing) {
+          consent.ad_storage = 'granted';
+          consent.ad_user_data = 'granted';
+          consent.ad_personalization = 'granted';
+        }
+        gtag('consent', 'default', consent);
+      })();
+    </script>
+
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -15,10 +43,8 @@
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZHCSFG1C9F"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-ZHCSFG1C9F');
+      gtag('config', 'G-ZHCSFG1C9F', { anonymize_ip: true });
     </script>
     
     <!-- Google Search Console Verification -->
