@@ -90,9 +90,9 @@ export const CookieConsent = () => {
                 traffic and improve our service. Necessary cookies are required for the
                 app to function. You can accept all, reject non-essential, or customize
                 your choices. Read our{" "}
-                <Link to="/privacy" className="underline text-primary hover:text-primary/80">
+                <a href="/privacy" className="underline text-primary hover:text-primary/80">
                   Privacy Policy
-                </Link>
+                </a>
                 .
               </p>
 
