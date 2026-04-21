@@ -27,7 +27,7 @@ const defaultJsonLd = {
     "Real-time motion detection",
     "Instant email alerts",
     "Local storage recording",
-    "Multi-camera support (up to 16 cameras)",
+    "Multi-camera support",
     "Privacy-first design",
     "Mobile-friendly interface"
   ],
