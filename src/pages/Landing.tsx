@@ -56,7 +56,7 @@ const Landing = () => {
     <>
       <SEOHead 
         title="Camera Stream - Free Security Camera System | Motion Detection & Alerts"
-        description="Professional security camera monitoring with real-time motion detection, instant email alerts, and local storage. 100% free, privacy-focused, open-source. Monitor up to 16 cameras."
+        description="Free, privacy-focused security camera monitoring with real-time motion detection, instant email alerts, and local storage. Open-source, no subscription fees."
         keywords="free security camera, home security system, camera motion detection, webcam monitoring, surveillance system, IP camera software, privacy-focused camera, local storage camera, multi-camera dashboard, DIY security"
         canonical="https://www.camerastream.live/"
       />
