@@ -6,7 +6,17 @@
 // hidden SEO content block crawlers can read without executing JavaScript.
 // React then hydrates the client-side app on top, replacing the visible UI.
 
-import { routes, SITE_URL, OG_IMAGE } from "./seo-routes.mjs";
+import type { Plugin } from "vite";
+import { routes, SITE_URL } from "./seo-routes";
+
+interface Route {
+  path: string;
+  title: string;
+  description: string;
+  keywords?: string;
+  h1?: string;
+  body?: string;
+}
 
 const escapeHtml = (s) =>
   String(s)
