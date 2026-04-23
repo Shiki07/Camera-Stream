@@ -124,7 +124,7 @@ const Auth = () => {
         type: 'signup',
         email: trimmedEmail,
         options: {
-          emailRedirectTo: 'https://camerastream.live/dashboard'
+          emailRedirectTo: 'https://www.camerastream.live/dashboard'
         }
       });
       
@@ -164,7 +164,7 @@ const Auth = () => {
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: 'https://camerastream.live/auth',
+        redirectTo: 'https://www.camerastream.live/auth',
       });
       
       if (error) {
