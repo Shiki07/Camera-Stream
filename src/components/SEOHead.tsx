@@ -32,12 +32,7 @@ const defaultJsonLd = {
     "Mobile-friendly interface"
   ],
   "screenshot": "https://www.camerastream.live/og-image.jpg",
-  "softwareVersion": "1.0",
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "ratingCount": "150"
-  }
+  "softwareVersion": "1.0"
 };
 
 export const SEOHead = ({ 
