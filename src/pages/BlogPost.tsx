@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/SEOHead";
 import { HowToStructuredData } from "@/components/StructuredData";
-import { Camera, ArrowLeft, Calendar, Clock, Shield, Eye, Home, CheckCircle } from "lucide-react";
+import { Camera, ArrowLeft, Calendar, Clock, Shield, Eye, Home, CheckCircle, Cpu, Terminal, Wifi } from "lucide-react";
 
 interface BlogPostData {
   slug: string;
@@ -18,6 +18,206 @@ interface BlogPostData {
 }
 
 const blogPostsData: Record<string, BlogPostData> = {
+  "raspberry-pi-camera-recording-setup": {
+    slug: "raspberry-pi-camera-recording-setup",
+    title: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide for Camera Stream.",
+    date: "2026-04-30",
+    readTime: "12 min read",
+    category: "Setup Guide",
+    keywords: "raspberry pi security camera, raspberry pi camera streaming, pi camera recording, libcamera mjpeg, duckdns raspberry pi, pi camera motion detection, picamera2 surveillance",
+    howToSteps: [
+      { name: "Prepare your Raspberry Pi", text: "Flash Raspberry Pi OS Bookworm (64-bit) to an SD card, connect the camera module, and enable the camera interface." },
+      { name: "Install the Pi camera service", text: "Clone the Camera Stream pi-service repo, install Python and Node dependencies, and verify libcamera detects your camera." },
+      { name: "Configure DuckDNS for remote access", text: "Create a free DuckDNS subdomain and run the updater so your Pi is reachable from anywhere by hostname." },
+      { name: "Start streaming and recording services", text: "Run the MJPEG stream on port 8000 and the recording control service on port 3002 as systemd services so they auto-start on boot." },
+      { name: "Add the Pi to Camera Stream", text: "In the Camera Stream dashboard, add a new Raspberry Pi camera using your DuckDNS hostname, then enable motion detection and recording." }
+    ],
+    content: (
+      <>
+        <p className="text-lg text-muted-foreground mb-6">
+          A Raspberry Pi with the official camera module makes an excellent always-on security
+          camera: low power draw, weatherproof in a small enclosure, and fully under your
+          control. This guide walks through wiring it into Camera Stream for live viewing,
+          motion-triggered recording, and remote access — all without paying a subscription.
+        </p>
+
+        <div className="bg-muted/40 border border-border rounded-lg p-4 mb-8 text-sm text-muted-foreground">
+          <strong className="text-foreground">Heads up:</strong> Camera Stream uses two
+          separate Pi services: an MJPEG streamer on port <code className="bg-muted px-1 rounded">8000</code> and a
+          recording controller on port <code className="bg-muted px-1 rounded">3002</code>. VPNs are not
+          supported for Pi recording — use DuckDNS with a port-forward instead.
+        </div>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">What You'll Need</h2>
+        <ul className="list-disc list-inside space-y-2 text-muted-foreground mb-6">
+          <li>Raspberry Pi 3, 4, or 5 (Pi 4/5 strongly recommended for smooth streaming)</li>
+          <li>Official Raspberry Pi Camera Module (v2, v3, or HQ) or a USB webcam</li>
+          <li>16 GB+ microSD card (Class 10 / A1 minimum)</li>
+          <li>Stable power supply (official PSU recommended)</li>
+          <li>Wired Ethernet or strong Wi-Fi</li>
+          <li>A free Camera Stream account and a free DuckDNS account</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 1: Prepare Raspberry Pi OS</h2>
+        <p className="text-muted-foreground mb-4">
+          Flash <strong>Raspberry Pi OS Bookworm (64-bit Lite)</strong> using Raspberry Pi
+          Imager. In the Imager's advanced options, pre-set your hostname, enable SSH, and
+          configure Wi-Fi if you're not using Ethernet. Boot the Pi and SSH in.
+        </p>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <Terminal className="h-5 w-5 text-primary" />
+              Update and verify the camera
+            </h3>
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto"><code>{`sudo apt update && sudo apt full-upgrade -y
+sudo apt install -y python3-picamera2 python3-pip git nodejs npm ffmpeg
+libcamera-hello --list-cameras`}</code></pre>
+            <p className="text-muted-foreground text-sm mt-3">
+              <code className="bg-muted px-1 rounded">libcamera-hello --list-cameras</code> should
+              list your camera. If it doesn't, re-seat the ribbon cable and re-check the
+              camera interface in <code className="bg-muted px-1 rounded">raspi-config</code>.
+            </p>
+          </CardContent>
+        </Card>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 2: Install the Camera Stream Pi Service</h2>
+        <p className="text-muted-foreground mb-4">
+          The Pi runs two small services: a Python MJPEG streamer and a Node.js recording
+          controller. Both are open-source and live in the project's{" "}
+          <code className="bg-muted px-1 rounded">pi-service/</code> directory.
+        </p>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto"><code>{`cd ~
+git clone https://github.com/your-org/camera-stream.git
+cd camera-stream/pi-service
+npm install
+# Test the MJPEG stream (Ctrl+C to stop)
+python3 libcamera_stream.py --port 8000`}</code></pre>
+            <p className="text-muted-foreground text-sm mt-3">
+              Open <code className="bg-muted px-1 rounded">http://&lt;pi-ip&gt;:8000</code> in a
+              browser on your LAN. You should see a live MJPEG feed.
+            </p>
+          </CardContent>
+        </Card>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 3: Set Up DuckDNS for Remote Access</h2>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <Wifi className="h-5 w-5 text-primary" />
+              Free dynamic DNS in 5 minutes
+            </h3>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
+              <li>Sign up at <strong>duckdns.org</strong> and create a subdomain (e.g. <code className="bg-muted px-1 rounded">my-pi-cam.duckdns.org</code>).</li>
+              <li>Copy your DuckDNS token.</li>
+              <li>On your router, port-forward TCP <strong>8000</strong> and <strong>3002</strong> to your Pi's local IP.</li>
+              <li>Install the DuckDNS updater on the Pi to keep the IP fresh:</li>
+            </ol>
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto mt-3"><code>{`mkdir -p ~/duckdns && cd ~/duckdns
+echo 'echo url="https://www.duckdns.org/update?domains=my-pi-cam&token=YOUR_TOKEN&ip=" | curl -k -o ~/duckdns/duck.log -K -' > duck.sh
+chmod +x duck.sh
+(crontab -l 2>/dev/null; echo "*/5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1") | crontab -`}</code></pre>
+          </CardContent>
+        </Card>
+        <p className="text-muted-foreground mb-6 text-sm">
+          For privacy, Camera Stream hides DuckDNS hostnames in the UI after setup — your
+          camera's address won't be shown back to you on screen.
+        </p>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 4: Run Both Services on Boot</h2>
+        <p className="text-muted-foreground mb-4">
+          Create two systemd units so the streamer and recorder start automatically and
+          restart if they crash.
+        </p>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-2">/etc/systemd/system/camera-stream.service</h3>
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto"><code>{`[Unit]
+Description=Camera Stream MJPEG (port 8000)
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/camera-stream/pi-service
+ExecStart=/usr/bin/python3 libcamera_stream.py --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target`}</code></pre>
+            <h3 className="font-semibold mb-2 mt-4">/etc/systemd/system/camera-recorder.service</h3>
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto"><code>{`[Unit]
+Description=Camera Stream Recording Controller (port 3002)
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/camera-stream/pi-service
+ExecStart=/usr/bin/node server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target`}</code></pre>
+            <pre className="bg-muted p-3 rounded text-xs overflow-x-auto mt-3"><code>{`sudo systemctl daemon-reload
+sudo systemctl enable --now camera-stream camera-recorder
+sudo systemctl status camera-stream camera-recorder`}</code></pre>
+          </CardContent>
+        </Card>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 5: Add Your Pi to Camera Stream</h2>
+        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mb-6">
+          <li>Sign in at <strong>camerastream.live</strong> and open the dashboard.</li>
+          <li>Click <strong>Add Camera</strong> → <strong>Raspberry Pi</strong>.</li>
+          <li>Enter your DuckDNS hostname (e.g. <code className="bg-muted px-1 rounded">my-pi-cam.duckdns.org</code>).</li>
+          <li>The MJPEG feed and recording controls will appear automatically.</li>
+        </ol>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Step 6: Tune Motion Detection & Recording</h2>
+        <ul className="space-y-2 mb-6">
+          <li className="flex items-start gap-2">
+            <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
+            <span className="text-muted-foreground">Enable motion detection in the camera's settings — start with medium sensitivity.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
+            <span className="text-muted-foreground">Set a 1–10 second post-motion buffer so events aren't cut short.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
+            <span className="text-muted-foreground">Prefer storing recordings on your host computer rather than the Pi's SD card to extend its lifespan.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
+            <span className="text-muted-foreground">Add your email under Notifications to get instant motion alerts.</span>
+          </li>
+        </ul>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Troubleshooting</h2>
+        <Card className="mb-6">
+          <CardContent className="pt-6 space-y-3 text-sm text-muted-foreground">
+            <p><strong className="text-foreground">Stream stalls after ~2 minutes:</strong> the Pi service is tuned for seamless reconnection at ~140s. Make sure both systemd services are running and your network is stable.</p>
+            <p><strong className="text-foreground">Camera not detected:</strong> run <code className="bg-muted px-1 rounded">libcamera-hello --list-cameras</code> and re-seat the ribbon cable; the contacts face the Ethernet port on a Pi 4.</p>
+            <p><strong className="text-foreground">Can't reach Pi remotely:</strong> verify the DuckDNS IP is current and ports 8000/3002 are forwarded. VPNs are not supported for Pi recording.</p>
+            <p><strong className="text-foreground">Choppy video:</strong> use a wired Ethernet connection and a quality SD card; lower the resolution in the streamer if needed.</p>
+          </CardContent>
+        </Card>
+
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 mt-8">
+          <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Privacy by default
+          </h3>
+          <p className="text-muted-foreground">
+            All video stays between your Pi and your browser — Camera Stream never proxies
+            or stores your footage. Recordings live on storage you control, and credentials
+            are encrypted before they ever touch our database.
+          </p>
+        </div>
+      </>
+    )
+  },
   "free-home-security-camera-setup": {
     slug: "free-home-security-camera-setup",
     title: "Free Home Security Camera Setup Guide",
