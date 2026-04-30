@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SEOHead } from "@/components/SEOHead";
 import { StructuredData } from "@/components/StructuredData";
-import { Camera, ArrowLeft, Calendar, Clock, ArrowRight, Shield, Eye, Home } from "lucide-react";
+import { Camera, ArrowLeft, Calendar, Clock, ArrowRight, Shield, Eye, Home, Cpu } from "lucide-react";
 
 interface BlogPost {
   slug: string;
@@ -16,6 +16,15 @@ interface BlogPost {
 }
 
 const blogPosts: BlogPost[] = [
+  {
+    slug: "raspberry-pi-camera-recording-setup",
+    title: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide.",
+    date: "2026-04-30",
+    readTime: "12 min read",
+    category: "Setup Guide",
+    icon: <Cpu className="h-5 w-5" />
+  },
   {
     slug: "free-home-security-camera-setup",
     title: "Free Home Security Camera Setup Guide",
