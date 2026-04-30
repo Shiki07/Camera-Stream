@@ -1,0 +1,20 @@
+{
+  "name": "Camera Stream",
+  "short_name": "CamStream",
+  "description": "Free, privacy-focused security camera monitoring with real-time motion detection and instant alerts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#1f2937",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/lovable-uploads/a56e8456-fe00-467e-a332-c0f36109b225.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["security", "utilities"],
+  "lang": "en"
+}
