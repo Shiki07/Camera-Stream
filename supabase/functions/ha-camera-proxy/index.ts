@@ -88,7 +88,9 @@ const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: 
 const buildUpstreamErrorResponse = (error: unknown, upstreamName: string) => {
   const err = error as ProxyFetchError;
   const code = err.code || err.cause?.code || '';
-  const details = `${err.message || ''} ${err.cause?.message || ''}`;
+  // Only inspect the cause message — err.message often contains the full URL
+  // (e.g. "alepa.duckdns.org") which would false-match substrings like "dns".
+  const lower = `${err.cause?.message || ''}`.toLowerCase();
 
   if (err.name === 'AbortError') {
     return new Response(
@@ -100,7 +102,17 @@ const buildUpstreamErrorResponse = (error: unknown, upstreamName: string) => {
     );
   }
 
-  if (code === 'EHOSTUNREACH' || details.includes('No route to host')) {
+  if (code === 'ETIMEDOUT' || lower.includes('timed out') || lower.includes('timeout')) {
+    return new Response(
+      JSON.stringify({ error: `${upstreamName} did not respond in time (port forwarding or device offline?)`, code: 'UPSTREAM_TIMEOUT' }),
+      {
+        status: 504,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  if (code === 'EHOSTUNREACH' || lower.includes('no route to host')) {
     return new Response(
       JSON.stringify({ error: `${upstreamName} is unreachable`, code: 'UPSTREAM_UNREACHABLE' }),
       {
@@ -110,7 +122,7 @@ const buildUpstreamErrorResponse = (error: unknown, upstreamName: string) => {
     );
   }
 
-  if (code === 'ECONNREFUSED' || details.includes('Connection refused')) {
+  if (code === 'ECONNREFUSED' || lower.includes('connection refused')) {
     return new Response(
       JSON.stringify({ error: `${upstreamName} refused the connection`, code: 'UPSTREAM_REFUSED' }),
       {
@@ -120,7 +132,7 @@ const buildUpstreamErrorResponse = (error: unknown, upstreamName: string) => {
     );
   }
 
-  if (code === 'ENOTFOUND' || details.includes('dns') || details.includes('Name or service not known')) {
+  if (code === 'ENOTFOUND' || lower.includes('name or service not known') || lower.includes('dns error') || lower.includes('failed to lookup')) {
     return new Response(
       JSON.stringify({ error: `${upstreamName} hostname could not be resolved`, code: 'UPSTREAM_DNS_FAILED' }),
       {
