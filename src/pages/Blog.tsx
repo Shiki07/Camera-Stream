@@ -58,7 +58,7 @@ const Blog = () => {
   return (
     <>
       <SEOHead 
-        title="Security Camera Blog - Camera Stream | Tips, Guides & Tutorials"
+        title="Security Camera Blog — Tips & Guides | Camera Stream"
         description="Expert guides on home security camera setup, privacy-focused monitoring, motion detection tips, and DIY surveillance solutions. Free tutorials from Camera Stream."
         keywords="security camera blog, home security tips, camera setup guide, motion detection tutorial, privacy camera monitoring, DIY surveillance, webcam security, IP camera guide"
         canonical="https://www.camerastream.live/blog"
