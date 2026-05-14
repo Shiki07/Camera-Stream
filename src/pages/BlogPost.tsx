@@ -20,7 +20,7 @@ interface BlogPostData {
 const blogPostsData: Record<string, BlogPostData> = {
   "raspberry-pi-camera-recording-setup": {
     slug: "raspberry-pi-camera-recording-setup",
-    title: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    title: "Raspberry Pi Security Camera: Streaming & Recording",
     description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide for Camera Stream.",
     date: "2026-04-30",
     readTime: "12 min read",
@@ -515,13 +515,39 @@ const BlogPost = () => {
     return <Navigate to="/blog" replace />;
   }
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.title,
+    "description": post.description,
+    "datePublished": post.date,
+    "dateModified": post.date,
+    "author": {
+      "@type": "Organization",
+      "name": "Camera Stream",
+      "url": "https://www.camerastream.live"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Camera Stream",
+      "url": "https://www.camerastream.live"
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://www.camerastream.live/blog/${post.slug}`
+    },
+    "keywords": post.keywords
+  };
+
   return (
     <>
       <SEOHead 
-        title={`${post.title} | Camera Stream Blog`}
+        title={post.title}
         description={post.description}
         keywords={post.keywords}
         canonical={`https://www.camerastream.live/blog/${post.slug}`}
+        ogType="article"
+        jsonLd={articleJsonLd}
       />
       {post.howToSteps && (
         <HowToStructuredData

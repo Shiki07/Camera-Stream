@@ -1,0 +1,24 @@
+# Camera Stream
+
+> Free, privacy-focused security camera monitoring with real-time motion detection, instant email alerts, and local recording. No subscription fees, no cloud uploads required.
+
+Camera Stream is a web-based dashboard that connects webcams, IP cameras (RTSP/MJPEG), Raspberry Pi cameras, and Home Assistant camera entities into a single multi-camera view. Video stays between the camera and the user's browser — footage is never proxied or stored on Camera Stream servers. Up to 16 cameras per account.
+
+## Pages
+
+- [Home](/): Overview of features, pricing, and supported camera types.
+- [Documentation](/documentation): Setup guides for webcams, IP cameras, Raspberry Pi, motion detection, and Home Assistant integration.
+- [Blog](/blog): Tutorials and guides on home security camera setup and privacy.
+- [Contact](/contact): Support and inquiries.
+
+## Blog
+
+- [Raspberry Pi Security Camera: Streaming & Recording](/blog/raspberry-pi-camera-recording-setup): Turn a Raspberry Pi into a 24/7 security camera with MJPEG streaming, motion-triggered recording, and DuckDNS remote access.
+- [Free Home Security Camera Setup Guide](/blog/free-home-security-camera-setup): Build a complete home security system using webcams or affordable IP cameras with no monthly fees.
+- [Privacy-First Camera Monitoring Explained](/blog/privacy-first-camera-monitoring): Why local storage and privacy-focused design matter for home security cameras.
+- [Webcam vs IP Camera: Which is Right for You?](/blog/webcam-vs-ip-camera): Comparison of webcams and IP cameras for home security monitoring.
+
+## Optional
+
+- [Privacy Policy](/privacy): How user data is handled.
+- [Terms of Service](/terms): Terms governing use of Camera Stream.

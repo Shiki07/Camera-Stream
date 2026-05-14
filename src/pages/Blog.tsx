@@ -18,7 +18,7 @@ interface BlogPost {
 const blogPosts: BlogPost[] = [
   {
     slug: "raspberry-pi-camera-recording-setup",
-    title: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    title: "Raspberry Pi Security Camera: Streaming & Recording",
     description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide.",
     date: "2026-04-30",
     readTime: "12 min read",
