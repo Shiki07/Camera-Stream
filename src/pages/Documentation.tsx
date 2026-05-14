@@ -56,7 +56,7 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Documentation - Camera Stream | Complete Setup Guide & User Manual"
+        title="Camera Stream Docs — Setup Guide & User Manual"
         description="Complete guide to set up Camera Stream for security monitoring. Step-by-step tutorials for webcams, IP cameras, motion detection, email alerts, and local recording."
         keywords="camera stream documentation, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, home security DIY, surveillance setup"
         canonical="https://www.camerastream.live/documentation"

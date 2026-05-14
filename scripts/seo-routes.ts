@@ -9,7 +9,7 @@ export const OG_IMAGE = `${SITE_URL}/og-image.jpg`;
 export const routes = [
   {
     path: "/",
-    title: "Camera Stream - Free Security Camera System | Motion Detection & Alerts",
+    title: "Camera Stream — Free Security Camera Monitoring",
     description:
       "Free, privacy-focused security camera monitoring with real-time motion detection, instant email alerts, and local storage. No subscription fees.",
     keywords:
@@ -31,7 +31,7 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Documentation - Camera Stream Setup Guide & Tutorials",
+    title: "Camera Stream Docs — Setup Guide & Tutorials",
     description:
       "Complete documentation for Camera Stream: setup guides for webcams, IP cameras, Raspberry Pi, motion detection configuration, and Home Assistant integration.",
     keywords:
@@ -53,7 +53,7 @@ export const routes = [
   },
   {
     path: "/blog",
-    title: "Security Camera Blog - Camera Stream | Tips, Guides & Tutorials",
+    title: "Security Camera Blog — Tips & Guides | Camera Stream",
     description:
       "Expert guides on home security camera setup, privacy-focused monitoring, motion detection tips, and DIY surveillance solutions. Free tutorials from Camera Stream.",
     keywords:
@@ -72,12 +72,12 @@ export const routes = [
   },
   {
     path: "/blog/raspberry-pi-camera-recording-setup",
-    title: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    title: "Raspberry Pi Security Camera: Streaming & Recording",
     description:
       "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step Camera Stream guide.",
     keywords:
       "raspberry pi security camera, raspberry pi camera streaming, pi camera recording, libcamera mjpeg, duckdns raspberry pi, pi camera motion detection",
-    h1: "Raspberry Pi Security Camera Setup: Streaming & Recording Guide",
+    h1: "Raspberry Pi Security Camera: Streaming & Recording",
     body: `
       <p>Turn a Raspberry Pi and the official camera module into an always-on security camera with Camera Stream. This guide covers libcamera MJPEG streaming on port 8000, the Node.js recording controller on port 3002, DuckDNS remote access, and systemd auto-start.</p>
       <p>Includes motion detection tuning, post-motion buffer recommendations, SD-card-friendly storage advice, and troubleshooting for stalled streams and undetected cameras.</p>
