@@ -113,22 +113,27 @@ export const SEOHead = ({
     updateOrCreateMeta('twitter:image', ogImage, false);
     updateOrCreateMeta('twitter:url', canonical, false);
 
-    // Add JSON-LD structured data
-    const structuredData = jsonLd || defaultJsonLd;
-    let scriptTag = document.querySelector('script[type="application/ld+json"]:not([data-type])');
-    if (!scriptTag) {
-      scriptTag = document.createElement('script');
-      scriptTag.setAttribute('type', 'application/ld+json');
-      document.head.appendChild(scriptTag);
+    // Add JSON-LD structured data only when explicitly provided.
+    // Avoids applying SoftwareApplication schema to non-app pages
+    // (privacy, terms, blog posts) where it would be a mismatch.
+    const existingScript = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
+    if (jsonLd) {
+      let scriptTag = existingScript;
+      if (!scriptTag) {
+        scriptTag = document.createElement('script');
+        scriptTag.setAttribute('type', 'application/ld+json');
+        scriptTag.setAttribute('data-seohead', 'true');
+        document.head.appendChild(scriptTag);
+      }
+      scriptTag.textContent = JSON.stringify(jsonLd);
+    } else if (existingScript) {
+      existingScript.remove();
     }
-    scriptTag.textContent = JSON.stringify(structuredData);
 
     // Cleanup function to remove JSON-LD when component unmounts
     return () => {
-      const existingScript = document.querySelector('script[type="application/ld+json"]:not([data-type])');
-      if (existingScript) {
-        existingScript.remove();
-      }
+      const tag = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
+      if (tag) tag.remove();
     };
   }, [title, description, keywords, canonical, jsonLd, ogImage, ogType, noindex]);
 
