@@ -21,7 +21,7 @@ const blogPostsData: Record<string, BlogPostData> = {
   "raspberry-pi-camera-recording-setup": {
     slug: "raspberry-pi-camera-recording-setup",
     title: "Raspberry Pi Security Camera: Streaming & Recording",
-    description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide for Camera Stream.",
+    description: "Turn a Raspberry Pi into a 24/7 security camera with MJPEG streaming, motion recording, and DuckDNS remote access. Step-by-step guide.",
     date: "2026-04-30",
     readTime: "12 min read",
     category: "Setup Guide",
