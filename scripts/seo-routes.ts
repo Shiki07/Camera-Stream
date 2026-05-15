@@ -9,7 +9,7 @@ export const OG_IMAGE = `${SITE_URL}/og-image.jpg`;
 export const routes = [
   {
     path: "/",
-    title: "Camera Stream — Free Security Camera Monitoring",
+    title: "Camera Stream — Free Security Camera Monitoring System",
     description:
       "Free, privacy-focused security camera monitoring with real-time motion detection, instant email alerts, and local storage. No subscription fees.",
     keywords:
@@ -31,7 +31,7 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Camera Stream Docs — Setup Guide & Tutorials",
+    title: "Camera Stream Docs — Complete Setup Guide & User Manual",
     description:
       "Complete documentation for Camera Stream: setup guides for webcams, IP cameras, Raspberry Pi, motion detection configuration, and Home Assistant integration.",
     keywords:
@@ -85,7 +85,7 @@ export const routes = [
   },
   {
     path: "/blog/free-home-security-camera-setup",
-    title: "Free Home Security Camera Setup Guide - Camera Stream",
+    title: "Free Home Security Camera Setup Guide | Camera Stream",
     description:
       "Step-by-step guide to setting up a complete home security camera system using your existing webcam or affordable IP cameras. No monthly fees required.",
     keywords:
@@ -98,7 +98,7 @@ export const routes = [
   },
   {
     path: "/blog/privacy-first-camera-monitoring",
-    title: "Privacy-First Camera Monitoring Explained - Camera Stream",
+    title: "Privacy-First Camera Monitoring Explained | Camera Stream",
     description:
       "Why local storage and privacy-focused design matter for home security cameras, and how Camera Stream protects your data from third-party access.",
     keywords:
@@ -111,7 +111,7 @@ export const routes = [
   },
   {
     path: "/blog/webcam-vs-ip-camera",
-    title: "Webcam vs IP Camera: Which is Right for You? - Camera Stream",
+    title: "Webcam vs IP Camera: Which Is Right for You | Camera Stream",
     description:
       "Compare the pros and cons of using a webcam versus a dedicated IP camera for your home security monitoring setup.",
     keywords:
@@ -124,7 +124,7 @@ export const routes = [
   },
   {
     path: "/contact",
-    title: "Contact Camera Stream - Support & Inquiries",
+    title: "Contact Us — Camera Stream Support & Feature Requests",
     description:
       "Get in touch with the Camera Stream team for support, feature requests, or general inquiries about our free security camera platform.",
     keywords: "camera stream contact, security camera support, camera stream help",
@@ -135,7 +135,7 @@ export const routes = [
   },
   {
     path: "/privacy",
-    title: "Privacy Policy - Camera Stream",
+    title: "Privacy Policy — Camera Stream Free Security Monitoring",
     description:
       "Camera Stream privacy policy. Learn how we handle your data, why we use local storage, and our commitment to keeping your camera footage private.",
     keywords: "camera stream privacy policy, security camera privacy, GDPR camera",
@@ -146,7 +146,7 @@ export const routes = [
   },
   {
     path: "/terms",
-    title: "Terms of Service - Camera Stream",
+    title: "Terms of Service — Camera Stream Free Security Platform",
     description:
       "Terms of service for Camera Stream — the free, privacy-focused security camera monitoring platform.",
     keywords: "camera stream terms, security camera terms of service",

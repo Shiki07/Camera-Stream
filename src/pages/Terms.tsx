@@ -8,7 +8,7 @@ const Terms = () => {
   return (
     <>
       <SEOHead 
-        title="Terms of Service - Camera Stream | User Agreement"
+        title="Terms of Service — Camera Stream Free Security Platform"
         description="Terms and conditions for using Camera Stream security camera monitoring service. Read our user agreement and service policies."
         keywords="camera stream terms of service, user agreement, terms and conditions, service policy, legal terms"
         canonical="https://www.camerastream.live/terms"
