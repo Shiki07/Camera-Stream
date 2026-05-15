@@ -194,7 +194,7 @@ const RemoteViewer: React.FC = () => {
   return (
     <>
       <SEOHead 
-        title="Remote Camera Viewer | Camera Stream"
+        title="Remote Camera Viewer — Camera Stream Live Shared Feed"
         description="Watch live security camera feeds remotely in real-time. View private camera streams with instant connection, full-screen mode, and live status indicators."
         canonical={`https://www.camerastream.live/view/${roomId}`}
         ogImage="https://www.camerastream.live/og-image.jpg"

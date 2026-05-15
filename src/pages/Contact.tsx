@@ -68,7 +68,7 @@ const Contact = () => {
   return (
     <>
       <SEOHead
-        title="Contact Us - Camera Stream Support | Get Help"
+        title="Contact Us — Camera Stream Support & Feature Requests"
         description="Get in touch with the Camera Stream team. We're here to help with questions about security camera setup, motion detection, and troubleshooting."
         keywords="contact camera stream, camera support, security camera help, technical support, camera troubleshooting"
         canonical="https://www.camerastream.live/contact"

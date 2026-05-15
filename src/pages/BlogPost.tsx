@@ -220,7 +220,7 @@ sudo systemctl status camera-stream camera-recorder`}</code></pre>
   },
   "free-home-security-camera-setup": {
     slug: "free-home-security-camera-setup",
-    title: "Free Home Security Camera Setup Guide",
+    title: "Free Home Security Camera Setup Guide | Camera Stream",
     description: "Learn how to set up a complete home security camera system using your existing webcam or affordable IP cameras. No monthly fees required.",
     date: "2024-12-15",
     readTime: "8 min read",
@@ -335,7 +335,7 @@ sudo systemctl status camera-stream camera-recorder`}</code></pre>
   },
   "privacy-first-camera-monitoring": {
     slug: "privacy-first-camera-monitoring",
-    title: "Privacy-First Camera Monitoring Explained",
+    title: "Privacy-First Camera Monitoring Explained | Camera Stream",
     description: "Understand why local storage and privacy-focused design matter for home security, and how Camera Stream protects your data.",
     date: "2024-12-10",
     readTime: "6 min read",
@@ -421,7 +421,7 @@ sudo systemctl status camera-stream camera-recorder`}</code></pre>
   },
   "webcam-vs-ip-camera": {
     slug: "webcam-vs-ip-camera",
-    title: "Webcam vs IP Camera: Which is Right for You?",
+    title: "Webcam vs IP Camera: Which Is Right for You | Camera Stream",
     description: "Compare the pros and cons of using a webcam versus a dedicated IP camera for your security monitoring needs.",
     date: "2024-12-05",
     readTime: "5 min read",
