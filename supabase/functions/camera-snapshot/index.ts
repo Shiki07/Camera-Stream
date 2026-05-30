@@ -85,16 +85,16 @@ serve(async (req) => {
         });
       }
 
-      // Verify token against database with proper validation
-      const isValid = await verifyShareToken(token, cameraId);
-      if (!isValid) {
+      // Verify token and resolve owning user
+      const ownerUserId = await verifyShareToken(token, cameraId);
+      if (!ownerUserId) {
         return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const snapshot = snapshotStore.get(cameraId);
+      const snapshot = snapshotStore.get(`${ownerUserId}:${cameraId}`);
       if (!snapshot) {
         // Return a placeholder image if no snapshot available
         return new Response(JSON.stringify({ error: 'No snapshot available' }), {
