@@ -12,6 +12,71 @@ type ProxyFetchError = Error & {
   cause?: { code?: string; message?: string };
 };
 
+// ---- Server-side HA token decryption (mirrors ha-token-manager) -----------
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+const getTokenEncryptionSecret = (): string => {
+  const secret =
+    Deno.env.get('TOKEN_ENCRYPTION_SECRET') ??
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!secret) throw new Error('Missing token encryption secret');
+  return secret;
+};
+
+const fromBase64 = (value: string): ArrayBuffer => {
+  const bytes = Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+};
+
+const deriveEncryptionKey = async (userId: string): Promise<CryptoKey> => {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(getTokenEncryptionSecret()),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: textEncoder.encode(`token:${userId}`),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt'],
+  );
+};
+
+const decryptStoredToken = async (
+  stored: string,
+  userId: string,
+): Promise<string | null> => {
+  // ha-token-manager stores "<encryptedToken>|||<metadataJson>"
+  const [encrypted] = stored.split('|||');
+  if (!encrypted) return null;
+  const [ivB64, ctB64] = encrypted.split(':');
+  if (!ivB64 || !ctB64) return null;
+  try {
+    const key = await deriveEncryptionKey(userId);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(ivB64) },
+      key,
+      fromBase64(ctB64),
+    );
+    return textDecoder.decode(decrypted);
+  } catch (err) {
+    console.warn('ha-camera-proxy: token decrypt failed', err);
+    return null;
+  }
+};
+
+
+
 const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: string } => {
   try {
     const url = new URL(urlString);
@@ -171,8 +236,9 @@ serve(async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       return new Response(
         JSON.stringify({ error: 'Server configuration error' }),
         {
@@ -200,17 +266,15 @@ serve(async (req: Request): Promise<Response> => {
     }
     userId = userData.user.id;
 
-
     console.log('HA camera proxy: Authenticated user request', userId);
 
     const url = new URL(req.url);
     const targetUrl = url.searchParams.get('url');
-    const haToken = url.searchParams.get('token');
 
-    if (!targetUrl || !haToken) {
-      console.warn('Missing url or token parameter');
+    if (!targetUrl) {
+      console.warn('Missing url parameter');
       return new Response(
-        JSON.stringify({ error: 'Missing url or token parameter' }),
+        JSON.stringify({ error: 'Missing url parameter' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -232,6 +296,32 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Look up the user's HA token from user_tokens (service-role bypasses RLS)
+    // — this keeps the long-lived token out of URLs, browser history, and logs.
+    const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: tokenRow, error: tokenErr } = await admin
+      .from('user_tokens')
+      .select('encrypted_token')
+      .eq('user_id', userId)
+      .eq('token_type', 'homeassistant')
+      .maybeSingle();
+
+    if (tokenErr || !tokenRow?.encrypted_token) {
+      console.warn('HA camera proxy: no HA token found for user');
+      return new Response(
+        JSON.stringify({ error: 'No Home Assistant token configured', code: 'HA_TOKEN_MISSING' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const haToken = await decryptStoredToken(tokenRow.encrypted_token, userId);
+    if (!haToken) {
+      return new Response(
+        JSON.stringify({ error: 'Stored Home Assistant token could not be decrypted; please save it again', code: 'HA_TOKEN_DECRYPT_FAILED' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('Proxying Home Assistant camera stream');
 
     const controller = new AbortController();
@@ -244,7 +334,7 @@ serve(async (req: Request): Promise<Response> => {
     try {
       const response = await fetch(decodedUrl, {
         headers: {
-          'Authorization': `Bearer ${decodeURIComponent(haToken)}`,
+          'Authorization': `Bearer ${haToken}`,
           'Accept': 'multipart/x-mixed-replace, image/jpeg, */*',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
@@ -253,6 +343,7 @@ serve(async (req: Request): Promise<Response> => {
         signal: controller.signal,
         keepalive: true,
       });
+
 
       if (!response.ok) {
         clearTimeout(timeoutId);
