@@ -299,9 +299,11 @@ export const useHomeAssistant = () => {
     }
   }, [config.url, config.token, toast]);
 
-  // Generate proxy URL for a camera - returns URL and auth token for authenticated requests
+  // Generate proxy URL for a camera. The HA long-lived token is NEVER passed
+  // in the URL — `ha-camera-proxy` looks it up server-side from `user_tokens`
+  // using the caller's authenticated user id. Only the Supabase JWT travels
+  // in the Authorization header.
   const getCameraProxyUrl = useCallback((entityId: string): { url: string; authToken?: string } => {
-    // Normalize HA base URL to origin
     let haOrigin = config.url;
     try {
       haOrigin = new URL(config.url).origin;
@@ -310,14 +312,14 @@ export const useHomeAssistant = () => {
     }
 
     const encodedUrl = encodeURIComponent(`${haOrigin}/api/camera_proxy_stream/${entityId}`);
-    const encodedToken = encodeURIComponent(config.token);
-    const proxyUrl = `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-camera-proxy?url=${encodedUrl}&token=${encodedToken}`;
-    
+    const proxyUrl = `https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/ha-camera-proxy?url=${encodedUrl}`;
+
     return {
       url: proxyUrl,
       authToken: session?.access_token,
     };
-  }, [config.url, config.token, session?.access_token]);
+  }, [config.url, session?.access_token]);
+
 
   // Send webhook to Home Assistant
   const sendWebhook = useCallback(async (eventData: {
