@@ -138,8 +138,25 @@ serve(async (req) => {
       });
     }
 
+    // SSRF guard: validate target URL (blocks private/link-local IPs via DNS resolution)
+    const validation = await validateTargetUrl(targetUrl);
+    if (!validation.ok) {
+      console.warn(`camera-diagnostics: rejected URL (${validation.reason})`);
+      return new Response(JSON.stringify({ error: 'URL not allowed', reason: validation.reason }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!checkRateLimit(user.id)) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log(`Running diagnostics for ${targetUrl}`);
-    
+
     const results: DiagnosticResults = {
       timestamp: new Date().toISOString(),
       targetUrl,
