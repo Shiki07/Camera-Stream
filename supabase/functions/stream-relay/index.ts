@@ -219,15 +219,24 @@ serve(async (req) => {
       });
     }
 
-    // Cleanup old frames (older than 60 seconds) - service account operation
-    // This uses service role key so bypasses RLS
+    // Cleanup old frames - REQUIRES AUTH; only deletes the caller's own stale frames
     if (action === 'cleanup') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const sixtySecondsAgo = new Date(Date.now() - 60000).toISOString();
-      
+
       const { error } = await supabase
         .from('relay_frames')
         .delete()
+        .eq('user_id', userId)
         .lt('updated_at', sixtySecondsAgo);
+
 
       if (error) {
         console.error('Cleanup error:', error);
