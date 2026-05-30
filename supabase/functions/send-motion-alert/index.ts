@@ -92,41 +92,21 @@ const handler = async (req: Request): Promise<Response> => {
     // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
     
-    // Try getUser first, fall back to decoding JWT claims
     let userId: string | null = null;
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
+
     if (authError || !user) {
-      console.warn('getUser failed, trying JWT decode:', authError?.message);
-      
-      // Fallback: decode JWT payload to extract user ID
-      try {
-        const payloadBase64 = jwt.split('.')[1];
-        if (payloadBase64) {
-          const payload = JSON.parse(atob(payloadBase64));
-          if (payload.sub && payload.role === 'authenticated') {
-            userId = payload.sub;
-            console.log('User authenticated via JWT decode');
-          }
+      console.warn('Invalid or expired token:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      } catch (decodeErr) {
-        console.error('JWT decode failed:', decodeErr);
-      }
-      
-      if (!userId) {
-        console.warn('Invalid or expired token - all auth methods failed');
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-    } else {
-      userId = user.id;
+      );
     }
+    userId = user.id;
 
     // Check rate limit
     if (!checkRateLimit(userId)) {
