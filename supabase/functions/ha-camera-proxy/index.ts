@@ -12,6 +12,71 @@ type ProxyFetchError = Error & {
   cause?: { code?: string; message?: string };
 };
 
+// ---- Server-side HA token decryption (mirrors ha-token-manager) -----------
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+const getTokenEncryptionSecret = (): string => {
+  const secret =
+    Deno.env.get('TOKEN_ENCRYPTION_SECRET') ??
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!secret) throw new Error('Missing token encryption secret');
+  return secret;
+};
+
+const fromBase64 = (value: string): ArrayBuffer => {
+  const bytes = Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+};
+
+const deriveEncryptionKey = async (userId: string): Promise<CryptoKey> => {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(getTokenEncryptionSecret()),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: textEncoder.encode(`token:${userId}`),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt'],
+  );
+};
+
+const decryptStoredToken = async (
+  stored: string,
+  userId: string,
+): Promise<string | null> => {
+  // ha-token-manager stores "<encryptedToken>|||<metadataJson>"
+  const [encrypted] = stored.split('|||');
+  if (!encrypted) return null;
+  const [ivB64, ctB64] = encrypted.split(':');
+  if (!ivB64 || !ctB64) return null;
+  try {
+    const key = await deriveEncryptionKey(userId);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(ivB64) },
+      key,
+      fromBase64(ctB64),
+    );
+    return textDecoder.decode(decrypted);
+  } catch (err) {
+    console.warn('ha-camera-proxy: token decrypt failed', err);
+    return null;
+  }
+};
+
+
+
 const validateHomeAssistantUrl = (urlString: string): { valid: boolean; error?: string } => {
   try {
     const url = new URL(urlString);
