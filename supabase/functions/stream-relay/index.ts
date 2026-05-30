@@ -17,25 +17,12 @@ async function verifyUser(req: Request, supabase: any): Promise<{ userId: string
   const { data: { user }, error } = await supabase.auth.getUser(token);
   
   if (error || !user) {
-    console.log('Stream relay: getUser failed, trying JWT decode fallback:', error?.message);
-    // Fallback: decode JWT payload to extract user ID
-    try {
-      const payloadBase64 = token.split('.')[1];
-      if (payloadBase64) {
-        const payload = JSON.parse(atob(payloadBase64));
-        if (payload.sub && payload.role === 'authenticated') {
-          console.log('Stream relay: User authenticated via JWT decode');
-          return { userId: payload.sub, error: null };
-        }
-      }
-    } catch (decodeErr) {
-      console.error('Stream relay: JWT decode failed:', decodeErr);
-    }
     return { userId: null, error: 'Invalid or expired token' };
   }
 
   return { userId: user.id, error: null };
 }
+
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -232,15 +219,24 @@ serve(async (req) => {
       });
     }
 
-    // Cleanup old frames (older than 60 seconds) - service account operation
-    // This uses service role key so bypasses RLS
+    // Cleanup old frames - REQUIRES AUTH; only deletes the caller's own stale frames
     if (action === 'cleanup') {
+      const { userId, error: authError } = await verifyUser(req, supabase);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const sixtySecondsAgo = new Date(Date.now() - 60000).toISOString();
-      
+
       const { error } = await supabase
         .from('relay_frames')
         .delete()
+        .eq('user_id', userId)
         .lt('updated_at', sixtySecondsAgo);
+
 
       if (error) {
         console.error('Cleanup error:', error);
