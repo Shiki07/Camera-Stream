@@ -24,44 +24,42 @@ function createAdminClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// Verify share token against database
-async function verifyShareToken(token: string | null, cameraId: string): Promise<boolean> {
+// Verify share token against database; returns owning user_id when valid
+async function verifyShareToken(token: string | null, cameraId: string): Promise<string | null> {
   if (!token || token.length < 10) {
-    return false;
+    return null;
   }
 
   try {
     const supabase = createAdminClient();
-    
+
     const { data, error } = await supabase
       .from('camera_share_tokens')
-      .select('id, expires_at, revoked_at, camera_id')
+      .select('id, expires_at, revoked_at, camera_id, user_id')
       .eq('token', token)
       .eq('camera_id', cameraId)
       .single();
 
     if (error || !data) {
       console.log('Token not found in database');
-      return false;
+      return null;
     }
 
-    // Check if token is revoked
     if (data.revoked_at) {
       console.log('Token has been revoked');
-      return false;
+      return null;
     }
 
-    // Check if token is expired
     const expiresAt = new Date(data.expires_at);
     if (expiresAt < new Date()) {
       console.log('Token has expired');
-      return false;
+      return null;
     }
 
-    return true;
+    return data.user_id as string;
   } catch (err) {
     console.error('Error verifying token:', err);
-    return false;
+    return null;
   }
 }
 
