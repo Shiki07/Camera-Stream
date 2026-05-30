@@ -193,28 +193,15 @@ serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${jwt}` } }
     });
 
-    // Try standard auth first, then JWT decode fallback
+    // Verify JWT via Supabase auth (never trust unverified atob decode)
     let userId: string | null = null;
-    
     try {
       const { data: userData, error: authError } = await supabaseUserClient.auth.getUser();
       if (!authError && userData?.user?.id) {
         userId = userData.user.id;
       }
     } catch (e) {
-      console.warn('Standard auth check failed, trying JWT fallback:', e);
-    }
-
-    if (!userId) {
-      try {
-        const payload = JSON.parse(atob(jwt.split('.')[1]));
-        if (payload.sub && payload.role === 'authenticated') {
-          userId = payload.sub;
-          console.log('Authenticated via JWT decode fallback');
-        }
-      } catch (e) {
-        console.warn('JWT decode fallback failed:', e);
-      }
+      console.warn('Auth check failed:', e);
     }
 
     if (!userId) {
