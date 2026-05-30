@@ -340,8 +340,8 @@ serve(async (req) => {
         );
       }
 
-      // Log token length and prefix for debugging (never log full token)
-      console.log(`HA token loaded: length=${decryptedToken.length}, prefix=${decryptedToken.substring(0, 10)}...`);
+      // Log token length only for debugging (never log token contents)
+      console.log(`HA token loaded: length=${decryptedToken.length}`);
 
       return new Response(
         JSON.stringify({
