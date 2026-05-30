@@ -41,9 +41,34 @@ const validateCameraURL = async (url: string): Promise<boolean> => {
       return false;
     }
 
-    if (['localhost', '127.0.0.1', '::1'].includes(hostname)) {
-      console.log('Camera proxy: Rejecting localhost');
+    if (['localhost', '127.0.0.1', '::1'].includes(hostname) ||
+        hostname.endsWith('.localhost') || hostname.endsWith('.internal') ||
+        ['metadata.google.internal', 'metadata.gke.io', 'kubernetes.default', 'kubernetes.default.svc'].includes(hostname)) {
+      console.log('Camera proxy: Rejecting localhost/internal hostname');
       return false;
+    }
+
+    // Block RFC-1918 private ranges, loopback, link-local, and cloud metadata IPs
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const [, aStr, bStr] = ipv4Match;
+      const a = Number(aStr), b = Number(bStr);
+      if (a === 10 || a === 127 || a === 0 ||
+          (a === 172 && b >= 16 && b <= 31) ||
+          (a === 192 && b === 168) ||
+          (a === 169 && b === 254) ||
+          (a === 100 && b >= 64 && b <= 127)) {
+        console.log(`Camera proxy: Rejecting private/reserved IPv4 ${hostname}`);
+        return false;
+      }
+    }
+    // Block IPv6 loopback, link-local (fe80::/10), and unique-local (fc00::/7)
+    if (hostname.includes(':')) {
+      const h = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+      if (h === '::1' || h.startsWith('fe80:') || /^f[cd][0-9a-f]{2}:/.test(h)) {
+        console.log(`Camera proxy: Rejecting private IPv6 ${hostname}`);
+        return false;
+      }
     }
 
     if (hostname.includes('.duckdns.org') || hostname.includes('.no-ip.') || hostname.includes('.ddns.net')) {

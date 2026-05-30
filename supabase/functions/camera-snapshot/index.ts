@@ -24,44 +24,42 @@ function createAdminClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// Verify share token against database
-async function verifyShareToken(token: string | null, cameraId: string): Promise<boolean> {
+// Verify share token against database; returns owning user_id when valid
+async function verifyShareToken(token: string | null, cameraId: string): Promise<string | null> {
   if (!token || token.length < 10) {
-    return false;
+    return null;
   }
 
   try {
     const supabase = createAdminClient();
-    
+
     const { data, error } = await supabase
       .from('camera_share_tokens')
-      .select('id, expires_at, revoked_at, camera_id')
+      .select('id, expires_at, revoked_at, camera_id, user_id')
       .eq('token', token)
       .eq('camera_id', cameraId)
       .single();
 
     if (error || !data) {
       console.log('Token not found in database');
-      return false;
+      return null;
     }
 
-    // Check if token is revoked
     if (data.revoked_at) {
       console.log('Token has been revoked');
-      return false;
+      return null;
     }
 
-    // Check if token is expired
     const expiresAt = new Date(data.expires_at);
     if (expiresAt < new Date()) {
       console.log('Token has expired');
-      return false;
+      return null;
     }
 
-    return true;
+    return data.user_id as string;
   } catch (err) {
     console.error('Error verifying token:', err);
-    return false;
+    return null;
   }
 }
 
@@ -87,16 +85,16 @@ serve(async (req) => {
         });
       }
 
-      // Verify token against database with proper validation
-      const isValid = await verifyShareToken(token, cameraId);
-      if (!isValid) {
+      // Verify token and resolve owning user
+      const ownerUserId = await verifyShareToken(token, cameraId);
+      if (!ownerUserId) {
         return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const snapshot = snapshotStore.get(cameraId);
+      const snapshot = snapshotStore.get(`${ownerUserId}:${cameraId}`);
       if (!snapshot) {
         // Return a placeholder image if no snapshot available
         return new Response(JSON.stringify({ error: 'No snapshot available' }), {
@@ -152,8 +150,43 @@ serve(async (req) => {
         });
       }
 
-      // Store snapshot
-      snapshotStore.set(camera_id, {
+      // Verify the caller owns this camera_id before allowing snapshot upload
+      // (prevents cross-user snapshot pollution in the shared in-memory store).
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(camera_id);
+      let owns = false;
+
+      if (isUuid) {
+        const { data: cred } = await supabase
+          .from('camera_credentials')
+          .select('id')
+          .eq('id', camera_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (cred) owns = true;
+      }
+
+      if (!owns) {
+        const { data: shareRow } = await supabase
+          .from('camera_share_tokens')
+          .select('id')
+          .eq('camera_id', camera_id)
+          .eq('user_id', user.id)
+          .is('revoked_at', null)
+          .limit(1)
+          .maybeSingle();
+        if (shareRow) owns = true;
+      }
+
+      if (!owns) {
+        console.warn(`Camera snapshot upload denied: user ${user.id} does not own camera ${camera_id}`);
+        return new Response(JSON.stringify({ error: 'Camera not found or access denied' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Store snapshot under a user-scoped key to prevent collisions across users
+      snapshotStore.set(`${user.id}:${camera_id}`, {
         data: image_data,
         contentType: content_type || 'image/jpeg',
         timestamp: Date.now(),

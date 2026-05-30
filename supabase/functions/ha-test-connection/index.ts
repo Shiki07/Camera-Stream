@@ -111,11 +111,9 @@ serve(async (req) => {
       }
       
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: errorMessage,
           status: testResponse.status,
-          details: testBody.substring(0, 200),
-          tokenInfo: { length: cleanToken.length, prefix: cleanToken.substring(0, 15) }
         }),
         { status: testResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

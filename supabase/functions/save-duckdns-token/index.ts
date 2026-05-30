@@ -133,25 +133,13 @@ serve(async (req) => {
 
     let userId: string | null = null;
 
-    // Try getUser first, fallback to manual JWT decode
     try {
       const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(jwt);
       if (!authErr && user) {
         userId = user.id;
       }
     } catch (e) {
-      console.log('save-duckdns-token: getUser failed, trying JWT decode fallback');
-    }
-
-    if (!userId) {
-      try {
-        const payload = JSON.parse(atob(jwt.split('.')[1]));
-        if (payload.sub && payload.role === 'authenticated') {
-          userId = payload.sub;
-        }
-      } catch (e) {
-        console.warn('save-duckdns-token: JWT decode fallback failed');
-      }
+      console.warn('save-duckdns-token: getUser failed');
     }
 
     if (!userId) {
