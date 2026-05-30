@@ -1,13 +1,26 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const getCorsHeaders = (req: Request) => ({
-  'Access-Control-Allow-Origin': req.headers.get('origin') || '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cache-control, pragma, accept',
-  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-  'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Expose-Headers': 'content-type, content-length'
-});
+const ALLOWED_ORIGINS = new Set([
+  'https://camerastream.live',
+  'https://www.camerastream.live',
+  'https://camera-stream.lovable.app',
+  'https://id-preview--5d70728e-9968-4184-9131-d5556d40e3e3.lovable.app',
+]);
+
+const getCorsHeaders = (req: Request) => {
+  const origin = req.headers.get('origin') || '';
+  const allowOrigin = ALLOWED_ORIGINS.has(origin) || /\.lovable\.app$/.test((() => { try { return new URL(origin).hostname; } catch { return ''; } })())
+    ? origin
+    : 'null';
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cache-control, pragma, accept',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Vary': 'Origin',
+    'Access-Control-Expose-Headers': 'content-type, content-length'
+  };
+};
 
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 

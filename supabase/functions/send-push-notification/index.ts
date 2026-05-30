@@ -307,8 +307,45 @@ const handler = async (req: Request): Promise<Response> => {
     const privateKey = await importVapidPrivateKey(vapidPrivateKey);
     const results = [];
 
+    // Allowlist of trusted push service hostnames (suffix match)
+    const ALLOWED_PUSH_HOSTS = [
+      'fcm.googleapis.com',
+      'updates.push.services.mozilla.com',
+      'push.services.mozilla.com',
+      '.notify.windows.com',
+      '.push.apple.com',
+      'web.push.apple.com',
+    ];
+    const isAllowedPushEndpoint = (endpoint: string): boolean => {
+      try {
+        const u = new URL(endpoint);
+        if (u.protocol !== 'https:') return false;
+        const host = u.hostname.toLowerCase();
+        // SSRF blocks
+        if (['localhost', '127.0.0.1', '::1'].includes(host)) return false;
+        if (host.endsWith('.localhost') || host.endsWith('.internal')) return false;
+        const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (ipv4) {
+          const a = +ipv4[1], b = +ipv4[2];
+          if (a === 10 || a === 127 || a === 0 ||
+              (a === 172 && b >= 16 && b <= 31) ||
+              (a === 192 && b === 168) ||
+              (a === 169 && b === 254) ||
+              (a === 100 && b >= 64 && b <= 127)) return false;
+        }
+        return ALLOWED_PUSH_HOSTS.some(h => h.startsWith('.') ? host.endsWith(h) : host === h);
+      } catch {
+        return false;
+      }
+    };
+
     for (const sub of subscriptions) {
       try {
+        if (!isAllowedPushEndpoint(sub.endpoint)) {
+          console.warn(`Skipping untrusted push endpoint: ${sub.endpoint.substring(0, 50)}`);
+          results.push({ endpoint: sub.endpoint, status: "rejected_untrusted" });
+          continue;
+        }
         console.log(`Processing subscription: ${sub.endpoint.substring(0, 50)}...`);
 
         // Generate encryption keys
