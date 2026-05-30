@@ -152,8 +152,43 @@ serve(async (req) => {
         });
       }
 
-      // Store snapshot
-      snapshotStore.set(camera_id, {
+      // Verify the caller owns this camera_id before allowing snapshot upload
+      // (prevents cross-user snapshot pollution in the shared in-memory store).
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(camera_id);
+      let owns = false;
+
+      if (isUuid) {
+        const { data: cred } = await supabase
+          .from('camera_credentials')
+          .select('id')
+          .eq('id', camera_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (cred) owns = true;
+      }
+
+      if (!owns) {
+        const { data: shareRow } = await supabase
+          .from('camera_share_tokens')
+          .select('id')
+          .eq('camera_id', camera_id)
+          .eq('user_id', user.id)
+          .is('revoked_at', null)
+          .limit(1)
+          .maybeSingle();
+        if (shareRow) owns = true;
+      }
+
+      if (!owns) {
+        console.warn(`Camera snapshot upload denied: user ${user.id} does not own camera ${camera_id}`);
+        return new Response(JSON.stringify({ error: 'Camera not found or access denied' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Store snapshot under a user-scoped key to prevent collisions across users
+      snapshotStore.set(`${user.id}:${camera_id}`, {
         data: image_data,
         contentType: content_type || 'image/jpeg',
         timestamp: Date.now(),
