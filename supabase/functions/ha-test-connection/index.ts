@@ -44,6 +44,47 @@ serve(async (req) => {
       );
     }
 
+    // SSRF protection: block private IPs, link-local, and cloud metadata endpoints
+    const hostname = haUrl.hostname.toLowerCase();
+    const privatePatterns = [
+      /^10\./,
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+      /^192\.168\./,
+      /^127\./,
+      /^169\.254\./,
+      /^0\./,
+      /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./,
+    ];
+    const blockedHostnames = [
+      'localhost',
+      '::1',
+      'metadata.google.internal',
+      'metadata.gke.io',
+      'kubernetes.default',
+      'kubernetes.default.svc',
+    ];
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    if (ipv4Regex.test(hostname) && privatePatterns.some((p) => p.test(hostname))) {
+      return new Response(
+        JSON.stringify({ error: 'Private IP addresses are not allowed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (blockedHostnames.includes(hostname) || hostname.endsWith('.localhost') || hostname.endsWith('.internal')) {
+      return new Response(
+        JSON.stringify({ error: 'Blocked hostname' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!['http:', 'https:'].includes(haUrl.protocol)) {
+      return new Response(
+        JSON.stringify({ error: 'Only http/https allowed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+
+
     // Always test basic API connectivity first
     const baseApiUrl = `${haUrl.origin}/api/`;
     console.log(`Testing basic API connectivity: ${baseApiUrl}`);
