@@ -31,58 +31,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
     let subscription: any;
 
+    // SECURITY: Register auth state listener FIRST, before anything that can throw.
+    // This guarantees SIGNED_IN events update state even if getSession() or
+    // environment checks fail (e.g., cross-origin iframe SecurityError).
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        if (nextSession) {
+          const now = Math.floor(Date.now() / 1000);
+          if (nextSession.expires_at && nextSession.expires_at < now) {
+            return;
+          }
+        }
+        if (mounted) {
+          setSession(nextSession);
+          setUser(nextSession?.user ?? null);
+          setLoading(false);
+        }
+      });
+      subscription = data.subscription;
+    } catch {
+      // Silent failure - listener setup should not throw, but guard anyway
+    }
+
     const initializeAuth = async () => {
       try {
-        // SECURITY: Enhanced environment detection
-        const isRestrictedEnvironment = window.location !== window.parent.location || 
-                                      window.location.protocol === 'file:' ||
-                                      window.location.hostname === 'localhost' && window.location.port === '3000';
-        
-        if (isRestrictedEnvironment) {
-          console.log('Running in restricted environment, using fallback auth initialization');
-        }
-
-        // Try to get initial session with timeout
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Session timeout')), 5000)
         );
 
-        const { data: { session }, error } = await Promise.race([
+        const { data: { session } } = await Promise.race([
           sessionPromise,
           timeoutPromise
         ]) as any;
-        
-        if (error) {
-          // Silent failure - continue with null session
-        }
-        
+
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
         }
-
-        // Set up auth state listener with error handling
-        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-          (event, session) => {
-            // SECURITY: Validate session before setting state
-            if (session) {
-              const now = Math.floor(Date.now() / 1000);
-              if (session.expires_at && session.expires_at < now) {
-                return;
-              }
-            }
-            
-            if (mounted) {
-              setSession(session);
-              setUser(session?.user ?? null);
-            }
-          }
-        );
-        subscription = authSubscription;
-
       } catch {
-        // In case of any errors, set secure defaults
         if (mounted) {
           setSession(null);
           setUser(null);
@@ -106,6 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     };
+
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
