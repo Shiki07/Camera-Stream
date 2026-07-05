@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const latestSessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -43,6 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
         if (mounted) {
+          latestSessionRef.current = nextSession;
           setSession(nextSession);
           setUser(nextSession?.user ?? null);
           setLoading(false);
@@ -66,11 +68,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ]) as any;
 
         if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
+          if (session) {
+            latestSessionRef.current = session;
+            setSession(session);
+            setUser(session.user);
+          } else if (!latestSessionRef.current) {
+            setSession(null);
+            setUser(null);
+          }
         }
       } catch {
-        if (mounted) {
+        if (mounted && !latestSessionRef.current) {
           setSession(null);
           setUser(null);
         }
