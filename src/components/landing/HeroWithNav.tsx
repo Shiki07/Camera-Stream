@@ -77,19 +77,8 @@ const HeroWithNav = () => {
             </a>
           </div>
 
-          <div className="hn-proof">
-            <div className="hn-avatars" aria-hidden="true">
-              <span className="hn-avatar" style={{ background: "#2f74e8", marginLeft: 0 }}>JK</span>
-              <span className="hn-avatar" style={{ background: "#0ea5a4" }}>MR</span>
-              <span className="hn-avatar" style={{ background: "#7c5cf0" }}>AL</span>
-              <span className="hn-avatar" style={{ background: "#334766" }}>+</span>
-            </div>
-            <span>Trusted by <strong>12,400+</strong> developers</span>
-            <span className="hn-dot" />
-            <span>Open source on <strong>GitHub</strong></span>
-
-          </div>
         </div>
+
 
         {/* Right — Mockup */}
         <div className="hn-mockup">
