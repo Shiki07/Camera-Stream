@@ -86,9 +86,8 @@ const HeroWithNav = () => {
             </div>
             <span>Trusted by <strong>12,400+</strong> developers</span>
             <span className="hn-dot" />
-            <span>
-              <span style={{ color: "#fbbf24" }}>★</span> <strong>4.8k</strong> stars on GitHub
-            </span>
+            <span>Open source on <strong>GitHub</strong></span>
+
           </div>
         </div>
 
