@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 import { StructuredData } from "@/components/StructuredData";
+import HeroWithNav from "@/components/landing/HeroWithNav";
 
 // FAQ data for schema markup
 const faqData = [
