@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 import { StructuredData } from "@/components/StructuredData";
+import HeroWithNav from "@/components/landing/HeroWithNav";
 
 // FAQ data for schema markup
 const faqData = [
@@ -68,153 +69,9 @@ const Landing = () => {
       />
       
       <div className="min-h-screen bg-background overflow-hidden">
-        {/* Navigation */}
-        <nav className="border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Camera className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-                <div className="absolute inset-0 bg-primary/30 blur-xl animate-glow-pulse" />
-              </div>
-              <span className="text-lg sm:text-xl font-bold">Camera Stream</span>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-xs sm:text-sm px-2 sm:px-4">Sign In</Button>
-              </Link>
-              <Link to="/auth">
-                <Button size="sm" className="text-xs sm:text-sm px-2 sm:px-4 group">
-                  Get Started
-                  <ArrowRight className="ml-1 h-3 w-3 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </nav>
+        {/* Sticky nav + hero */}
+        <HeroWithNav />
 
-        {/* Hero Section */}
-        <header className="relative min-h-[90vh] flex items-center">
-          {/* Animated background elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Gradient orbs */}
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-float" />
-            <div className="absolute top-1/2 -left-40 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl animate-float-delayed" />
-            <div className="absolute -bottom-20 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl animate-float" />
-            
-            {/* Grid pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-          </div>
-
-          <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              {/* Left: Text content */}
-              <div className="text-center lg:text-left">
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-4 py-1.5 rounded-full mb-6 animate-fade-in-up opacity-0">
-                  <Shield className="h-4 w-4" />
-                  <span className="text-sm font-medium">100% Free & Privacy-First</span>
-                </div>
-
-
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 animate-fade-in-up opacity-0 animation-delay-100">
-                  Your Cameras, One
-                  <span className="block mt-2 bg-gradient-to-r from-primary via-blue-400 to-cyan-400 text-gradient">
-                    Smart Dashboard
-                  </span>
-                </h1>
-                
-                <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0 mb-8 animate-fade-in-up opacity-0 animation-delay-200">
-                  Privacy-focused, open-source camera monitoring with real-time motion detection, 
-                  instant email alerts, and local storage. Works with webcams, IP cameras, and more.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-in-up opacity-0 animation-delay-300">
-                  <Link to="/auth">
-                    <Button size="lg" className="text-lg px-8 group relative overflow-hidden">
-                      <span className="relative z-10 flex items-center">
-                        Start Monitoring Free
-                        <Play className="ml-2 h-4 w-4 transition-transform group-hover:scale-110" />
-                      </span>
-                    </Button>
-                  </Link>
-                  <a href="#features">
-                    <Button size="lg" variant="outline" className="text-lg px-8 glass glass-hover">
-                      Learn More
-                    </Button>
-                  </a>
-                </div>
-              </div>
-
-              {/* Right: Dashboard mockup */}
-              <div className="relative animate-fade-in-up opacity-0 animation-delay-400">
-                <div className="relative">
-                  {/* Browser frame */}
-                  <div className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-2xl shadow-primary/10 overflow-hidden">
-                    {/* Browser chrome */}
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-muted/50">
-                      <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-destructive/60" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                        <div className="w-3 h-3 rounded-full bg-green-500/60" />
-                      </div>
-                      <div className="flex-1 mx-4">
-                        <div className="bg-background/50 rounded-md px-3 py-1 text-xs text-muted-foreground text-center">
-                          camerastream.live/dashboard
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Dashboard preview */}
-                    <div className="p-4 bg-background/50">
-                      <div className="grid grid-cols-2 gap-3">
-                        {[1, 2, 3, 4].map((i) => (
-                          <div key={i} className="aspect-video rounded-lg bg-muted/50 border border-border/30 flex items-center justify-center relative overflow-hidden group">
-                            <Camera className="h-8 w-8 text-muted-foreground/50" />
-                            <div className="absolute top-2 left-2 flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                              <span className="text-[10px] text-muted-foreground">Live</span>
-                            </div>
-                            {i === 1 && (
-                              <div className="absolute top-2 right-2 bg-destructive/90 text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">
-                                <Bell className="h-2.5 w-2.5" />
-                                Motion
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Floating elements */}
-                  <div className="absolute -top-4 -right-4 bg-card border border-border/50 rounded-lg p-3 shadow-lg animate-float hidden md:block">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                        <Shield className="h-4 w-4 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium">Secure</p>
-                        <p className="text-[10px] text-muted-foreground">Local Storage</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="absolute -bottom-4 -left-4 bg-card border border-border/50 rounded-lg p-3 shadow-lg animate-float-delayed hidden md:block">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <Eye className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium">16 Cameras</p>
-                        <p className="text-[10px] text-muted-foreground">All Online</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
 
         {/* Features Section */}
         <section id="features" className="py-16 md:py-24 relative">
