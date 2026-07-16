@@ -194,6 +194,137 @@ const camBg = (i: number) => {
   return gradients[i];
 };
 
+const CamScene = ({ index }: { index: number }) => {
+  // Shared style: sits behind overlays, full cover
+  const common = {
+    position: "absolute" as const,
+    inset: 0,
+    width: "100%",
+    height: "100%",
+  };
+
+  if (index === 0) {
+    // Driveway w/ car + small buildings (matches reference)
+    return (
+      <svg style={common} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="sky0" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#0d2036" />
+            <stop offset="1" stopColor="#0a1a2e" />
+          </linearGradient>
+        </defs>
+        <rect width="160" height="100" fill="url(#sky0)" />
+        {/* ground */}
+        <rect y="72" width="160" height="28" fill="#0a1826" opacity="0.7" />
+        {/* small building blocks left */}
+        <rect x="10" y="42" width="10" height="10" fill="#1b3352" opacity="0.85" />
+        <rect x="22" y="46" width="8" height="6" fill="#1b3352" opacity="0.85" />
+        <rect x="12" y="55" width="6" height="6" fill="#22406a" opacity="0.9" />
+        <rect x="22" y="55" width="6" height="6" fill="#22406a" opacity="0.9" />
+        {/* car */}
+        <g transform="translate(78,60)">
+          <path d="M2 12 L6 4 L26 4 L32 12 L32 18 L2 18 Z" fill="#2b5591" />
+          <rect x="8" y="6" width="8" height="6" fill="#4a80c4" opacity="0.7" />
+          <rect x="18" y="6" width="8" height="6" fill="#4a80c4" opacity="0.7" />
+          <circle cx="9" cy="19" r="2.6" fill="#0a1220" />
+          <circle cx="25" cy="19" r="2.6" fill="#0a1220" />
+          <rect x="1" y="10" width="2" height="3" fill="#ffd27a" opacity="0.8" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (index === 1) {
+    // Hallway — perspective walls + door
+    return (
+      <svg style={common} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#0e2340" />
+            <stop offset="1" stopColor="#0a1930" />
+          </linearGradient>
+        </defs>
+        <rect width="160" height="100" fill="url(#sky1)" />
+        {/* perspective vanishing walls */}
+        <polygon points="0,0 0,100 60,72 60,28" fill="#122a48" opacity="0.85" />
+        <polygon points="160,0 160,100 100,72 100,28" fill="#122a48" opacity="0.85" />
+        <polygon points="0,100 60,72 100,72 160,100" fill="#0a1a2f" />
+        <polygon points="0,0 60,28 100,28 160,0" fill="#0a1a2f" opacity="0.9" />
+        {/* far door */}
+        <rect x="72" y="38" width="16" height="34" fill="#1c3a63" />
+        <circle cx="85" cy="56" r="0.9" fill="#ffd27a" />
+        {/* ceiling light */}
+        <circle cx="80" cy="24" r="2.2" fill="#9fc6ff" opacity="0.85" />
+      </svg>
+    );
+  }
+
+  if (index === 2) {
+    // Garage / driveway with streetlight
+    return (
+      <svg style={common} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#0c1e36" />
+            <stop offset="1" stopColor="#091628" />
+          </linearGradient>
+          <radialGradient id="lamp2" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stopColor="#ffd27a" stopOpacity="0.7" />
+            <stop offset="1" stopColor="#ffd27a" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="160" height="100" fill="url(#sky2)" />
+        <rect y="76" width="160" height="24" fill="#0a1826" />
+        {/* garage door hint left */}
+        <rect x="6" y="46" width="42" height="30" fill="#132a48" />
+        <line x1="6" y1="56" x2="48" y2="56" stroke="#0a1a2e" strokeWidth="1" />
+        <line x1="6" y1="66" x2="48" y2="66" stroke="#0a1a2e" strokeWidth="1" />
+        {/* lamp glow */}
+        <circle cx="92" cy="52" r="24" fill="url(#lamp2)" />
+        {/* streetlight */}
+        <rect x="91" y="52" width="2" height="30" fill="#1b3352" />
+        <circle cx="92" cy="50" r="3" fill="#ffd27a" />
+        <path d="M86 50 L98 50 L96 46 L88 46 Z" fill="#1b3352" />
+      </svg>
+    );
+  }
+
+  // index 3 — Backyard with lit windows
+  return (
+    <svg style={common} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#0e2340" />
+          <stop offset="1" stopColor="#0a1a2e" />
+        </linearGradient>
+      </defs>
+      <rect width="160" height="100" fill="url(#sky3)" />
+      <rect y="74" width="160" height="26" fill="#0a1826" />
+      {/* house silhouette */}
+      <polygon points="70,26 140,26 140,74 70,74" fill="#132a48" />
+      <polygon points="70,26 105,10 140,26" fill="#0f2340" />
+      {/* windows */}
+      <rect x="82" y="38" width="10" height="10" fill="#f0c96a" opacity="0.85" />
+      <rect x="100" y="38" width="10" height="10" fill="#2a4a75" />
+      <rect x="118" y="38" width="10" height="10" fill="#f0c96a" opacity="0.85" />
+      <rect x="82" y="54" width="10" height="10" fill="#2a4a75" />
+      <rect x="100" y="54" width="10" height="14" fill="#f0c96a" opacity="0.9" />
+      <rect x="118" y="54" width="10" height="10" fill="#2a4a75" />
+      {/* fence */}
+      <g fill="#122841">
+        <rect x="4" y="60" width="3" height="14" />
+        <rect x="12" y="60" width="3" height="14" />
+        <rect x="20" y="60" width="3" height="14" />
+        <rect x="28" y="60" width="3" height="14" />
+        <rect x="36" y="60" width="3" height="14" />
+        <rect x="44" y="60" width="3" height="14" />
+      </g>
+    </svg>
+  );
+};
+
+
+
 const hnCss = `
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
