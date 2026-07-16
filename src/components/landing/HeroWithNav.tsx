@@ -113,6 +113,8 @@ const HeroWithNav = () => {
             <div className="hn-grid">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="hn-cam" style={{ background: camBg(i) }}>
+                  <CamScene index={i} />
+
                   <div className="hn-cam-top">
                     <span className="hn-live">
                       <span
