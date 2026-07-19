@@ -120,19 +120,42 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, attachmentData, attachmentType, timestamp, motionLevel }: MotionAlertRequest = await req.json();
-    
-    // Enhanced input validation
+    const { email: requestedEmail, attachmentData, attachmentType, timestamp, motionLevel }: MotionAlertRequest = await req.json();
+
+    // SECURITY: Never trust client-supplied recipient. Resolve the recipient
+    // server-side from the authenticated user's own settings/account so this
+    // endpoint cannot be used as an open email relay.
+    const { data: settingsRows } = await supabase
+      .from('camera_settings')
+      .select('notification_email, email_notifications')
+      .eq('user_id', userId)
+      .eq('email_notifications', true)
+      .not('notification_email', 'is', null);
+
+    const allowedEmails = new Set<string>();
+    for (const row of settingsRows ?? []) {
+      if (row?.notification_email) allowedEmails.add(String(row.notification_email).toLowerCase());
+    }
+    if (user.email) allowedEmails.add(user.email.toLowerCase());
+
+    // Prefer the client-requested address only if it matches an allowed one;
+    // otherwise fall back to the account email.
+    const candidate = (requestedEmail || '').toLowerCase();
+    const email = allowedEmails.has(candidate)
+      ? requestedEmail
+      : (user.email ?? '');
+
     if (!validateEmail(email)) {
-      console.warn('Invalid email format provided');
+      console.warn('No verified recipient available for this user');
       return new Response(
-        JSON.stringify({ error: 'Invalid email address' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        JSON.stringify({ error: 'Recipient email is not verified for this account' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
+
 
     // Validate timestamp
     const alertTime = new Date(timestamp);
