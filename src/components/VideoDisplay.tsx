@@ -75,7 +75,7 @@ export const VideoDisplay = ({
         <img
           ref={networkVideoRef as React.RefObject<HTMLImageElement>}
           className={`w-full h-full object-cover ${isConnected ? 'block' : 'hidden'}`}
-          alt="Network Camera Stream"
+          alt="Live MJPEG video feed from the connected IP security camera"
         />
       )}
 
