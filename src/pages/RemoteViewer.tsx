@@ -236,7 +236,7 @@ const RemoteViewer: React.FC = () => {
             {frameUrl && status !== 'ended' && status !== 'unauthorized' ? (
               <img
                 src={frameUrl}
-                alt="Live camera stream"
+                alt={`Live security camera feed for shared room ${roomId?.slice(0, 8) ?? ''}`}
                 className="w-full h-full object-contain"
               />
             ) : (
