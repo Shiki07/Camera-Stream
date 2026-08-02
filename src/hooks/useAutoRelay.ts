@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
-const FRAME_INTERVAL = 66; // 15 fps
+const FRAME_INTERVAL = 250; // ~4 fps — reduced from 66ms to save edge function invocations
 const HEARTBEAT_INTERVAL = 10000; // 10 seconds
 const STALE_RETRY_INTERVAL = 3000; // retry after stale every 3s
 const MAX_STALE_COUNT = 5; // after 5 stale responses, re-fetch room ID from DB
@@ -265,8 +265,8 @@ export const useAutoRelay = ({
     // Clear any existing interval
     if (pullIntervalRef.current) clearInterval(pullIntervalRef.current);
     
-    // Start pulling frames (slower interval for viewers - 10fps)
-    pullIntervalRef.current = setInterval(pullFrame, 100);
+    // Start pulling frames (slower interval for viewers - 2fps)
+    pullIntervalRef.current = setInterval(pullFrame, 500);
     pullFrame(); // Pull immediately
   }, [isLocalWebcam, cameraId, pullFrame]);
 

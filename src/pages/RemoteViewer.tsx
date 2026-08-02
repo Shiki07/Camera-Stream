@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 const EDGE_FUNCTION_URL = 'https://pqxslnhcickmlkjlxndo.supabase.co/functions/v1/stream-relay';
-const PULL_INTERVAL = 100; // ~10 fps for smoother mobile performance
+const PULL_INTERVAL = 500; // ~2 fps — reduced from 100ms to save edge function invocations
 
 type StreamStatus = 'connecting' | 'streaming' | 'error' | 'ended' | 'unauthorized';
 
