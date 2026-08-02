@@ -381,7 +381,6 @@ const Landing = () => {
                   <li><Link to="/documentation" className="hover:text-foreground transition-colors">Documentation</Link></li>
                   <li><Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link></li>
                   <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact Us</Link></li>
-                  <li><a href="mailto:support@camerastream.live" className="hover:text-foreground transition-colors">Support</a></li>
                 </ul>
               </div>
               <div>
