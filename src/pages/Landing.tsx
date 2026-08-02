@@ -380,7 +380,7 @@ const Landing = () => {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><Link to="/documentation" className="hover:text-foreground transition-colors">Documentation</Link></li>
                   <li><Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link></li>
-                  <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact Us</Link></li>
+                  <li><Link to="/contact" className="hover:text-foreground transition-colors">Support</Link></li>
                 </ul>
               </div>
               <div>

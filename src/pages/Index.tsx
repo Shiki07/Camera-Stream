@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SEOHead } from "@/components/SEOHead";
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Settings, History, AlertTriangle, RefreshCw } from "lucide-react";
 
 const Index = () => {
@@ -100,13 +101,13 @@ const Index = () => {
           {/* Support Footer */}
           <div className="text-center py-6 border-t border-border mt-8">
             <p className="text-sm text-muted-foreground">
-              For support, contact{' '}
-              <a 
-                href="mailto:support@camerastream.live" 
+              For support, visit the{" "}
+              <Link 
+                to="/contact" 
                 className="text-primary hover:text-primary/80 underline"
               >
-                support@camerastream.live
-              </a>
+                Support page
+              </Link>
             </p>
           </div>
         </div>
