@@ -6,7 +6,7 @@ import { StructuredData, HowToStructuredData } from "@/components/StructuredData
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   Camera, ArrowLeft, Monitor, Bell, Settings, 
-  HardDrive, Shield, Wifi, Play, Plus, Video, HelpCircle
+  HardDrive, Shield, Wifi, Play, Plus, Video, HelpCircle, Wrench
 } from "lucide-react";
 
 const setupSteps = [
