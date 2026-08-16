@@ -177,7 +177,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Check Your Email</h1>
             <CardDescription className="text-muted-foreground">
               We've sent a password reset link to {email}
             </CardDescription>
@@ -215,7 +215,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Reset Password</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Reset Password</h1>
             <CardDescription className="text-muted-foreground">
               Enter your email to receive a password reset link
             </CardDescription>
@@ -269,7 +269,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Check Your Email</h1>
             <CardDescription className="text-muted-foreground">
               We've sent a verification link to {email}
             </CardDescription>
