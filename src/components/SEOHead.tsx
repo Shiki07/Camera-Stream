@@ -91,7 +91,7 @@ export const SEOHead = ({
       canonicalLink.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute('href', canonical);
+    canonicalLink.setAttribute('href', canonicalUrl);
     
     // Update Open Graph meta tags
     const updateOrCreateMeta = (property: string, content: string, isProperty = true) => {
@@ -108,7 +108,7 @@ export const SEOHead = ({
     // Open Graph tags
     updateOrCreateMeta('og:title', title);
     updateOrCreateMeta('og:description', description);
-    updateOrCreateMeta('og:url', canonical);
+    updateOrCreateMeta('og:url', canonicalUrl);
     updateOrCreateMeta('og:image', ogImage);
     updateOrCreateMeta('og:type', ogType);
     updateOrCreateMeta('og:site_name', 'Camera Stream');
@@ -119,7 +119,7 @@ export const SEOHead = ({
     updateOrCreateMeta('twitter:title', title, false);
     updateOrCreateMeta('twitter:description', description, false);
     updateOrCreateMeta('twitter:image', ogImage, false);
-    updateOrCreateMeta('twitter:url', canonical, false);
+    updateOrCreateMeta('twitter:url', canonicalUrl, false);
 
     // Add JSON-LD structured data only when explicitly provided.
     // Avoids applying SoftwareApplication schema to non-app pages
@@ -143,7 +143,7 @@ export const SEOHead = ({
       const tag = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
       if (tag) tag.remove();
     };
-  }, [title, description, keywords, canonical, jsonLd, ogImage, ogType, noindex]);
+  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex]);
 
   return null;
 };
