@@ -31,12 +31,12 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Free IP Camera Software Setup — DIY Surveillance Docs",
+    title: "Free IP Camera Software: Build Your DIY Surveillance System",
     description:
-      "Set up free IP camera software step by step: Raspberry Pi and webcam streams, MJPEG and RTSP, motion alerts, Home Assistant, and DIY local recording.",
+      "Turn any webcam or IP camera into a free DIY surveillance system. Step-by-step setup for Raspberry Pi, MJPEG/RTSP streams, motion alerts, Home Assistant, and private local recording.",
     keywords:
       "free ip camera software, diy surveillance system, raspberry pi security camera setup, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, IP camera monitoring documentation, local recording",
-    h1: "Raspberry Pi Security Camera Setup & Home Assistant Integration",
+    h1: "Free IP Camera Software & DIY Surveillance Setup",
 
     body: `
       <p>Free hardware and software documentation for Raspberry Pi security cameras and Home Assistant integration: libcamera MJPEG streaming, RTSP conversion, Pi model and camera module comparison, stream error troubleshooting, motion alerts, and private local recording with no cloud uploads.</p>

@@ -69,8 +69,8 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Free IP Camera Software Setup — DIY Surveillance Docs"
-        description="Set up free IP camera software step by step: Raspberry Pi and webcam streams, MJPEG and RTSP, motion alerts, Home Assistant, and DIY local recording."
+        title="Free IP Camera Software: Build Your DIY Surveillance System"
+        description="Turn any webcam or IP camera into a free DIY surveillance system. Step-by-step setup for Raspberry Pi, MJPEG/RTSP streams, motion alerts, Home Assistant, and private local recording."
         keywords="free ip camera software, diy surveillance system, raspberry pi security camera setup, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, IP camera monitoring documentation, local recording"
 
         canonical="https://www.camerastream.live/documentation"
@@ -105,12 +105,11 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Raspberry Pi Security Camera Setup &amp; Home Assistant Integration</h1>
+          <h1 className="text-4xl font-bold mb-4">Free IP Camera Software &amp; DIY Surveillance Setup</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Free hardware and software documentation for Raspberry Pi security cameras and Home
-            Assistant integration: libcamera MJPEG streaming, RTSP conversion, Pi model and camera
-            module comparison, stream error troubleshooting, motion alerts, and private local
-            recording with no cloud uploads.
+            Turn any webcam or IP camera into a private, no-subscription surveillance system.
+            Follow these free guides to configure Raspberry Pi streaming, MJPEG and RTSP feeds,
+            motion alerts, Home Assistant integration, and local recording with no cloud uploads.
           </p>
 
 
