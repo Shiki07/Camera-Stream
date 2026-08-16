@@ -38,9 +38,9 @@ const defaultJsonLd = {
 };
 
 export const SEOHead = ({ 
-  title = "Camera Stream - Smart Security Camera Monitoring System",
-  description = "Professional camera monitoring system with motion detection, real-time alerts, and privacy-focused security.",
-  keywords = "security camera, camera monitoring, home security system, motion detection, webcam monitoring, IP camera",
+  title,
+  description,
+  keywords,
   canonical,
   jsonLd,
   ogImage = "https://www.camerastream.live/og-image.jpg",
