@@ -33,17 +33,22 @@ export const routes = [
     path: "/documentation",
     title: "Free Security Camera Setup Guide — Raspberry Pi & IP Cams",
     description:
-      "Set up Raspberry Pi and IP cameras free: MJPEG and RTSP stream URLs, motion alerts, private local recording — no cloud uploads, no subscription fees.",
+      "Free camera documentation for Raspberry Pi & IP cams. MJPEG and RTSP stream URL examples, motion alerts, and local recording — no subscription fees.",
     keywords:
       "raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, DIY security camera guide, local recording",
     h1: "Raspberry Pi & IP Camera Monitoring Documentation",
 
     body: `
-      <p>Step-by-step guides for setting up and configuring Camera Stream. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities.</p>
+      <p>Free camera documentation for Raspberry Pi and IP cameras. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities to Camera Stream.</p>
+      <h2>Stream formats explained</h2>
+      <p><strong>MJPEG</strong> streams each frame as a complete JPEG image over HTTP. Browsers play MJPEG natively, so it is the most reliable format for Camera Stream.</p>
+      <p><strong>RTSP</strong> delivers efficient H.264 or H.265 video, but browsers cannot decode it directly. Convert RTSP to MJPEG or a JPEG snapshot stream locally before adding it to Camera Stream.</p>
+      <p><strong>Snapshot / JPEG polling</strong> polls a still-image endpoint several times per second for cameras that do not expose a video stream.</p>
       <h2>Topics covered</h2>
       <ul>
         <li>Quick start: adding your first camera</li>
         <li>IP camera connection (RTSP, MJPEG, HTTP)</li>
+        <li>Common stream URL examples for generic cameras and phone apps</li>
         <li>Raspberry Pi camera streaming with DuckDNS</li>
         <li>Home Assistant camera integration</li>
         <li>Motion detection configuration and detection zones</li>
