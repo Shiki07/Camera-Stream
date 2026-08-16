@@ -56,9 +56,9 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Free Security Camera Software Setup Guide — No Fees"
-        description="Set up free security camera software in minutes: connect webcams or IP cameras, enable motion alerts, record locally. No subscription, no cloud."
-        keywords="security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, local recording"
+        title="DIY Security Camera Setup: Free Raspberry Pi & IP Cam Guide"
+        description="DIY security camera setup guide for Raspberry Pi, IP cameras, RTSP and MJPEG streams. Free motion alerts, local recording, no subscription."
+        keywords="DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording"
         canonical="https://www.camerastream.live/documentation"
       />
       <StructuredData 
