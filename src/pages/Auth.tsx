@@ -326,7 +326,7 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <SEOHead
         title="Sign In to Camera Stream — Free Security Camera App"
-        description="Sign in to Camera Stream or create a free account to monitor your webcams and IP cameras with motion detection and instant alerts."
+        description="Sign in to Camera Stream or create a free account to monitor webcams, IP cameras, and Raspberry Pi cameras with motion detection and instant email alerts."
         keywords="camera stream sign in, security camera login, create camera monitoring account"
         canonical="https://www.camerastream.live/auth"
         noindex

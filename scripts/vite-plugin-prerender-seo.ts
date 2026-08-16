@@ -16,6 +16,7 @@ interface Route {
   keywords?: string;
   h1?: string;
   ogType?: string;
+  noindex?: boolean;
   body?: string;
 }
 
@@ -37,6 +38,11 @@ function buildHead(route: Route) {
     description: `<meta name="description" content="${desc}" />`,
     keywords: `<meta name="keywords" content="${kw}" />`,
     canonical: `<link rel="canonical" href="${canonical}" />`,
+    robots: `<meta name="robots" content="${
+      route.noindex
+        ? "noindex, nofollow"
+        : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    }" />`,
     ogType: `<meta property="og:type" content="${escapeHtml(
       route.ogType || (route.path.startsWith("/blog/") ? "article" : "website")
     )}" />`,
@@ -124,6 +130,7 @@ function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   html = upsert(html, /<meta\s+name="description"[^>]*>/i, tags.description);
   html = upsert(html, /<meta\s+name="keywords"[^>]*>/i, tags.keywords);
   html = upsert(html, /<link\s+rel="canonical"[^>]*>/i, tags.canonical);
+  html = upsert(html, /<meta\s+name="robots"[^>]*>/i, tags.robots);
   html = upsert(html, /<meta\s+property="og:type"[^>]*>/i, tags.ogType);
   html = upsert(html, /<meta\s+property="og:url"[^>]*>/i, tags.ogUrl);
   html = upsert(html, /<meta\s+property="og:title"[^>]*>/i, tags.ogTitle);
