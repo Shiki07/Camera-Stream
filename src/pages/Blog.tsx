@@ -130,8 +130,8 @@ const Blog = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <span className="text-primary text-sm font-medium inline-flex items-center gap-1 group">
-                      Read more
+                  <span className="text-primary text-sm font-medium inline-flex items-center gap-1 group">
+                      Read the full guide: {post.title}
                       <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </CardContent>
