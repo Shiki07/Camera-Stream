@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 
 interface SEOHeadProps {
-  title?: string;
-  description?: string;
+  /** Required: every route must supply its own title so pages never share one. */
+  title: string;
+  /** Required: every route must supply its own description so snippets stay unique. */
+  description: string;
   keywords?: string;
   canonical?: string;
   jsonLd?: object;
