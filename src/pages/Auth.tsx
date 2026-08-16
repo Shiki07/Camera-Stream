@@ -344,6 +344,7 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <h2 className="sr-only">Account access options</h2>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-secondary">
               <TabsTrigger value="signin" className="text-muted-foreground data-[state=active]:text-foreground">Sign In</TabsTrigger>
