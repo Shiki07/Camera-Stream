@@ -56,9 +56,10 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="DIY Private Security Camera Setup: Raspberry Pi & IP Cam Guide"
-        description="Set up Raspberry Pi and IP cameras with RTSP or MJPEG streams. No cloud uploads, local recording, free motion alerts, no subscription."
-        keywords="DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording"
+        title="Raspberry Pi & IP Camera Monitoring Setup Documentation"
+        description="Documentation for Raspberry Pi security camera setup and IP camera monitoring: MJPEG and RTSP stream URLs, motion alerts, local recording. Free."
+        keywords="raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, DIY security camera guide, local recording"
+
         canonical="https://www.camerastream.live/documentation"
       />
       <StructuredData 
