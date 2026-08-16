@@ -54,6 +54,8 @@ const Index = () => {
         </div>
         
         <div className="container mx-auto px-4 py-8 space-y-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Camera Monitoring Dashboard</h1>
+
           {/* Multi-Camera Grid - cameras are automatically synced across devices */}
           <MultiCameraGrid />
           
