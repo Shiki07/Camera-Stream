@@ -31,12 +31,12 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Free Security Camera Software — Privacy Setup Guide",
+    title: "Security Camera System Setup & User Guide — Free & Private",
     description:
-      "Set up free, privacy-focused security camera software: add webcams and IP cameras, configure motion detection, alerts, and local recording step by step.",
+      "Free, privacy-focused security camera setup guide. Add webcams and IP cameras, configure motion detection, alerts, and local recording step by step.",
     keywords:
-      "free security camera software, privacy-focused camera setup, security camera setup guide, IP camera guide, webcam setup, raspberry pi camera, motion detection setup",
-    h1: "Camera Stream Documentation",
+      "security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, IP camera guide, webcam setup, raspberry pi camera, motion detection setup",
+    h1: "Security Camera System Setup & User Guide",
     body: `
       <p>Step-by-step guides for setting up and configuring Camera Stream. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities.</p>
       <h2>Topics covered</h2>
