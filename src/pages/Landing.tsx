@@ -60,6 +60,39 @@ const Landing = () => {
         description="Free, privacy-focused security camera monitoring with real-time motion detection, instant email alerts, and local storage. Open-source, no subscription fees."
         keywords="free security camera, home security system, camera motion detection, webcam monitoring, surveillance system, IP camera software, privacy-focused camera, local storage camera, multi-camera dashboard, DIY security"
         canonical="https://www.camerastream.live/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Camera Stream",
+          description:
+            "Privacy-focused security camera monitoring system with motion detection, real-time alerts, and local storage.",
+          url: "https://www.camerastream.live/",
+          applicationCategory: "SecurityApplication",
+          operatingSystem: "Web Browser",
+          softwareVersion: "1.1",
+          screenshot: "https://www.camerastream.live/og-image.jpg",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
+          },
+          creator: {
+            "@type": "Organization",
+            name: "Camera Stream",
+            url: "https://www.camerastream.live",
+          },
+          featureList: [
+            "Real-time Motion Detection",
+            "Instant Email Alerts",
+            "Privacy-Focused Local Storage",
+            "Multi-Camera Support",
+            "Webcam and IP Camera Integration",
+            "DuckDNS Remote Access",
+            "Mobile-Friendly Interface",
+            "Configurable Detection Zones",
+          ],
+        }}
       />
       <StructuredData 
         type="faq"
