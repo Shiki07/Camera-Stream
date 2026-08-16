@@ -92,11 +92,11 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Free Security Camera Software — DIY Monitoring Documentation</h1>
+          <h1 className="text-4xl font-bold mb-4">Raspberry Pi Security Camera &amp; Home Assistant Integration Guide</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Free security camera software documentation for DIY monitoring. Set up Raspberry Pi, IP and
-            USB cameras — MJPEG and RTSP stream formats, motion detection, local recording, and
-            troubleshooting for popular camera brands.
+            Free Raspberry Pi security camera setup with Home Assistant integration. Learn MJPEG and
+            RTSP stream configuration, motion alerts, and private local storage — keep your footage on
+            your own devices with no cloud uploads.
           </p>
 
 
