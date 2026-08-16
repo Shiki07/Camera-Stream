@@ -56,9 +56,10 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="DIY Private Security Camera Setup: Raspberry Pi & IP Cam Guide"
-        description="Set up Raspberry Pi and IP cameras with RTSP or MJPEG streams. No cloud uploads, local recording, free motion alerts, no subscription."
-        keywords="DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording"
+        title="Raspberry Pi & IP Camera Monitoring Setup Documentation"
+        description="Documentation for Raspberry Pi security camera setup and IP camera monitoring: MJPEG and RTSP stream URLs, motion alerts, local recording. Free."
+        keywords="raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, DIY security camera guide, local recording"
+
         canonical="https://www.camerastream.live/documentation"
       />
       <StructuredData 
@@ -91,10 +92,12 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Security Camera System Setup & User Guide</h1>
+          <h1 className="text-4xl font-bold mb-4">Raspberry Pi &amp; IP Camera Monitoring Documentation</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Everything you need to get started with Camera Stream and make the most of your security monitoring system.
+            Setup guide for Raspberry Pi security cameras, IP cameras and USB webcams — supported
+            protocols, stream URL formats, motion detection and local recording, with no cloud uploads.
           </p>
+
 
           {/* Getting Started */}
           <section className="mb-12">
@@ -184,7 +187,134 @@ const Documentation = () => {
                 </ul>
               </CardContent>
             </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Raspberry Pi Camera Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  A Raspberry Pi with the Camera Module or a USB webcam can act as a
+                  standalone streaming and recording node:
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Run an MJPEG streaming service on the Pi (default port 8000)</li>
+                  <li>Optionally run the recording controller service (default port 3002)</li>
+                  <li>Expose the Pi with a dynamic DNS hostname such as DuckDNS</li>
+                  <li>Add the Pi in Camera Stream as a Network/IP Camera</li>
+                </ol>
+                <p className="mt-4">
+                  Full walkthrough:{" "}
+                  <Link
+                    to="/blog/raspberry-pi-camera-recording-setup"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    Raspberry Pi security camera streaming &amp; recording guide
+                  </Link>
+                  .
+                </p>
+              </CardContent>
+            </Card>
           </section>
+
+          {/* Supported cameras and protocols */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Wifi className="h-6 w-6 text-primary" />
+              Supported Cameras &amp; Stream Protocols
+            </h2>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Protocols</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>
+                    <strong>MJPEG over HTTP</strong> — streams directly in the browser; the
+                    most reliable option for live viewing.
+                  </li>
+                  <li>
+                    <strong>Snapshot / JPEG polling</strong> — used when a camera only exposes
+                    a still-image endpoint.
+                  </li>
+                  <li>
+                    <strong>RTSP</strong> — browsers cannot play RTSP natively, so it needs a
+                    local converter (for example FFmpeg or your camera's built-in MJPEG or
+                    snapshot endpoint).
+                  </li>
+                  <li>
+                    <strong>Home Assistant camera entities</strong> — imported through the
+                    secure proxy without exposing your Home Assistant token.
+                  </li>
+                  <li>
+                    <strong>USB webcams</strong> — captured in the browser via the standard
+                    camera API.
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Common camera URL patterns</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-3">
+                <p className="text-sm">
+                  Paths differ between models and firmware versions — always confirm with
+                  your camera's manual or web interface.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">
+                      Typical stream URL patterns by camera type
+                    </caption>
+                    <thead>
+                      <tr className="text-left border-b border-border">
+                        <th scope="col" className="py-2 pr-4 font-medium text-foreground">
+                          Camera type
+                        </th>
+                        <th scope="col" className="py-2 font-medium text-foreground">
+                          Typical stream URL
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Generic MJPEG camera</th>
+                        <td className="py-2"><code className="bg-muted px-1 rounded">http://IP:PORT/video</code></td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Generic ONVIF / RTSP camera</th>
+                        <td className="py-2"><code className="bg-muted px-1 rounded">rtsp://IP:554/stream</code></td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Raspberry Pi MJPEG service</th>
+                        <td className="py-2"><code className="bg-muted px-1 rounded">http://host:8000/stream.mjpg</code></td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Android / phone IP webcam apps</th>
+                        <td className="py-2"><code className="bg-muted px-1 rounded">http://IP:8080/video</code></td>
+                      </tr>
+                      <tr>
+                        <th scope="row" className="py-2 pr-4 font-normal">Snapshot-only camera</th>
+                        <td className="py-2"><code className="bg-muted px-1 rounded">http://IP/snapshot.jpg</code></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-sm">
+                  If your camera is reachable only on your local network, keep the viewer on
+                  the same network or expose it through your own dynamic DNS hostname —
+                  Camera Stream never uploads your footage to a cloud service.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
+
 
           {/* Motion Detection */}
           <section className="mb-12">

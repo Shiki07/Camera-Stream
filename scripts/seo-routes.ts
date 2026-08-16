@@ -31,12 +31,13 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "DIY Private Security Camera Setup: Raspberry Pi & IP Cam Guide",
+    title: "Raspberry Pi & IP Camera Monitoring Setup Documentation",
     description:
-      "Set up Raspberry Pi and IP cameras with RTSP or MJPEG streams. No cloud uploads, local recording, free motion alerts, no subscription.",
+      "Documentation for Raspberry Pi security camera setup and IP camera monitoring: MJPEG and RTSP stream URLs, motion alerts, local recording. Free.",
     keywords:
-      "DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording",
-    h1: "Security Camera System Setup & User Guide",
+      "raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, DIY security camera guide, local recording",
+    h1: "Raspberry Pi & IP Camera Monitoring Documentation",
+
     body: `
       <p>Step-by-step guides for setting up and configuring Camera Stream. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities.</p>
       <h2>Topics covered</h2>
