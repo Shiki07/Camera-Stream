@@ -56,9 +56,9 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Free Security Camera Software — DIY Monitoring Setup"
-        description="Free security camera software for DIY monitoring. Set up Raspberry Pi, IP and USB cameras with MJPEG/RTSP streams, motion alerts, and local recording."
-        keywords="free security camera software, DIY camera monitoring, raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording"
+        title="Raspberry Pi Security Camera & Home Assistant Guide"
+        description="Free Raspberry Pi security camera setup with Home Assistant integration. Local MJPEG/RTSP streaming, motion alerts, and private storage — no cloud uploads."
+        keywords="raspberry pi security camera, home assistant integration, free security camera software, DIY camera monitoring, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording"
 
         canonical="https://www.camerastream.live/documentation"
       />
@@ -92,11 +92,11 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Free Security Camera Software — DIY Monitoring Documentation</h1>
+          <h1 className="text-4xl font-bold mb-4">Raspberry Pi Security Camera &amp; Home Assistant Integration Guide</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Free security camera software documentation for DIY monitoring. Set up Raspberry Pi, IP and
-            USB cameras — MJPEG and RTSP stream formats, motion detection, local recording, and
-            troubleshooting for popular camera brands.
+            Free Raspberry Pi security camera setup with Home Assistant integration. Learn MJPEG and
+            RTSP stream configuration, motion alerts, and private local storage — keep your footage on
+            your own devices with no cloud uploads.
           </p>
 
 
@@ -261,39 +261,75 @@ const Documentation = () => {
 
             <Card className="mb-4">
               <CardHeader>
-                <CardTitle>MJPEG vs RTSP: technical overview</CardTitle>
+                <CardTitle>Setting up an MJPEG stream</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground space-y-4">
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">MJPEG (Motion JPEG)</h3>
-                  <p>
-                    MJPEG streams deliver each video frame as a complete JPEG image over HTTP.
-                    Because every frame is self-contained, browsers can play MJPEG feeds natively
-                    with an <code className="bg-muted px-1 rounded">&lt;img&gt;</code> tag or a
-                    multipart parser. This makes MJPEG the most reliable format for Camera Stream:
-                    no plug-ins, no transcoding, and minimal latency on local networks. The trade-off
-                    is larger bandwidth usage, since each keyframe-sized image is sent repeatedly.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">RTSP (Real Time Streaming Protocol)</h3>
-                  <p>
-                    RTSP is a control protocol used by most IP cameras to deliver H.264 or H.265
-                    video over RTP. It is efficient and low-latency, but browsers cannot decode RTSP
-                    directly. To use an RTSP camera with Camera Stream, convert it to MJPEG or a JPEG
-                    snapshot stream locally — for example with FFmpeg, a camera sub-stream, or your
-                    NVR's built-in MJPEG endpoint.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">Snapshot / JPEG polling</h3>
-                  <p>
-                    Some cameras only expose a still-image endpoint such as{" "}
-                    <code className="bg-muted px-1 rounded">/snapshot.jpg</code>. Camera Stream can
-                    poll these endpoints several times per second to create a live-looking feed. This
-                    mode works well for low-bandwidth or battery-powered devices.
-                  </p>
-                </div>
+                <p>
+                  MJPEG (Motion JPEG) streams deliver each video frame as a complete JPEG image over HTTP.
+                  Because every frame is self-contained, browsers can play MJPEG feeds natively
+                  with an <code className="bg-muted px-1 rounded">&lt;img&gt;</code> tag or a
+                  multipart parser. This makes MJPEG the most reliable format for Camera Stream:
+                  no plug-ins, no transcoding, and minimal latency on local networks.
+                </p>
+                <h3 className="font-semibold text-foreground">How to add an MJPEG camera</h3>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Find your camera's MJPEG URL (commonly <code className="bg-muted px-1 rounded">http://IP:PORT/video</code> or <code className="bg-muted px-1 rounded">http://IP:PORT/stream</code>).</li>
+                  <li>In Camera Stream, click <strong>Add Camera</strong> and choose <strong>Network/IP Camera</strong>.</li>
+                  <li>Paste the URL and enter the camera username and password if required.</li>
+                  <li>Save — the feed should appear in your dashboard immediately.</li>
+                </ol>
+                <p className="text-sm">
+                  <strong>Troubleshooting tip:</strong> If the image does not load, open the URL directly
+                  in a browser tab. If it prompts for credentials or downloads a multipart stream, the URL
+                  is correct but may need authentication enabled in Camera Stream.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Setting up an RTSP stream</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-4">
+                <p>
+                  RTSP (Real Time Streaming Protocol) is used by most IP cameras to deliver H.264 or H.265
+                  video over RTP. It is efficient and low-latency, but browsers cannot decode RTSP
+                  directly. To use an RTSP camera with Camera Stream, convert it to MJPEG or a JPEG
+                  snapshot stream locally — for example with FFmpeg, a camera sub-stream, or your
+                  NVR's built-in MJPEG endpoint.
+                </p>
+                <h3 className="font-semibold text-foreground">How to convert RTSP to MJPEG with FFmpeg</h3>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Install FFmpeg on the same machine or Pi that runs Camera Stream.</li>
+                  <li>Run a local relay: <code className="bg-muted px-1 rounded">ffmpeg -i rtsp://camera_ip:554/stream -f mjpeg -q:v 5 http://localhost:8080/video</code>.</li>
+                  <li>Add <code className="bg-muted px-1 rounded">http://localhost:8080/video</code> as a Network/IP Camera in Camera Stream.</li>
+                  <li>Alternatively, check your camera or NVR for a built-in MJPEG/sub-stream URL and use that directly.</li>
+                </ol>
+                <p className="text-sm">
+                  <strong>Troubleshooting tip:</strong> If you see a black screen, verify the RTSP URL
+                  in VLC or ffplay first. Authentication errors usually mean the username/password or
+                  digest-auth setting does not match the camera's configuration.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Snapshot / JPEG polling</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-4">
+                <p>
+                  Some cameras only expose a still-image endpoint such as{" "}
+                  <code className="bg-muted px-1 rounded">/snapshot.jpg</code>. Camera Stream can
+                  poll these endpoints several times per second to create a live-looking feed. This
+                  mode works well for low-bandwidth or battery-powered devices.
+                </p>
+                <h3 className="font-semibold text-foreground">How to add a snapshot camera</h3>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Locate the snapshot URL in your camera's web interface (often <code className="bg-muted px-1 rounded">http://IP/snapshot.jpg</code>).</li>
+                  <li>Add it as a Network/IP Camera in Camera Stream.</li>
+                  <li>Adjust the polling interval in settings if the default is too fast or slow.</li>
+                </ol>
               </CardContent>
             </Card>
 

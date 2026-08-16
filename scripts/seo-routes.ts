@@ -31,19 +31,25 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Free Security Camera Software — DIY Monitoring Setup",
+    title: "Raspberry Pi Security Camera & Home Assistant Guide",
     description:
-      "Free security camera software for DIY monitoring. Set up Raspberry Pi, IP and USB cameras with MJPEG/RTSP streams, motion alerts, and local recording.",
+      "Free Raspberry Pi security camera setup with Home Assistant integration. Local MJPEG/RTSP streaming, motion alerts, and private storage — no cloud uploads.",
     keywords:
-      "free security camera software, DIY camera monitoring, raspberry pi security camera setup, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording",
-    h1: "Free Security Camera Software — DIY Monitoring Documentation",
+      "raspberry pi security camera, home assistant integration, free security camera software, DIY camera monitoring, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording",
+    h1: "Raspberry Pi Security Camera & Home Assistant Integration Guide",
 
     body: `
-      <p>Free security camera software documentation for DIY monitoring. Set up Raspberry Pi, IP and USB cameras with MJPEG and RTSP streams, motion detection, local recording, and troubleshooting for popular camera brands.</p>
-      <h2>Stream formats explained</h2>
-      <p><strong>MJPEG</strong> streams each frame as a complete JPEG image over HTTP. Browsers play MJPEG natively, so it is the most reliable format for Camera Stream.</p>
-      <p><strong>RTSP</strong> delivers efficient H.264 or H.265 video, but browsers cannot decode it directly. Convert RTSP to MJPEG or a JPEG snapshot stream locally before adding it to Camera Stream.</p>
-      <p><strong>Snapshot / JPEG polling</strong> polls a still-image endpoint several times per second for cameras that do not expose a video stream.</p>
+      <p>Free Raspberry Pi security camera setup with Home Assistant integration. Learn MJPEG and RTSP stream configuration, motion alerts, and private local storage — keep your footage on your own devices with no cloud uploads.</p>
+      <h2>Setting up an MJPEG stream</h2>
+      <p>MJPEG (Motion JPEG) streams deliver each video frame as a complete JPEG image over HTTP. Browsers play MJPEG natively, so it is the most reliable format for Camera Stream.</p>
+      <p>To add an MJPEG camera, find the camera URL (commonly <code>http://IP:PORT/video</code>), choose <strong>Add Camera &gt; Network/IP Camera</strong> in Camera Stream, paste the URL, and enter credentials if required.</p>
+      <p><strong>Troubleshooting tip:</strong> open the URL directly in a browser tab. If it prompts for credentials or downloads a multipart stream, the URL is correct but may need authentication enabled in Camera Stream.</p>
+      <h2>Setting up an RTSP stream</h2>
+      <p>RTSP delivers efficient H.264 or H.265 video, but browsers cannot decode it directly. Convert RTSP to MJPEG or a JPEG snapshot stream locally before adding it to Camera Stream.</p>
+      <p>Use FFmpeg to relay an RTSP feed to MJPEG: <code>ffmpeg -i rtsp://camera_ip:554/stream -f mjpeg -q:v 5 http://localhost:8080/video</code>, then add <code>http://localhost:8080/video</code> as a Network/IP Camera.</p>
+      <p><strong>Troubleshooting tip:</strong> verify the RTSP URL in VLC or ffplay first. Authentication errors usually mean the username/password or digest-auth setting does not match the camera's configuration.</p>
+      <h2>Snapshot / JPEG polling</h2>
+      <p>Some cameras only expose a still-image endpoint such as <code>/snapshot.jpg</code>. Camera Stream polls these endpoints several times per second to create a live-looking feed.</p>
       <h2>IP camera troubleshooting by brand</h2>
       <p><strong>Hikvision / HiLook:</strong> enable RTSP and ONVIF, use <code>rtsp://IP:554/Streaming/Channels/101</code>, and create a dedicated local account.</p>
       <p><strong>Dahua / Amcrest:</strong> use <code>rtsp://IP:554/cam/realmonitor?channel=1&amp;subtype=0</code>, confirm the channel number, and add an ONVIF user.</p>
@@ -54,6 +60,7 @@ export const routes = [
       <ul>
         <li>Quick start: adding your first camera</li>
         <li>IP camera connection (RTSP, MJPEG, HTTP)</li>
+        <li>Step-by-step MJPEG and RTSP stream setup</li>
         <li>Common stream URL examples for generic cameras and phone apps</li>
         <li>Brand-specific troubleshooting for Hikvision, Dahua, Reolink, Tapo, Axis and Foscam</li>
         <li>Raspberry Pi camera streaming with DuckDNS</li>
