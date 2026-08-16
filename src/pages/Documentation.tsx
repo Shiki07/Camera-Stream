@@ -354,6 +354,97 @@ const Documentation = () => {
             </Card>
           </section>
 
+          {/* IP Camera Troubleshooting */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Wrench className="h-6 w-6 text-primary" />
+              IP Camera Troubleshooting by Brand
+            </h2>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Hikvision, HiLook & Hilux</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>Common RTSP path: <code className="bg-muted px-1 rounded">rtsp://IP:554/Streaming/Channels/101</code> (main stream) or <code className="bg-muted px-1 rounded">.../102</code> (sub stream).</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Enable RTSP and ONVIF in the camera's web interface under Network &gt; Advanced Settings.</li>
+                  <li>Create a dedicated user account for Camera Stream; avoid special characters in passwords.</li>
+                  <li>If the feed is blank, switch to the sub stream — it is usually H.264 and easier to convert to MJPEG.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Dahua, Amcrest & Lorex</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>Common RTSP path: <code className="bg-muted px-1 rounded">rtsp://IP:554/cam/realmonitor?channel=1&amp;subtype=0</code> (subtype=1 for lower resolution).</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Confirm the camera channel number matches the physical channel in your NVR or standalone camera.</li>
+                  <li>Enable ONVIF and add an ONVIF user if the camera is behind an NVR.</li>
+                  <li>For Amcrest, check that the HTTP port is open and that HTTPS is not forcing a certificate mismatch.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Reolink</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>Common RTSP path: <code className="bg-muted px-1 rounded">rtsp://IP:554/h264Preview_01_main</code> or <code className="bg-muted px-1 rounded">h264Preview_01_sub</code> for a lower bitrate feed.</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Use the Reolink mobile app or web UI to enable RTSP under Settings &gt; Network &gt; Advanced &gt; RTSP.</li>
+                  <li>Make sure the camera and the viewing device are on the same network for first setup.</li>
+                  <li>If the stream stutters, reduce the bitrate or switch to the sub stream.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>TP-Link Tapo</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>Common RTSP path: <code className="bg-muted px-1 rounded">rtsp://IP:554/stream1</code> (main) or <code className="bg-muted px-1 rounded">stream2</code> (SD).</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Open the Tapo app, go to Camera Settings &gt; Advanced &gt; Camera Account, and create a local account.</li>
+                  <li>RTSP credentials are separate from your TP-Link cloud login — use the local account in Camera Stream.</li>
+                  <li>Some Tapo models expose an MJPEG snapshot URL at <code className="bg-muted px-1 rounded">http://IP:8080/stream</code>; try this if RTSP conversion is slow.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Axis & Foscam</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>Axis RTSP path: <code className="bg-muted px-1 rounded">rtsp://IP:554/axis-media/media.amp</code>. Foscam path: <code className="bg-muted px-1 rounded">rtsp://IP:88/videoMain</code> or <code className="bg-muted px-1 rounded">rtsp://IP:88/videoSub</code>.</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Axis cameras often require digest authentication — choose digest or basic auth in Camera Stream if prompted.</li>
+                  <li>Foscam users should disable HTTPS in the camera UI unless you have a valid certificate.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Generic ONVIF cameras</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>If your camera supports ONVIF but you do not know the stream URL, use a free ONVIF scanner such as ONVIF Device Manager to discover the RTSP or snapshot endpoints.</p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Connect the scanner to the same LAN as the camera.</li>
+                  <li>Log in with the camera's ONVIF credentials.</li>
+                  <li>Copy the discovered stream URL into Camera Stream as a Network/IP Camera.</li>
+                </ol>
+              </CardContent>
+            </Card>
+          </section>
+
 
           {/* Motion Detection */}
           <section className="mb-12">
