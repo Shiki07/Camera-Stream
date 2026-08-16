@@ -39,13 +39,21 @@ export const SEOHead = ({
   title = "Camera Stream - Smart Security Camera Monitoring System",
   description = "Professional camera monitoring system with motion detection, real-time alerts, and privacy-focused security.",
   keywords = "security camera, camera monitoring, home security system, motion detection, webcam monitoring, IP camera",
-  canonical = "https://www.camerastream.live/",
+  canonical,
   jsonLd,
   ogImage = "https://www.camerastream.live/og-image.jpg",
   ogType = "website",
   noindex = false
 }: SEOHeadProps) => {
+  // Default to a self-referencing canonical for the current route.
+  const canonicalUrl =
+    canonical ??
+    (typeof window !== "undefined"
+      ? `https://www.camerastream.live${window.location.pathname.replace(/\/+$/, "") || "/"}`
+      : "https://www.camerastream.live/");
+
   useEffect(() => {
+
     // Update title
     document.title = title;
     
@@ -83,7 +91,7 @@ export const SEOHead = ({
       canonicalLink.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute('href', canonical);
+    canonicalLink.setAttribute('href', canonicalUrl);
     
     // Update Open Graph meta tags
     const updateOrCreateMeta = (property: string, content: string, isProperty = true) => {
@@ -100,7 +108,7 @@ export const SEOHead = ({
     // Open Graph tags
     updateOrCreateMeta('og:title', title);
     updateOrCreateMeta('og:description', description);
-    updateOrCreateMeta('og:url', canonical);
+    updateOrCreateMeta('og:url', canonicalUrl);
     updateOrCreateMeta('og:image', ogImage);
     updateOrCreateMeta('og:type', ogType);
     updateOrCreateMeta('og:site_name', 'Camera Stream');
@@ -111,7 +119,7 @@ export const SEOHead = ({
     updateOrCreateMeta('twitter:title', title, false);
     updateOrCreateMeta('twitter:description', description, false);
     updateOrCreateMeta('twitter:image', ogImage, false);
-    updateOrCreateMeta('twitter:url', canonical, false);
+    updateOrCreateMeta('twitter:url', canonicalUrl, false);
 
     // Add JSON-LD structured data only when explicitly provided.
     // Avoids applying SoftwareApplication schema to non-app pages
@@ -135,7 +143,7 @@ export const SEOHead = ({
       const tag = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
       if (tag) tag.remove();
     };
-  }, [title, description, keywords, canonical, jsonLd, ogImage, ogType, noindex]);
+  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex]);
 
   return null;
 };
