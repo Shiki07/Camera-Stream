@@ -57,11 +57,11 @@ const Contact = () => {
     // Simulate form submission - in production, this would send to an API
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Open email client with form data
+    // Open the user's default email client with a pre-filled message
     const mailtoLink = `mailto:support@camerastream.live?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(`Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`)}`;
     window.location.href = mailtoLink;
 
-    toast.success("Opening your email client...");
+    toast.success("Opening your email app with the pre-filled message...");
     setIsSubmitting(false);
   };
 
@@ -123,12 +123,12 @@ const Contact = () => {
 
             <Card className="border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
                   Send us a message
                 </CardTitle>
                 <CardDescription>
-                  Fill out the form below and we'll get back to you as soon as possible.
+                  Fill out the form below to open your default email app with a pre-filled message to our support team.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -186,8 +186,11 @@ const Contact = () => {
                     {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? "Sending..." : "Send Message"}
+                    {isSubmitting ? "Opening email app..." : "Open in Email App"}
                   </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    This button opens your default email client. No message is sent directly from this site.
+                  </p>
                 </form>
               </CardContent>
             </Card>
