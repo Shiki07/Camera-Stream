@@ -46,6 +46,8 @@ function buildHead(route: Route) {
     twUrl: `<meta name="twitter:url" content="${canonical}" />`,
     twTitle: `<meta name="twitter:title" content="${title}" />`,
     twDesc: `<meta name="twitter:description" content="${desc}" />`,
+    ogImageAlt: `<meta property="og:image:alt" content="${title}" />`,
+    twImageAlt: `<meta name="twitter:image:alt" content="${title}" />`,
   };
 }
 
@@ -64,6 +66,8 @@ function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   html = html.replace(/<meta\s+name="twitter:url"[^>]*>/i, tags.twUrl);
   html = html.replace(/<meta\s+name="twitter:title"[^>]*>/i, tags.twTitle);
   html = html.replace(/<meta\s+name="twitter:description"[^>]*>/i, tags.twDesc);
+  html = html.replace(/<meta\s+property="og:image:alt"[^>]*>/i, tags.ogImageAlt);
+  html = html.replace(/<meta\s+name="twitter:image:alt"[^>]*>/i, tags.twImageAlt);
 
   // Visually-hidden SEO content for crawlers; React replaces #root on hydrate.
   const seoBlock = `
