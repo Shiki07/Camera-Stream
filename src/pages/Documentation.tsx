@@ -49,8 +49,21 @@ const faqItems = [
   {
     question: "What browsers are supported?",
     answer: "Camera Stream works on all modern browsers including Chrome, Firefox, Safari, and Edge. For the best experience, we recommend using the latest version of Chrome or Firefox."
+  },
+  {
+    question: "How do I set up a libcamera MJPEG stream on a Raspberry Pi?",
+    answer: "On Raspberry Pi OS Bookworm, the legacy camera stack is replaced by libcamera. Install the tools with 'sudo apt install -y libcamera-apps' and confirm the sensor is detected with 'libcamera-hello --list-cameras'. Then publish an MJPEG stream over HTTP, for example: 'libcamera-vid -t 0 --codec mjpeg --width 1280 --height 720 --framerate 15 --inline -o - | cvlc stream:///dev/stdin --sout \"#standard{access=http,mux=mpjpeg,dst=:8000/stream.mjpg}\" :demux=h264'. Add the resulting URL (http://<pi-ip>:8000/stream.mjpg) as a network camera in Camera Stream. If the stream stutters, lower the resolution to 640x480 or the framerate to 10 fps."
+  },
+  {
+    question: "How do I record Raspberry Pi camera footage locally?",
+    answer: "Raspberry Pi camera recording runs on the Pi itself: a small Node.js recording controller listens on port 3002 and calls FFmpeg to write clips from the MJPEG stream to a folder such as /home/pi/Videos, optionally organised into date folders. Camera Stream triggers start and stop over your local network or DuckDNS hostname, and a lock file prevents overlapping recordings. Clips stay on the Pi's SD card or an attached USB drive — nothing is uploaded to the cloud."
+  },
+  {
+    question: "Does any footage get uploaded to the cloud?",
+    answer: "No. Video frames are decoded in your browser and recordings are written to your own device or your Raspberry Pi. Camera Stream never uploads footage to our servers, and there are no subscription fees for local recording or Home Assistant integration."
   }
 ];
+
 
 const Documentation = () => {
   return (
