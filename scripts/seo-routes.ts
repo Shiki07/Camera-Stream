@@ -31,11 +31,11 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Free Security Camera Software Setup Guide — No Fees",
+    title: "DIY Security Camera Setup: Free Raspberry Pi & IP Cam Guide",
     description:
-      "Set up free security camera software in minutes: connect webcams or IP cameras, enable motion alerts, record locally. No subscription, no cloud.",
+      "DIY security camera setup guide for Raspberry Pi, IP cameras, RTSP and MJPEG streams. Free motion alerts, local recording, no subscription.",
     keywords:
-      "security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, IP camera guide, webcam setup, raspberry pi camera, motion detection setup",
+      "DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording",
     h1: "Security Camera System Setup & User Guide",
     body: `
       <p>Step-by-step guides for setting up and configuring Camera Stream. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities.</p>
