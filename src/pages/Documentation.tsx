@@ -92,10 +92,12 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Security Camera System Setup & User Guide</h1>
+          <h1 className="text-4xl font-bold mb-4">Raspberry Pi &amp; IP Camera Monitoring Documentation</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Everything you need to get started with Camera Stream and make the most of your security monitoring system.
+            Setup guide for Raspberry Pi security cameras, IP cameras and USB webcams — supported
+            protocols, stream URL formats, motion detection and local recording, with no cloud uploads.
           </p>
+
 
           {/* Getting Started */}
           <section className="mb-12">
