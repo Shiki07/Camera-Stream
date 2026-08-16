@@ -145,6 +145,7 @@ export const DuckDNSSettings = () => {
                   onClick={saveToken}
                   disabled={isSavingToken || !token.trim()}
                   className="bg-green-600 hover:bg-green-700"
+                  aria-label="Save DuckDNS token"
                   title="Save DuckDNS token"
                 >
                   <Save className={`w-4 h-4 ${isSavingToken ? 'animate-spin' : ''}`} />
