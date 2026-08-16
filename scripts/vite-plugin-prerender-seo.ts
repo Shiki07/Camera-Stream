@@ -51,6 +51,66 @@ function buildHead(route: Route) {
   };
 }
 
+function buildJsonLd(route: Route): string {
+  const canonical = SITE_URL + (route.path === "/" ? "/" : route.path);
+  const blocks: object[] = [];
+
+  if (route.path === "/") {
+    blocks.push({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Camera Stream",
+      description:
+        "Privacy-focused security camera monitoring system with motion detection, real-time alerts, and local storage.",
+      url: canonical,
+      applicationCategory: "SecurityApplication",
+      operatingSystem: "Web Browser",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+    });
+  } else {
+    // Breadcrumb reflecting the route's real hierarchy, e.g.
+    // Home > Blog > <post> for /blog/<slug>, Home > Documentation otherwise.
+    const segments = route.path.replace(/^\//, "").split("/");
+    const items: object[] = [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+    ];
+    let acc = "";
+    segments.forEach((seg, i) => {
+      acc += `/${seg}`;
+      const isLast = i === segments.length - 1;
+      const name = isLast
+        ? route.h1 || route.title
+        : seg.charAt(0).toUpperCase() + seg.slice(1);
+      items.push({
+        "@type": "ListItem",
+        position: i + 2,
+        name,
+        item: SITE_URL + acc,
+      });
+    });
+    blocks.push({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: items,
+    });
+  }
+
+  return blocks
+    .map(
+      (b) =>
+        `<script type="application/ld+json">${JSON.stringify(b).replace(
+          /</g,
+          "\\u003c"
+        )}</script>`
+    )
+    .join("\n    ");
+}
+
 function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   const tags = buildHead(route);
   let html = baseHtml;
@@ -68,6 +128,9 @@ function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   html = html.replace(/<meta\s+name="twitter:description"[^>]*>/i, tags.twDesc);
   html = html.replace(/<meta\s+property="og:image:alt"[^>]*>/i, tags.ogImageAlt);
   html = html.replace(/<meta\s+name="twitter:image:alt"[^>]*>/i, tags.twImageAlt);
+
+  // Route-specific structured data (app schema on home, breadcrumbs elsewhere).
+  html = html.replace(/<\/head>/i, `  ${buildJsonLd(route)}\n  </head>`);
 
   // Visually-hidden SEO content for crawlers; React replaces #root on hydrate.
   const seoBlock = `
