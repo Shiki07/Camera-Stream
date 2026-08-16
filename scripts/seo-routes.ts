@@ -31,9 +31,9 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Raspberry Pi Camera Setup Guide — Free, No Cloud",
+    title: "Camera Stream Docs — Raspberry Pi & IP Camera Setup",
     description:
-      "Step-by-step Raspberry Pi security camera setup: libcamera MJPEG streams, Home Assistant integration, motion alerts and local recording. Free, no cloud.",
+      "Camera Stream documentation: set up Raspberry Pi and IP security cameras, MJPEG and RTSP streams, motion alerts, Home Assistant and local recording. Free.",
     keywords:
       "raspberry pi security camera setup, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, IP camera monitoring documentation, local recording",
     h1: "Raspberry Pi Security Camera Setup & Home Assistant Integration",
