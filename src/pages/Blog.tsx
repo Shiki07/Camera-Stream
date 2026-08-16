@@ -99,6 +99,8 @@ const Blog = () => {
             </p>
           </header>
 
+          <h2 className="text-2xl font-bold mb-6">Latest Security Guides</h2>
+
           <div className="grid gap-6">
             {blogPosts.map((post) => (
               <Link key={post.slug} to={`/blog/${post.slug}`}>

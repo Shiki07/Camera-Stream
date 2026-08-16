@@ -31,9 +31,9 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "DIY Security Camera Setup: Free Raspberry Pi & IP Cam Guide",
+    title: "DIY Private Security Camera Setup: Raspberry Pi & IP Cam Guide",
     description:
-      "DIY security camera setup guide for Raspberry Pi, IP cameras, RTSP and MJPEG streams. Free motion alerts, local recording, no subscription.",
+      "Set up Raspberry Pi and IP cameras with RTSP or MJPEG streams. No cloud uploads, local recording, free motion alerts, no subscription.",
     keywords:
       "DIY security camera setup, raspberry pi security camera, IP camera setup, RTSP stream setup, MJPEG camera setup, free security camera guide, local recording",
     h1: "Security Camera System Setup & User Guide",

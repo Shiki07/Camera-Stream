@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
@@ -177,7 +177,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Check Your Email</h1>
             <CardDescription className="text-muted-foreground">
               We've sent a password reset link to {email}
             </CardDescription>
@@ -215,7 +215,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Reset Password</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Reset Password</h1>
             <CardDescription className="text-muted-foreground">
               Enter your email to receive a password reset link
             </CardDescription>
@@ -269,7 +269,7 @@ const Auth = () => {
             <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-foreground">Check Your Email</CardTitle>
+            <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">Check Your Email</h1>
             <CardDescription className="text-muted-foreground">
               We've sent a verification link to {email}
             </CardDescription>
@@ -344,6 +344,7 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <h2 className="sr-only">Account access options</h2>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-secondary">
               <TabsTrigger value="signin" className="text-muted-foreground data-[state=active]:text-foreground">Sign In</TabsTrigger>
