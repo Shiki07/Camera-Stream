@@ -36,6 +36,7 @@ const Header = () => {
               size="sm" 
               asChild
               className="text-xs sm:text-sm px-2 sm:px-3"
+              aria-label="View Camera Stream on GitHub"
             >
               <a 
                 href="https://github.com/Shiki07/Camera-Stream" 
@@ -51,6 +52,7 @@ const Header = () => {
               size="sm" 
               onClick={handleSignOut}
               className="text-muted-foreground border-border hover:bg-secondary text-xs sm:text-sm px-2 sm:px-3"
+              aria-label="Sign out of Camera Stream"
             >
               <LogOut className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>
