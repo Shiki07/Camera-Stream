@@ -185,4 +185,16 @@ export const routes = [
       <p>These terms govern your use of Camera Stream. Camera Stream is provided free of charge for personal and small-business security monitoring.</p>
     `,
   },
+  {
+    path: "/auth",
+    title: "Sign In to Camera Stream — Free Security Camera App",
+    description:
+      "Sign in to Camera Stream or create a free account to monitor webcams, IP cameras, and Raspberry Pi cameras with motion detection and instant email alerts.",
+    keywords: "camera stream sign in, security camera login, create camera monitoring account",
+    h1: "Sign In to Camera Stream",
+    noindex: true,
+    body: `
+      <p>Sign in to your free Camera Stream account, or create one in seconds, to manage your cameras, motion alerts, and local recordings.</p>
+    `,
+  },
 ];
