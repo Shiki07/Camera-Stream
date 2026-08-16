@@ -211,12 +211,11 @@ const RemoteViewer: React.FC = () => {
                 <span className="hidden sm:inline">Home</span>
               </Button>
             </Link>
-            {hostName && (
-              <span className="text-sm text-muted-foreground">
-                {hostName}'s camera
-              </span>
-            )}
+            <h1 className="text-sm font-medium text-foreground">
+              {hostName ? `${hostName}'s shared camera` : 'Shared live camera feed'}
+            </h1>
           </div>
+
           
           <div className="flex items-center gap-2">
             {getStatusBadge()}

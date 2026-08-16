@@ -31,9 +31,9 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Security Camera System Setup & User Guide — Free & Private",
+    title: "Free Security Camera Software Setup Guide — No Fees",
     description:
-      "Free, privacy-focused security camera setup guide. Add webcams and IP cameras, configure motion detection, alerts, and local recording step by step.",
+      "Set up free security camera software in minutes: connect webcams or IP cameras, enable motion alerts, record locally. No subscription, no cloud.",
     keywords:
       "security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, IP camera guide, webcam setup, raspberry pi camera, motion detection setup",
     h1: "Security Camera System Setup & User Guide",

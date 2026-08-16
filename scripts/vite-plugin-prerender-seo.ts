@@ -15,6 +15,7 @@ interface Route {
   description: string;
   keywords?: string;
   h1?: string;
+  ogType?: string;
   body?: string;
 }
 
@@ -36,6 +37,9 @@ function buildHead(route: Route) {
     description: `<meta name="description" content="${desc}" />`,
     keywords: `<meta name="keywords" content="${kw}" />`,
     canonical: `<link rel="canonical" href="${canonical}" />`,
+    ogType: `<meta property="og:type" content="${escapeHtml(
+      route.ogType || (route.path.startsWith("/blog/") ? "article" : "website")
+    )}" />`,
     ogUrl: `<meta property="og:url" content="${canonical}" />`,
     ogTitle: `<meta property="og:title" content="${title}" />`,
     ogDesc: `<meta property="og:description" content="${desc}" />`,
@@ -53,6 +57,7 @@ function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   html = html.replace(/<meta\s+name="description"[^>]*>/i, tags.description);
   html = html.replace(/<meta\s+name="keywords"[^>]*>/i, tags.keywords);
   html = html.replace(/<link\s+rel="canonical"[^>]*>/i, tags.canonical);
+  html = html.replace(/<meta\s+property="og:type"[^>]*>/i, tags.ogType);
   html = html.replace(/<meta\s+property="og:url"[^>]*>/i, tags.ogUrl);
   html = html.replace(/<meta\s+property="og:title"[^>]*>/i, tags.ogTitle);
   html = html.replace(/<meta\s+property="og:description"[^>]*>/i, tags.ogDesc);

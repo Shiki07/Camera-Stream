@@ -56,8 +56,8 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Security Camera System Setup & User Guide — Free & Private"
-        description="Free, privacy-focused security camera setup guide. Add webcams and IP cameras, configure motion detection, alerts, and local recording step by step."
+        title="Free Security Camera Software Setup Guide — No Fees"
+        description="Set up free security camera software in minutes: connect webcams or IP cameras, enable motion alerts, record locally. No subscription, no cloud."
         keywords="security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, local recording"
         canonical="https://www.camerastream.live/documentation"
       />
