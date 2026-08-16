@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 
 interface SEOHeadProps {
-  title?: string;
-  description?: string;
+  /** Required: every route must supply its own title so pages never share one. */
+  title: string;
+  /** Required: every route must supply its own description so snippets stay unique. */
+  description: string;
   keywords?: string;
   canonical?: string;
   jsonLd?: object;
@@ -36,9 +38,9 @@ const defaultJsonLd = {
 };
 
 export const SEOHead = ({ 
-  title = "Camera Stream - Smart Security Camera Monitoring System",
-  description = "Professional camera monitoring system with motion detection, real-time alerts, and privacy-focused security.",
-  keywords = "security camera, camera monitoring, home security system, motion detection, webcam monitoring, IP camera",
+  title,
+  description,
+  keywords,
   canonical,
   jsonLd,
   ogImage = "https://www.camerastream.live/og-image.jpg",
@@ -66,14 +68,16 @@ export const SEOHead = ({
     }
     metaDescription.setAttribute('content', description);
     
-    // Update meta keywords
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    if (!metaKeywords) {
-      metaKeywords = document.createElement('meta');
-      metaKeywords.setAttribute('name', 'keywords');
-      document.head.appendChild(metaKeywords);
+    // Update meta keywords (only when the route provides its own)
+    if (keywords) {
+      let metaKeywords = document.querySelector('meta[name="keywords"]');
+      if (!metaKeywords) {
+        metaKeywords = document.createElement('meta');
+        metaKeywords.setAttribute('name', 'keywords');
+        document.head.appendChild(metaKeywords);
+      }
+      metaKeywords.setAttribute('content', keywords);
     }
-    metaKeywords.setAttribute('content', keywords);
     
     // Update robots meta tag
     let metaRobots = document.querySelector('meta[name="robots"]');
