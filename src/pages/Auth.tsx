@@ -336,9 +336,9 @@ const Auth = () => {
           <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
             <Camera className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-foreground" asChild>
-            <h1>Sign in or create your Camera Stream account</h1>
-          </CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">
+            Sign in or create your Camera Stream account
+          </h1>
           <CardDescription className="text-muted-foreground">
             Secure access to your remote camera system
           </CardDescription>
