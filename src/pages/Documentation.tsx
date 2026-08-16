@@ -56,9 +56,9 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Free Security Camera Software — Privacy Setup Guide"
-        description="Set up free, privacy-focused security camera software: add webcams and IP cameras, configure motion detection, alerts, and local recording step by step."
-        keywords="free security camera software, privacy-focused camera setup, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, local recording"
+        title="Security Camera System Setup & User Guide — Free & Private"
+        description="Free, privacy-focused security camera setup guide. Add webcams and IP cameras, configure motion detection, alerts, and local recording step by step."
+        keywords="security camera documentation, free security camera setup, privacy-focused camera setup, security camera setup guide, webcam setup tutorial, IP camera configuration, motion detection guide, local recording"
         canonical="https://www.camerastream.live/documentation"
       />
       <StructuredData 
@@ -91,7 +91,7 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Documentation</h1>
+          <h1 className="text-4xl font-bold mb-4">Security Camera System Setup & User Guide</h1>
           <p className="text-muted-foreground text-lg mb-12">
             Everything you need to get started with Camera Stream and make the most of your security monitoring system.
           </p>
