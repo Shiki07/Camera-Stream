@@ -23,7 +23,7 @@ const Header = () => {
     <header className="bg-card border-b border-border px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div className="flex items-center gap-2 sm:gap-4">
-          <h1 className="text-lg sm:text-2xl font-bold text-foreground">Camera Stream</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">Camera Stream — Security Dashboard</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2 text-muted-foreground">
