@@ -70,7 +70,7 @@ const Documentation = () => {
     <>
       <SEOHead 
         title="How to Make a Raspberry Pi Security Camera — Free Guide"
-        description="Free Raspberry Pi security camera setup with Home Assistant integration. Local MJPEG/RTSP streaming, motion alerts, and private storage — no cloud uploads."
+        description="Raspberry Pi security camera setup with Home Assistant integration: libcamera MJPEG streaming, RTSP cameras, motion alerts, local recording — no cloud uploads, free."
         keywords="raspberry pi security camera, home assistant integration, free security camera software, DIY camera monitoring, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording"
 
         canonical="https://www.camerastream.live/documentation"
