@@ -158,7 +158,7 @@ const Blog = () => {
         <footer className="border-t border-border py-8 mt-12">
           <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
             <div className="flex flex-wrap justify-center gap-4 mb-4">
-              <Link to="/documentation" className="hover:text-foreground">Documentation</Link>
+              <Link to="/documentation" className="hover:text-foreground">Raspberry Pi &amp; IP camera setup documentation</Link>
               <Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link>
               <Link to="/terms" className="hover:text-foreground">Terms of Service</Link>
               <Link to="/contact" className="hover:text-foreground">Contact</Link>

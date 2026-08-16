@@ -31,15 +31,25 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "How to Make a Raspberry Pi Security Camera — Free Guide",
+    title: "Raspberry Pi Security Camera Setup & Home Assistant",
     description:
-      "Raspberry Pi security camera setup with Home Assistant integration: libcamera MJPEG streaming, RTSP cameras, motion alerts, local recording — no cloud uploads, free.",
+      "Raspberry Pi security camera setup and Home Assistant integration: libcamera MJPEG streaming, RTSP fixes, Pi model comparison, motion alerts, local recording. Free.",
     keywords:
-      "raspberry pi security camera, home assistant integration, free security camera software, DIY camera monitoring, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording",
-    h1: "How to Make a Raspberry Pi Security Camera — Setup & Home Assistant Guide",
+      "raspberry pi security camera setup, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, IP camera monitoring documentation, local recording",
+    h1: "Raspberry Pi Security Camera Setup & Home Assistant Integration",
 
     body: `
-      <p>Free Raspberry Pi security camera setup with Home Assistant integration. Learn MJPEG and RTSP stream configuration, motion alerts, and private local storage — keep your footage on your own devices with no cloud uploads.</p>
+      <p>Free hardware and software documentation for Raspberry Pi security cameras and Home Assistant integration: libcamera MJPEG streaming, RTSP conversion, Pi model and camera module comparison, stream error troubleshooting, motion alerts, and private local recording with no cloud uploads.</p>
+      <h2>Which Raspberry Pi and camera module to use</h2>
+      <p>Pi Zero 2 W handles 640x480 at 10-15 fps for streaming only. Pi 3 Model B+ handles 720p at 15 fps with occasional motion clips. Pi 4 handles 720p at 25-30 fps with continuous local recording. Pi 5 handles 1080p at 30 fps and multiple cameras with FFmpeg re-encoding.</p>
+      <p>Camera Module 3 (IMX708, autofocus) is the general-purpose choice, Camera Module 3 NoIR adds night vision with an IR illuminator, Camera Module 2 (IMX219) is the cheapest option, and the HQ Camera (IMX477) accepts interchangeable C/CS lenses. USB webcams work through v4l2 without the ribbon connector.</p>
+      <h2>MJPEG and RTSP stream error troubleshooting</h2>
+      <p><strong>401 Unauthorized:</strong> the camera uses digest auth or a dedicated stream account — create a local camera user and enter credentials in Camera Stream rather than in the URL.</p>
+      <p><strong>404 on the stream path:</strong> try <code>/video</code>, <code>/stream.mjpg</code>, or <code>/mjpg/video.mjpg</code>.</p>
+      <p><strong>Mixed content blocked:</strong> browsers block plain-HTTP feeds on HTTPS pages — use the secure proxy or a TLS-terminated DuckDNS hostname.</p>
+      <p><strong>Stream freezes after minutes:</strong> lower to 640x480 at 10 fps and prefer a wired connection.</p>
+      <p><strong>504 timeout or DNS failure on DuckDNS:</strong> check the DNS record, port forwarding for 8000 and 3002, and disable VPN on the Pi.</p>
+      <p><strong>libcamera "no cameras available":</strong> reseat the ribbon cable and run <code>libcamera-hello --list-cameras</code>; use <code>libcamera-vid</code> on Bookworm.</p>
       <h2>Setting up an MJPEG stream</h2>
       <p>MJPEG (Motion JPEG) streams deliver each video frame as a complete JPEG image over HTTP. Browsers play MJPEG natively, so it is the most reliable format for Camera Stream.</p>
       <p>To add an MJPEG camera, find the camera URL (commonly <code>http://IP:PORT/video</code>), choose <strong>Add Camera &gt; Network/IP Camera</strong> in Camera Stream, paste the URL, and enter credentials if required.</p>

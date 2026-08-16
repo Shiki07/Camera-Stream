@@ -614,7 +614,7 @@ const BlogPost = () => {
                 <Button size="lg">Get Started Free</Button>
               </Link>
               <Link to="/documentation">
-                <Button size="lg" variant="outline">View Documentation</Button>
+                <Button size="lg" variant="outline">Raspberry Pi &amp; IP camera setup documentation</Button>
               </Link>
             </div>
           </section>
