@@ -260,6 +260,44 @@ const Documentation = () => {
 
             <Card className="mb-4">
               <CardHeader>
+                <CardTitle>MJPEG vs RTSP: technical overview</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-4">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">MJPEG (Motion JPEG)</h3>
+                  <p>
+                    MJPEG streams deliver each video frame as a complete JPEG image over HTTP.
+                    Because every frame is self-contained, browsers can play MJPEG feeds natively
+                    with an <code className="bg-muted px-1 rounded">&lt;img&gt;</code> tag or a
+                    multipart parser. This makes MJPEG the most reliable format for Camera Stream:
+                    no plug-ins, no transcoding, and minimal latency on local networks. The trade-off
+                    is larger bandwidth usage, since each keyframe-sized image is sent repeatedly.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">RTSP (Real Time Streaming Protocol)</h3>
+                  <p>
+                    RTSP is a control protocol used by most IP cameras to deliver H.264 or H.265
+                    video over RTP. It is efficient and low-latency, but browsers cannot decode RTSP
+                    directly. To use an RTSP camera with Camera Stream, convert it to MJPEG or a JPEG
+                    snapshot stream locally — for example with FFmpeg, a camera sub-stream, or your
+                    NVR's built-in MJPEG endpoint.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Snapshot / JPEG polling</h3>
+                  <p>
+                    Some cameras only expose a still-image endpoint such as{" "}
+                    <code className="bg-muted px-1 rounded">/snapshot.jpg</code>. Camera Stream can
+                    poll these endpoints several times per second to create a live-looking feed. This
+                    mode works well for low-bandwidth or battery-powered devices.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
                 <CardTitle>Common camera URL patterns</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground space-y-3">
