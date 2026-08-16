@@ -111,23 +111,29 @@ function buildJsonLd(route: Route): string {
     .join("\n    ");
 }
 
+function upsert(html: string, pattern: RegExp, tag: string): string {
+  if (pattern.test(html)) return html.replace(pattern, tag);
+  return html.replace(/<\/head>/i, `  ${tag}\n  </head>`);
+}
+
 function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   const tags = buildHead(route);
   let html = baseHtml;
 
   html = html.replace(/<title>[\s\S]*?<\/title>/, tags.title);
-  html = html.replace(/<meta\s+name="description"[^>]*>/i, tags.description);
-  html = html.replace(/<meta\s+name="keywords"[^>]*>/i, tags.keywords);
-  html = html.replace(/<link\s+rel="canonical"[^>]*>/i, tags.canonical);
-  html = html.replace(/<meta\s+property="og:type"[^>]*>/i, tags.ogType);
-  html = html.replace(/<meta\s+property="og:url"[^>]*>/i, tags.ogUrl);
-  html = html.replace(/<meta\s+property="og:title"[^>]*>/i, tags.ogTitle);
-  html = html.replace(/<meta\s+property="og:description"[^>]*>/i, tags.ogDesc);
-  html = html.replace(/<meta\s+name="twitter:url"[^>]*>/i, tags.twUrl);
-  html = html.replace(/<meta\s+name="twitter:title"[^>]*>/i, tags.twTitle);
-  html = html.replace(/<meta\s+name="twitter:description"[^>]*>/i, tags.twDesc);
-  html = html.replace(/<meta\s+property="og:image:alt"[^>]*>/i, tags.ogImageAlt);
-  html = html.replace(/<meta\s+name="twitter:image:alt"[^>]*>/i, tags.twImageAlt);
+  html = upsert(html, /<meta\s+name="description"[^>]*>/i, tags.description);
+  html = upsert(html, /<meta\s+name="keywords"[^>]*>/i, tags.keywords);
+  html = upsert(html, /<link\s+rel="canonical"[^>]*>/i, tags.canonical);
+  html = upsert(html, /<meta\s+property="og:type"[^>]*>/i, tags.ogType);
+  html = upsert(html, /<meta\s+property="og:url"[^>]*>/i, tags.ogUrl);
+  html = upsert(html, /<meta\s+property="og:title"[^>]*>/i, tags.ogTitle);
+  html = upsert(html, /<meta\s+property="og:description"[^>]*>/i, tags.ogDesc);
+  html = upsert(html, /<meta\s+name="twitter:url"[^>]*>/i, tags.twUrl);
+  html = upsert(html, /<meta\s+name="twitter:title"[^>]*>/i, tags.twTitle);
+  html = upsert(html, /<meta\s+name="twitter:description"[^>]*>/i, tags.twDesc);
+  html = upsert(html, /<meta\s+property="og:image:alt"[^>]*>/i, tags.ogImageAlt);
+  html = upsert(html, /<meta\s+name="twitter:image:alt"[^>]*>/i, tags.twImageAlt);
+
 
   // Route-specific structured data (app schema on home, breadcrumbs elsewhere).
   html = html.replace(/<\/head>/i, `  ${buildJsonLd(route)}\n  </head>`);
