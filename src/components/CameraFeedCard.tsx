@@ -1260,6 +1260,7 @@ export const CameraFeedCard = ({
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-destructive hover:text-destructive-foreground"
             onClick={() => onRemove(index)}
+            aria-label="Remove camera"
             title="Remove camera"
           >
             <Trash2 className="h-4 w-4" />
@@ -1269,6 +1270,8 @@ export const CameraFeedCard = ({
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={() => onFocus(isFocused ? null : index)}
+            aria-label={isFocused ? 'Exit focus view' : 'Focus this camera'}
+            title={isFocused ? 'Exit focus view' : 'Focus this camera'}
           >
             {isFocused ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
@@ -1277,6 +1280,8 @@ export const CameraFeedCard = ({
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={() => onSettings(index)}
+            aria-label="Open camera settings"
+            title="Camera settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -1289,6 +1294,7 @@ export const CameraFeedCard = ({
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={toggleMotion}
+            aria-label={settings.motion_enabled ? 'Disable motion detection' : 'Enable motion detection'}
             title={settings.motion_enabled ? 'Disable motion detection' : 'Enable motion detection'}
           >
             {settings.motion_enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
@@ -1299,6 +1305,7 @@ export const CameraFeedCard = ({
             variant={isRecording ? "destructive" : "ghost"}
             className={cn("h-7 w-7", !isRecording && "bg-background/50 hover:bg-background/80")}
             onClick={handleRecordingToggle}
+            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
             disabled={!isConnected || (isProcessing && !isHomeAssistant)}
             title={isRecording 
               ? (isHomeAssistant ? 'Stop SD card recording' : 'Stop recording') 
@@ -1322,6 +1329,7 @@ export const CameraFeedCard = ({
             variant="ghost"
             className="h-7 w-7 bg-background/50 hover:bg-background/80"
             onClick={handleSnapshot}
+            aria-label="Take snapshot"
             disabled={!isConnected || browserRecording.isProcessing}
             title="Take snapshot"
           >
