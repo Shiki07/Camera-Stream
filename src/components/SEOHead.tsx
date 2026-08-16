@@ -68,14 +68,16 @@ export const SEOHead = ({
     }
     metaDescription.setAttribute('content', description);
     
-    // Update meta keywords
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    if (!metaKeywords) {
-      metaKeywords = document.createElement('meta');
-      metaKeywords.setAttribute('name', 'keywords');
-      document.head.appendChild(metaKeywords);
+    // Update meta keywords (only when the route provides its own)
+    if (keywords) {
+      let metaKeywords = document.querySelector('meta[name="keywords"]');
+      if (!metaKeywords) {
+        metaKeywords = document.createElement('meta');
+        metaKeywords.setAttribute('name', 'keywords');
+        document.head.appendChild(metaKeywords);
+      }
+      metaKeywords.setAttribute('content', keywords);
     }
-    metaKeywords.setAttribute('content', keywords);
     
     // Update robots meta tag
     let metaRobots = document.querySelector('meta[name="robots"]');
