@@ -31,12 +31,12 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Raspberry Pi Security Camera & Home Assistant Guide",
+    title: "How to Make a Raspberry Pi Security Camera — Free Guide",
     description:
       "Free Raspberry Pi security camera setup with Home Assistant integration. Local MJPEG/RTSP streaming, motion alerts, and private storage — no cloud uploads.",
     keywords:
       "raspberry pi security camera, home assistant integration, free security camera software, DIY camera monitoring, IP camera monitoring documentation, MJPEG camera setup, RTSP stream setup, local recording",
-    h1: "Raspberry Pi Security Camera & Home Assistant Integration Guide",
+    h1: "How to Make a Raspberry Pi Security Camera — Setup & Home Assistant Guide",
 
     body: `
       <p>Free Raspberry Pi security camera setup with Home Assistant integration. Learn MJPEG and RTSP stream configuration, motion alerts, and private local storage — keep your footage on your own devices with no cloud uploads.</p>
