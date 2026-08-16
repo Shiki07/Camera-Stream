@@ -232,7 +232,173 @@ const Documentation = () => {
                 </p>
               </CardContent>
             </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Which Raspberry Pi and camera module should you use?</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-3">
+                <p className="text-sm">
+                  Any Pi that runs Raspberry Pi OS Bookworm can stream MJPEG. Higher-end
+                  boards matter mainly when you also record locally with FFmpeg or run
+                  several camera modules at once.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">
+                      Raspberry Pi model comparison for security camera streaming and recording
+                    </caption>
+                    <thead>
+                      <tr className="text-left border-b border-border">
+                        <th scope="col" className="py-2 pr-4 font-medium text-foreground">Model</th>
+                        <th scope="col" className="py-2 pr-4 font-medium text-foreground">Practical MJPEG stream</th>
+                        <th scope="col" className="py-2 font-medium text-foreground">Best for</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Pi Zero 2 W</th>
+                        <td className="py-2 pr-4">640x480 at 10-15 fps</td>
+                        <td className="py-2">Single low-power camera, streaming only</td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Pi 3 Model B+</th>
+                        <td className="py-2 pr-4">1280x720 at 15 fps</td>
+                        <td className="py-2">Streaming plus occasional motion clips</td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Pi 4 (2-4 GB)</th>
+                        <td className="py-2 pr-4">1280x720 at 25-30 fps</td>
+                        <td className="py-2">Streaming plus continuous local recording</td>
+                      </tr>
+                      <tr>
+                        <th scope="row" className="py-2 pr-4 font-normal">Pi 5</th>
+                        <td className="py-2 pr-4">1920x1080 at 30 fps</td>
+                        <td className="py-2">Multiple cameras and FFmpeg re-encoding</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">
+                      Raspberry Pi camera module comparison
+                    </caption>
+                    <thead>
+                      <tr className="text-left border-b border-border">
+                        <th scope="col" className="py-2 pr-4 font-medium text-foreground">Camera module</th>
+                        <th scope="col" className="py-2 pr-4 font-medium text-foreground">Sensor</th>
+                        <th scope="col" className="py-2 font-medium text-foreground">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Camera Module 3</th>
+                        <td className="py-2 pr-4">IMX708, 12 MP</td>
+                        <td className="py-2">Autofocus and HDR; good general choice</td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Camera Module 3 NoIR</th>
+                        <td className="py-2 pr-4">IMX708, 12 MP</td>
+                        <td className="py-2">Night vision with an external IR illuminator</td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">Camera Module 2</th>
+                        <td className="py-2 pr-4">IMX219, 8 MP</td>
+                        <td className="py-2">Cheapest supported module, fixed focus</td>
+                      </tr>
+                      <tr className="border-b border-border/50">
+                        <th scope="row" className="py-2 pr-4 font-normal">HQ Camera</th>
+                        <td className="py-2 pr-4">IMX477, 12 MP</td>
+                        <td className="py-2">Interchangeable C/CS lenses for long-range views</td>
+                      </tr>
+                      <tr>
+                        <th scope="row" className="py-2 pr-4 font-normal">USB webcam</th>
+                        <td className="py-2 pr-4">Varies</td>
+                        <td className="py-2">Works without the ribbon connector; use v4l2</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </section>
+
+          {/* Stream error troubleshooting */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Wrench className="h-6 w-6 text-primary" />
+              MJPEG &amp; RTSP Stream Error Troubleshooting
+            </h2>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Common stream errors and fixes</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-4">
+                <div>
+                  <h3 className="font-semibold text-foreground">401 Unauthorized / repeated password prompt</h3>
+                  <p>
+                    The camera uses digest authentication or a dedicated stream account.
+                    Create a local camera user, avoid characters like <code className="bg-muted px-1 rounded">@</code>{" "}
+                    and <code className="bg-muted px-1 rounded">:</code> in the password, and enter the
+                    credentials in Camera Stream instead of embedding them in the URL.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">404 Not Found on the stream path</h3>
+                  <p>
+                    The path differs by firmware. Try <code className="bg-muted px-1 rounded">/video</code>,{" "}
+                    <code className="bg-muted px-1 rounded">/stream.mjpg</code>,{" "}
+                    <code className="bg-muted px-1 rounded">/mjpg/video.mjpg</code> or the sub-stream
+                    path listed in the camera's web interface.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Mixed content blocked / stream loads only over HTTP</h3>
+                  <p>
+                    Browsers block plain-HTTP camera feeds on an HTTPS page. Use the built-in
+                    secure proxy, put the camera behind an HTTPS reverse proxy, or serve the Pi
+                    stream through a TLS-terminated DuckDNS hostname.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Stream freezes after a few minutes</h3>
+                  <p>
+                    Usually bandwidth or a router idle timeout. Lower the resolution to 640x480,
+                    drop to 10 fps, and prefer a wired connection for the Pi. Camera Stream
+                    reconnects automatically with exponential backoff.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">504 timeout or DNS failure on a DuckDNS hostname</h3>
+                  <p>
+                    Confirm the DuckDNS record points to your current public IP, that the router
+                    forwards ports 8000 and 3002, and that no VPN is active on the Pi — VPN
+                    tunnels are not supported for Pi recording.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">RTSP works in VLC but shows a black screen in the browser</h3>
+                  <p>
+                    Expected: browsers cannot decode RTSP. Relay it with FFmpeg to MJPEG, or use
+                    the camera's MJPEG/snapshot endpoint instead.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">libcamera: "no cameras available"</h3>
+                  <p>
+                    Reseat the ribbon cable with the contacts facing the right way, then run{" "}
+                    <code className="bg-muted px-1 rounded">libcamera-hello --list-cameras</code>. On
+                    Bookworm the legacy <code className="bg-muted px-1 rounded">raspistill</code> stack
+                    is gone — use <code className="bg-muted px-1 rounded">libcamera-vid</code>.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+
 
           {/* Supported cameras and protocols */}
           <section className="mb-12">
