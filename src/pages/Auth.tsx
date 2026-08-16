@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { SEOHead } from '@/components/SEOHead';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,17 +28,6 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Prevent search engines from indexing auth page
-  useEffect(() => {
-    const metaRobots = document.createElement('meta');
-    metaRobots.name = 'robots';
-    metaRobots.content = 'noindex, nofollow';
-    document.head.appendChild(metaRobots);
-    
-    return () => {
-      document.head.removeChild(metaRobots);
-    };
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -334,12 +324,21 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <SEOHead
+        title="Sign In to Camera Stream — Free Security Camera App"
+        description="Sign in to Camera Stream or create a free account to monitor your webcams and IP cameras with motion detection and instant alerts."
+        keywords="camera stream sign in, security camera login, create camera monitoring account"
+        canonical="https://www.camerastream.live/auth"
+        noindex
+      />
       <Card className="w-full max-w-md bg-card border-border">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
             <Camera className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-foreground">Camera Stream</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">
+            Sign in or create your Camera Stream account
+          </h1>
           <CardDescription className="text-muted-foreground">
             Secure access to your remote camera system
           </CardDescription>

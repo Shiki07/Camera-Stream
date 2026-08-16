@@ -112,7 +112,7 @@ const Contact = () => {
                     <Mail className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Email Support</h3>
+                    <h2 className="font-semibold">Email Support</h2>
                     <a href="mailto:support@camerastream.live" className="text-muted-foreground hover:text-primary transition-colors">
                       support@camerastream.live
                     </a>

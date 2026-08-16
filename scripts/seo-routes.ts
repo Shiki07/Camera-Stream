@@ -31,11 +31,11 @@ export const routes = [
   },
   {
     path: "/documentation",
-    title: "Camera Stream Docs — Complete Setup Guide & User Manual",
+    title: "Free Security Camera Software — Privacy Setup Guide",
     description:
-      "Complete documentation for Camera Stream: setup guides for webcams, IP cameras, Raspberry Pi, motion detection configuration, and Home Assistant integration.",
+      "Set up free, privacy-focused security camera software: add webcams and IP cameras, configure motion detection, alerts, and local recording step by step.",
     keywords:
-      "camera stream documentation, security camera setup, IP camera guide, webcam setup, raspberry pi camera, home assistant integration, motion detection setup",
+      "free security camera software, privacy-focused camera setup, security camera setup guide, IP camera guide, webcam setup, raspberry pi camera, motion detection setup",
     h1: "Camera Stream Documentation",
     body: `
       <p>Step-by-step guides for setting up and configuring Camera Stream. Learn how to add webcams, IP cameras, Raspberry Pi cameras, and Home Assistant camera entities.</p>
