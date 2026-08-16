@@ -45,7 +45,15 @@ export const SEOHead = ({
   ogType = "website",
   noindex = false
 }: SEOHeadProps) => {
+  // Default to a self-referencing canonical for the current route.
+  const canonicalUrl =
+    canonical ??
+    (typeof window !== "undefined"
+      ? `https://www.camerastream.live${window.location.pathname.replace(/\/+$/, "") || "/"}`
+      : "https://www.camerastream.live/");
+
   useEffect(() => {
+
     // Update title
     document.title = title;
     
