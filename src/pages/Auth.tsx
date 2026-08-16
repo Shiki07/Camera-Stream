@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { SEOHead } from '@/components/SEOHead';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,17 +28,6 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Prevent search engines from indexing auth page
-  useEffect(() => {
-    const metaRobots = document.createElement('meta');
-    metaRobots.name = 'robots';
-    metaRobots.content = 'noindex, nofollow';
-    document.head.appendChild(metaRobots);
-    
-    return () => {
-      document.head.removeChild(metaRobots);
-    };
-  }, []);
 
   useEffect(() => {
     if (user) {

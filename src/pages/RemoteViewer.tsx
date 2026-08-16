@@ -220,7 +220,12 @@ const RemoteViewer: React.FC = () => {
           
           <div className="flex items-center gap-2">
             {getStatusBadge()}
-            <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
               {isFullscreen ? (
                 <Minimize2 className="h-4 w-4" />
               ) : (
