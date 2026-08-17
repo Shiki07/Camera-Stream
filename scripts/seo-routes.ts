@@ -110,13 +110,14 @@ export const routes = [
     keywords:
       "open source security camera software, free security camera software, self hosted nvr, frigate nvr, zoneminder, motioneye, shinobi, local storage security camera",
     h1: "Open Source Security Camera Software: 2026 Guide",
+    ogType: "article",
+    date: "2026-08-17",
     body: `
       <p>Open source security camera software lets you run surveillance on hardware you already own, with footage stored locally instead of in a vendor cloud. This guide compares Camera Stream, Frigate, ZoneMinder, MotionEye and Shinobi, and explains how to pick between a browser-based dashboard, an AI object-detection NVR, and a full server NVR.</p>
       <p>Covers no-subscription recording, local and Raspberry Pi storage, auditable code, ONVIF/RTSP and USB webcam support, and how Camera Stream keeps motion detection and recording on your own device.</p>
     `,
   },
   {
-
     path: "/blog/raspberry-pi-camera-recording-setup",
     title: "Raspberry Pi Security Camera: Streaming & Recording",
     description:
@@ -124,6 +125,8 @@ export const routes = [
     keywords:
       "raspberry pi security camera, raspberry pi camera streaming, pi camera recording, libcamera mjpeg, duckdns raspberry pi, pi camera motion detection",
     h1: "Raspberry Pi Security Camera: Streaming & Recording",
+    ogType: "article",
+    date: "2026-08-17",
     body: `
       <p>Turn a Raspberry Pi and the official camera module into an always-on security camera with Camera Stream. This guide covers libcamera MJPEG streaming on port 8000, the Node.js recording controller on port 3002, DuckDNS remote access, and systemd auto-start.</p>
       <p>Includes motion detection tuning, post-motion buffer recommendations, SD-card-friendly storage advice, and troubleshooting for stalled streams and undetected cameras.</p>
@@ -137,6 +140,8 @@ export const routes = [
     keywords:
       "free home security camera, DIY security camera, webcam security, IP camera setup, home surveillance free, no subscription camera",
     h1: "Free Home Security Camera Setup Guide",
+    ogType: "article",
+    date: "2026-08-17",
     body: `
       <p>Build a complete home security camera system for free using webcams or affordable IP cameras. No monthly subscription fees, no cloud lock-in.</p>
       <p>This guide walks through hardware selection, software configuration, motion detection tuning, and recording storage strategy for a privacy-focused setup.</p>
@@ -150,6 +155,8 @@ export const routes = [
     keywords:
       "privacy camera, local storage camera, no cloud security camera, encrypted camera, private home security",
     h1: "Privacy-First Camera Monitoring Explained",
+    ogType: "article",
+    date: "2026-08-17",
     body: `
       <p>Most consumer security cameras send your footage to vendor cloud servers. Privacy-first monitoring keeps recordings on hardware you own and control.</p>
       <p>This article explains the privacy trade-offs of cloud cameras, the benefits of local storage, and how Camera Stream is architected to keep your data private.</p>
@@ -163,6 +170,8 @@ export const routes = [
     keywords:
       "webcam vs ip camera, security camera comparison, home camera choice, USB webcam security, IP camera benefits",
     h1: "Webcam vs IP Camera: Which is Right for You?",
+    ogType: "article",
+    date: "2026-08-17",
     body: `
       <p>Webcams and IP cameras both work for home security monitoring, but each has clear strengths. Webcams are cheap and plug-and-play; IP cameras offer weatherproofing, longer cable runs, and dedicated streams.</p>
       <p>This comparison covers cost, image quality, placement flexibility, and software compatibility to help you choose.</p>

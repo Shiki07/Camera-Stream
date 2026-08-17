@@ -11,6 +11,12 @@ interface SEOHeadProps {
   ogImage?: string;
   ogType?: string;
   noindex?: boolean;
+  /** Article-specific Open Graph metadata (used when ogType is "article"). */
+  articlePublishedTime?: string;
+  articleModifiedTime?: string;
+  articleAuthor?: string;
+  articleSection?: string;
+  articleTags?: string[];
 }
 
 const defaultJsonLd = {
@@ -45,7 +51,12 @@ export const SEOHead = ({
   jsonLd,
   ogImage = "https://www.camerastream.live/og-image.jpg",
   ogType = "website",
-  noindex = false
+  noindex = false,
+  articlePublishedTime,
+  articleModifiedTime,
+  articleAuthor,
+  articleSection,
+  articleTags
 }: SEOHeadProps) => {
   // Default to a self-referencing canonical for the current route.
   const canonicalUrl =
@@ -117,6 +128,15 @@ export const SEOHead = ({
     updateOrCreateMeta('og:type', ogType);
     updateOrCreateMeta('og:site_name', 'Camera Stream');
     updateOrCreateMeta('og:locale', 'en_US');
+
+    // Article-specific Open Graph tags for blog posts
+    if (ogType === 'article') {
+      if (articlePublishedTime) updateOrCreateMeta('article:published_time', articlePublishedTime);
+      if (articleModifiedTime) updateOrCreateMeta('article:modified_time', articleModifiedTime);
+      if (articleAuthor) updateOrCreateMeta('article:author', articleAuthor);
+      if (articleSection) updateOrCreateMeta('article:section', articleSection);
+      articleTags?.forEach((tag) => updateOrCreateMeta('article:tag', tag));
+    }
     
     // Twitter Card tags
     updateOrCreateMeta('twitter:card', 'summary_large_image', false);
@@ -147,7 +167,7 @@ export const SEOHead = ({
       const tag = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
       if (tag) tag.remove();
     };
-  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex]);
+  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex, articlePublishedTime, articleModifiedTime, articleAuthor, articleSection, articleTags]);
 
   return null;
 };
