@@ -94,6 +94,7 @@ export const routes = [
       <p>Tutorials, guides, and tips for building a privacy-focused home security camera system. Free, vendor-neutral advice from the Camera Stream team.</p>
       <h2>Latest articles</h2>
       <ul>
+        <li><a href="/blog/open-source-security-camera-software">Open Source Security Camera Software: 2026 Guide</a></li>
         <li><a href="/blog/raspberry-pi-camera-recording-setup">Raspberry Pi Security Camera Setup: Streaming & Recording Guide</a></li>
         <li><a href="/blog/free-home-security-camera-setup">Free Home Security Camera Setup Guide</a></li>
         <li><a href="/blog/privacy-first-camera-monitoring">Privacy-First Camera Monitoring Explained</a></li>
@@ -102,6 +103,20 @@ export const routes = [
     `,
   },
   {
+    path: "/blog/open-source-security-camera-software",
+    title: "Open Source Security Camera Software: 2026 Guide",
+    description:
+      "Compare open source security camera software — Camera Stream, Frigate, ZoneMinder, MotionEye and Shinobi — and see why local storage beats cloud camera subscriptions.",
+    keywords:
+      "open source security camera software, free security camera software, self hosted nvr, frigate nvr, zoneminder, motioneye, shinobi, local storage security camera",
+    h1: "Open Source Security Camera Software: 2026 Guide",
+    body: `
+      <p>Open source security camera software lets you run surveillance on hardware you already own, with footage stored locally instead of in a vendor cloud. This guide compares Camera Stream, Frigate, ZoneMinder, MotionEye and Shinobi, and explains how to pick between a browser-based dashboard, an AI object-detection NVR, and a full server NVR.</p>
+      <p>Covers no-subscription recording, local and Raspberry Pi storage, auditable code, ONVIF/RTSP and USB webcam support, and how Camera Stream keeps motion detection and recording on your own device.</p>
+    `,
+  },
+  {
+
     path: "/blog/raspberry-pi-camera-recording-setup",
     title: "Raspberry Pi Security Camera: Streaming & Recording",
     description:

@@ -230,8 +230,16 @@ const Documentation = () => {
                   >
                     Raspberry Pi security camera streaming &amp; recording guide
                   </Link>
+                  . Comparing tools first? Read the{" "}
+                  <Link
+                    to="/blog/open-source-security-camera-software"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    open source security camera software comparison
+                  </Link>
                   .
                 </p>
+
               </CardContent>
             </Card>
 

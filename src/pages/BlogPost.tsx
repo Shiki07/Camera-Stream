@@ -18,6 +18,127 @@ interface BlogPostData {
 }
 
 const blogPostsData: Record<string, BlogPostData> = {
+  "open-source-security-camera-software": {
+    slug: "open-source-security-camera-software",
+    title: "Open Source Security Camera Software: 2026 Guide",
+    description: "Compare open source security camera software — Camera Stream, Frigate, ZoneMinder, MotionEye and Shinobi — and see why local storage beats cloud subscriptions.",
+    date: "2026-08-17",
+    readTime: "10 min read",
+    category: "Guide",
+    keywords: "open source security camera software, free security camera software, self hosted nvr, frigate nvr, zoneminder, motioneye, shinobi, local storage security camera, privacy security camera software",
+    content: (
+      <>
+        <p className="text-lg text-muted-foreground mb-6">
+          Open source security camera software lets you run your own surveillance system on
+          hardware you already own, with footage stored where you choose instead of on a
+          vendor's cloud. This guide explains what to look for, compares the main projects
+          people evaluate in 2026, and shows where a browser-based option like Camera Stream
+          fits in.
+        </p>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Why choose open source over a cloud camera plan?</h2>
+        <ul className="list-disc list-inside space-y-2 text-muted-foreground mb-6">
+          <li><strong>No subscription:</strong> recording, motion alerts and multi-camera views are not paywalled tiers.</li>
+          <li><strong>Local storage:</strong> clips stay on your PC, NAS, or Raspberry Pi SD card — nothing is uploaded to a third party.</li>
+          <li><strong>Auditable code:</strong> anyone can read how frames are handled, which matters when the data is video of your home.</li>
+          <li><strong>Hardware freedom:</strong> USB webcams, ONVIF/RTSP IP cameras and Raspberry Pi modules all work; you are not locked to one brand.</li>
+          <li><strong>Longevity:</strong> a cloud service can shut down or change its plan overnight; self-hosted software keeps running.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">The main open source options in 2026</h2>
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full text-sm border border-border rounded-lg">
+            <thead className="bg-muted">
+              <tr>
+                <th className="text-left p-3 font-semibold">Project</th>
+                <th className="text-left p-3 font-semibold">Best for</th>
+                <th className="text-left p-3 font-semibold">Runs on</th>
+                <th className="text-left p-3 font-semibold">Trade-off</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground">
+              <tr className="border-t border-border">
+                <td className="p-3 text-foreground font-medium">Camera Stream</td>
+                <td className="p-3">Fast setup, browser-based viewing and motion alerts</td>
+                <td className="p-3">Any modern browser; optional Raspberry Pi service</td>
+                <td className="p-3">No object detection or 24/7 continuous NVR archive</td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="p-3 text-foreground font-medium">Frigate</td>
+                <td className="p-3">AI object detection (person/car) with Home Assistant</td>
+                <td className="p-3">Docker on a mini-PC or NAS, ideally with a Coral TPU</td>
+                <td className="p-3">Needs Docker, YAML config and decent CPU/accelerator</td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="p-3 text-foreground font-medium">ZoneMinder</td>
+                <td className="p-3">Large, long-running multi-camera installations</td>
+                <td className="p-3">Linux server with MySQL/Apache</td>
+                <td className="p-3">Heavier install, dated interface</td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="p-3 text-foreground font-medium">MotionEye</td>
+                <td className="p-3">Simple Raspberry Pi motion recording</td>
+                <td className="p-3">Raspberry Pi / small Linux box</td>
+                <td className="p-3">Basic pixel-difference detection, fewer integrations</td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="p-3 text-foreground font-medium">Shinobi</td>
+                <td className="p-3">Self-hosted NVR with many camera inputs</td>
+                <td className="p-3">Node.js server, Docker</td>
+                <td className="p-3">Some features sit behind a paid licence tier</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="text-muted-foreground mb-6">
+          Feature sets change; check each project's own documentation before committing
+          hardware to it.
+        </p>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">How to pick the right one</h2>
+        <ul className="list-disc list-inside space-y-2 text-muted-foreground mb-6">
+          <li><strong>You want it working today, on the devices you own:</strong> a browser-based tool avoids servers, Docker and port juggling.</li>
+          <li><strong>You need "person detected" accuracy:</strong> choose a project with an inference engine such as Frigate.</li>
+          <li><strong>You need weeks of continuous archive across many cameras:</strong> a dedicated NVR on a machine with lots of disk is the right shape.</li>
+          <li><strong>You're on a Raspberry Pi:</strong> keep resolution and framerate modest and record locally to the SD card or a USB drive.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Where Camera Stream fits</h2>
+        <p className="text-muted-foreground mb-4">
+          Camera Stream is a privacy-first, free camera monitoring dashboard that runs in your
+          browser. Video frames are decoded client-side, motion detection runs on your device,
+          and recordings are written to your own machine or Raspberry Pi — no footage is
+          uploaded to our servers. Camera credentials are stored encrypted, and streams never
+          pass through a cloud recording pipeline.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-muted-foreground mb-6">
+          <li>USB webcams, MJPEG/RTSP IP cameras, Home Assistant cameras and Raspberry Pi modules</li>
+          <li>In-browser motion detection with adjustable sensitivity and cooldown</li>
+          <li>Email and push alerts on motion</li>
+          <li>Local recording to your device, or to the Pi's own storage</li>
+          <li>Up to 16 cameras per account, free</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold mt-8 mb-4">Next steps</h2>
+        <p className="text-muted-foreground mb-4">
+          Start with the{" "}
+          <Link to="/documentation" className="text-primary underline underline-offset-4">
+            Raspberry Pi and IP camera hardware configuration documentation
+          </Link>{" "}
+          for stream URLs, MJPEG/RTSP troubleshooting and Home Assistant setup, or follow the{" "}
+          <Link to="/blog/raspberry-pi-camera-recording-setup" className="text-primary underline underline-offset-4">
+            Raspberry Pi security camera streaming and recording guide
+          </Link>{" "}
+          to build a self-hosted camera end to end. If you're still choosing hardware, compare{" "}
+          <Link to="/blog/webcam-vs-ip-camera" className="text-primary underline underline-offset-4">
+            webcams versus IP cameras
+          </Link>{" "}
+          first.
+        </p>
+      </>
+    )
+  },
+
   "raspberry-pi-camera-recording-setup": {
     slug: "raspberry-pi-camera-recording-setup",
     title: "Raspberry Pi Security Camera: Streaming & Recording",
