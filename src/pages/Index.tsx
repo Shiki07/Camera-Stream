@@ -62,14 +62,15 @@ const Index = () => {
           {/* Tabbed Sections */}
           <Tabs defaultValue="recordings" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="recordings" className="flex items-center gap-2">
+              <TabsTrigger value="recordings" className="flex items-center gap-2" aria-label="Recordings">
                 <History className="w-4 h-4" />
                 <span className="hidden sm:inline">Recordings</span>
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2">
+              <TabsTrigger value="settings" className="flex items-center gap-2" aria-label="Settings">
                 <Settings className="w-4 h-4" />
                 <span className="hidden sm:inline">Settings</span>
               </TabsTrigger>
+
             </TabsList>
 
             <TabsContent value="recordings">
