@@ -18,6 +18,8 @@ interface Route {
   ogType?: string;
   noindex?: boolean;
   body?: string;
+  /** ISO publication date for article Open Graph tags. */
+  date?: string;
 }
 
 const escapeHtml = (s: string): string =>
