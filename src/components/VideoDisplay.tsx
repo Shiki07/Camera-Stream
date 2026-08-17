@@ -124,9 +124,10 @@ export const VideoDisplay = ({
               size="sm"
               disabled={isProcessing}
               className={isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}
+              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
               title={isRecording ? 'Stop recording' : 'Start recording'}
             >
-              {isRecording ? <Square className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+              {isRecording ? <Square className="w-4 h-4" aria-hidden="true" /> : <Video className="w-4 h-4" aria-hidden="true" />}
             </Button>
             
             <Button
@@ -134,9 +135,10 @@ export const VideoDisplay = ({
               size="sm"
               disabled={isProcessing}
               className="bg-green-600 hover:bg-green-700"
+              aria-label="Take snapshot"
               title="Take snapshot"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
 
@@ -148,9 +150,10 @@ export const VideoDisplay = ({
                 size="sm"
                 variant="outline"
                 className="bg-orange-800 bg-opacity-80 border-orange-600 hover:bg-orange-700"
+                aria-label="Force reconnect camera"
                 title="Force reconnect"
               >
-                <Wifi className="w-4 h-4" />
+                <Wifi className="w-4 h-4" aria-hidden="true" />
               </Button>
             )}
             
@@ -159,11 +162,13 @@ export const VideoDisplay = ({
               size="sm"
               variant="outline"
               className="bg-gray-800 bg-opacity-80 border-gray-600 hover:bg-gray-700"
+              aria-label="Disconnect camera"
               title="Disconnect camera"
             >
-              <CameraOff className="w-4 h-4" />
+              <CameraOff className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
+
         </>
       ) : (
         <div className="text-center">
