@@ -206,10 +206,11 @@ const RemoteViewer: React.FC = () => {
         <header className="flex items-center justify-between p-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <Link to="/">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" aria-label="Go to home page">
                 <Home className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
+
             </Link>
             <h1 className="text-sm font-medium text-foreground">
               {hostName ? `${hostName}'s shared camera` : 'Shared live camera feed'}
