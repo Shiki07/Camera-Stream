@@ -51,7 +51,12 @@ export const SEOHead = ({
   jsonLd,
   ogImage = "https://www.camerastream.live/og-image.jpg",
   ogType = "website",
-  noindex = false
+  noindex = false,
+  articlePublishedTime,
+  articleModifiedTime,
+  articleAuthor,
+  articleSection,
+  articleTags
 }: SEOHeadProps) => {
   // Default to a self-referencing canonical for the current route.
   const canonicalUrl =
