@@ -161,6 +161,22 @@ function injectSeoIntoHtml(baseHtml: string, route: Route): string {
   html = upsert(html, /<meta\s+property="og:image:alt"[^>]*>/i, tags.ogImageAlt);
   html = upsert(html, /<meta\s+name="twitter:image:alt"[^>]*>/i, tags.twImageAlt);
 
+  // Article-specific Open Graph tags for blog posts
+  if (tags.articlePublishedTime) {
+    html = upsert(html, /<meta\s+property="article:published_time"[^>]*>/i, tags.articlePublishedTime);
+  }
+  if (tags.articleModifiedTime) {
+    html = upsert(html, /<meta\s+property="article:modified_time"[^>]*>/i, tags.articleModifiedTime);
+  }
+  if (tags.articleAuthor) {
+    html = upsert(html, /<meta\s+property="article:author"[^>]*>/i, tags.articleAuthor);
+  }
+  if (tags.articleSection) {
+    html = upsert(html, /<meta\s+property="article:section"[^>]*>/i, tags.articleSection);
+  }
+  if (tags.articleTags) {
+    html = upsert(html, /<meta\s+property="article:tag"[^>]*>/i, tags.articleTags);
+  }
 
   // Route-specific structured data (app schema on home, breadcrumbs elsewhere).
   html = html.replace(/<\/head>/i, `  ${buildJsonLd(route)}\n  </head>`);
