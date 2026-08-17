@@ -34,6 +34,11 @@ function buildHead(route: Route) {
   const title = escapeHtml(route.title);
   const desc = escapeHtml(route.description);
   const kw = escapeHtml(route.keywords || "");
+  const ogType = escapeHtml(
+    route.ogType || (route.path.startsWith("/blog/") ? "article" : "website")
+  );
+  const isArticle = ogType === "article";
+  const articleTags = (route.keywords || "").split(",").map((t) => t.trim()).filter(Boolean);
 
   return {
     title: `<title>${title}</title>`,
@@ -45,9 +50,7 @@ function buildHead(route: Route) {
         ? "noindex, nofollow"
         : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     }" />`,
-    ogType: `<meta property="og:type" content="${escapeHtml(
-      route.ogType || (route.path.startsWith("/blog/") ? "article" : "website")
-    )}" />`,
+    ogType: `<meta property="og:type" content="${ogType}" />`,
     ogUrl: `<meta property="og:url" content="${canonical}" />`,
     ogTitle: `<meta property="og:title" content="${title}" />`,
     ogDesc: `<meta property="og:description" content="${desc}" />`,
@@ -56,6 +59,21 @@ function buildHead(route: Route) {
     twDesc: `<meta name="twitter:description" content="${desc}" />`,
     ogImageAlt: `<meta property="og:image:alt" content="${title}" />`,
     twImageAlt: `<meta name="twitter:image:alt" content="${title}" />`,
+    articlePublishedTime: isArticle && route.date
+      ? `<meta property="article:published_time" content="${escapeHtml(route.date)}" />`
+      : "",
+    articleModifiedTime: isArticle && route.date
+      ? `<meta property="article:modified_time" content="${escapeHtml(route.date)}" />`
+      : "",
+    articleAuthor: isArticle
+      ? `<meta property="article:author" content="Camera Stream" />`
+      : "",
+    articleSection: isArticle
+      ? `<meta property="article:section" content="Technology" />`
+      : "",
+    articleTags: isArticle
+      ? articleTags.map((tag) => `<meta property="article:tag" content="${escapeHtml(tag)}" />`).join("\n    ")
+      : "",
   };
 }
 
