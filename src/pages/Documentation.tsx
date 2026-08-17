@@ -69,9 +69,9 @@ const Documentation = () => {
   return (
     <>
       <SEOHead 
-        title="Free IP Camera Software: Build Your DIY Surveillance System"
-        description="Turn any webcam or IP camera into a free DIY surveillance system. Step-by-step setup for Raspberry Pi, MJPEG/RTSP streams, motion alerts, Home Assistant, and private local recording."
-        keywords="free ip camera software, diy surveillance system, raspberry pi security camera setup, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, IP camera monitoring documentation, local recording"
+        title="Raspberry Pi Security Camera Setup & DIY Surveillance Guide"
+        description="Free Raspberry Pi security camera setup guide: build a DIY surveillance system with libcamera MJPEG streaming, RTSP cameras, motion alerts, Home Assistant, and local recording — no cloud, no fees."
+        keywords="raspberry pi security camera, raspberry pi security camera setup, diy surveillance system, free ip camera software, home assistant camera integration, raspberry pi camera module comparison, MJPEG stream troubleshooting, RTSP stream setup, local recording"
 
         canonical="https://www.camerastream.live/documentation"
       />
@@ -105,12 +105,14 @@ const Documentation = () => {
         </nav>
 
         <main className="container mx-auto px-4 py-12 max-w-4xl">
-          <h1 className="text-4xl font-bold mb-4">Free IP Camera Software &amp; DIY Surveillance Setup</h1>
+          <h1 className="text-4xl font-bold mb-4">Raspberry Pi Security Camera Setup &amp; DIY Surveillance Guide</h1>
           <p className="text-muted-foreground text-lg mb-12">
-            Turn any webcam or IP camera into a private, no-subscription surveillance system.
-            Follow these free guides to configure Raspberry Pi streaming, MJPEG and RTSP feeds,
-            motion alerts, Home Assistant integration, and local recording with no cloud uploads.
+            Build a DIY surveillance system with a Raspberry Pi, a USB webcam, or any IP camera —
+            free and without subscriptions. These guides cover Raspberry Pi camera setup with
+            libcamera MJPEG streaming, RTSP feeds, motion alerts, Home Assistant integration,
+            and local recording with no cloud uploads.
           </p>
+
 
 
           {/* Getting Started */}
