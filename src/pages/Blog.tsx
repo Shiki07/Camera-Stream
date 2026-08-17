@@ -17,6 +17,16 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    slug: "open-source-security-camera-software",
+    title: "Open Source Security Camera Software: 2026 Guide",
+    description: "Compare the best open source security camera software — Camera Stream, Frigate, ZoneMinder, MotionEye, Shinobi and more — and learn why local storage beats cloud subscriptions.",
+    date: "2026-08-17",
+    readTime: "10 min read",
+    category: "Guide",
+    icon: <Shield className="h-5 w-5" />
+  },
+  {
+
     slug: "raspberry-pi-camera-recording-setup",
     title: "Raspberry Pi Security Camera: Streaming & Recording",
     description: "Turn a Raspberry Pi into a 24/7 security camera with live MJPEG streaming, motion-triggered recording, and remote access via DuckDNS. Step-by-step guide.",
