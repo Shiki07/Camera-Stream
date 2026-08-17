@@ -669,6 +669,11 @@ const BlogPost = () => {
         canonical={`https://www.camerastream.live/blog/${post.slug}`}
         ogType="article"
         jsonLd={articleJsonLd}
+        articlePublishedTime={post.date}
+        articleModifiedTime={post.date}
+        articleAuthor="Camera Stream"
+        articleSection={post.category}
+        articleTags={post.keywords.split(',').map((t) => t.trim()).filter(Boolean)}
       />
       {post.howToSteps && (
         <HowToStructuredData
