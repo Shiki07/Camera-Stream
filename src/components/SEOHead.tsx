@@ -167,7 +167,7 @@ export const SEOHead = ({
       const tag = document.querySelector('script[type="application/ld+json"][data-seohead="true"]');
       if (tag) tag.remove();
     };
-  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex]);
+  }, [title, description, keywords, canonicalUrl, jsonLd, ogImage, ogType, noindex, articlePublishedTime, articleModifiedTime, articleAuthor, articleSection, articleTags]);
 
   return null;
 };
