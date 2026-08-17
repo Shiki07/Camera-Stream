@@ -128,6 +128,15 @@ export const SEOHead = ({
     updateOrCreateMeta('og:type', ogType);
     updateOrCreateMeta('og:site_name', 'Camera Stream');
     updateOrCreateMeta('og:locale', 'en_US');
+
+    // Article-specific Open Graph tags for blog posts
+    if (ogType === 'article') {
+      if (articlePublishedTime) updateOrCreateMeta('article:published_time', articlePublishedTime);
+      if (articleModifiedTime) updateOrCreateMeta('article:modified_time', articleModifiedTime);
+      if (articleAuthor) updateOrCreateMeta('article:author', articleAuthor);
+      if (articleSection) updateOrCreateMeta('article:section', articleSection);
+      articleTags?.forEach((tag) => updateOrCreateMeta('article:tag', tag));
+    }
     
     // Twitter Card tags
     updateOrCreateMeta('twitter:card', 'summary_large_image', false);
