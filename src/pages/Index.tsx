@@ -48,7 +48,7 @@ const Index = () => {
           <div className="container mx-auto flex items-center justify-center gap-2">
             <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
             <p className="text-sm text-foreground font-medium">
-              VPN not supported for Raspberry Pi features
+              Using a VPN on your own device is fine. A VPN running on the camera device itself can block its stream.
             </p>
           </div>
         </div>
