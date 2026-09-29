@@ -383,10 +383,30 @@ const Documentation = () => {
                 <div>
                   <h3 className="font-semibold text-foreground">504 timeout or DNS failure on a DuckDNS hostname</h3>
                   <p>
-                    Confirm the DuckDNS record points to your current public IP, that the router
-                    forwards ports 8000 and 3002, and that no VPN is active on the Pi — VPN
-                    tunnels are not supported for Pi recording.
+                    Confirm the DuckDNS record points to your current public IP and that the router
+                    forwards ports 8000 and 3002. A VPN on the device you are watching from (ProtonVPN,
+                    Mullvad, NordVPN and similar) is fully supported and does not need any change.
                   </p>
+                  <p>
+                    The problem case is a full-tunnel VPN running on the camera device itself: it
+                    replaces the public IP DuckDNS reports and blocks incoming connections. Three ways
+                    to fix that, in order of preference:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>
+                      Publish the camera service through a Cloudflare Tunnel or Tailscale Funnel. This
+                      gives you a trusted HTTPS address, keeps the VPN running, and needs no open router
+                      ports — the most private and secure option.
+                    </li>
+                    <li>
+                      For Home Assistant, use Home Assistant Cloud (Nabu Casa), which provides an
+                      external HTTPS address that works alongside any VPN.
+                    </li>
+                    <li>
+                      Or split-tunnel the camera device so ports 8000 and 3002 bypass the VPN, and make
+                      the DuckDNS updater read your real public IP over the physical network interface.
+                    </li>
+                  </ul>
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">RTSP works in VLC but shows a black screen in the browser</h3>

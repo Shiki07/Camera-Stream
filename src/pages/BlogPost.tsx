@@ -166,8 +166,10 @@ const blogPostsData: Record<string, BlogPostData> = {
         <div className="bg-muted/40 border border-border rounded-lg p-4 mb-8 text-sm text-muted-foreground">
           <strong className="text-foreground">Heads up:</strong> Camera Stream uses two
           separate Pi services: an MJPEG streamer on port <code className="bg-muted px-1 rounded">8000</code> and a
-          recording controller on port <code className="bg-muted px-1 rounded">3002</code>. VPNs are not
-          supported for Pi recording — use DuckDNS with a port-forward instead.
+          recording controller on port <code className="bg-muted px-1 rounded">3002</code>. A VPN on the
+          computer or phone you watch from is perfectly fine. The thing to watch out for is a full-tunnel
+          VPN running on the Pi itself, which stops the Pi from being reachable — in that case use a
+          Cloudflare Tunnel or Tailscale Funnel to publish a secure HTTPS address, or DuckDNS with a port-forward.
         </div>
 
         <h2 className="text-2xl font-bold mt-8 mb-4">What You'll Need</h2>
@@ -320,7 +322,7 @@ sudo systemctl status camera-stream camera-recorder`}</code></pre>
           <CardContent className="pt-6 space-y-3 text-sm text-muted-foreground">
             <p><strong className="text-foreground">Stream stalls after ~2 minutes:</strong> the Pi service is tuned for seamless reconnection at ~140s. Make sure both systemd services are running and your network is stable.</p>
             <p><strong className="text-foreground">Camera not detected:</strong> run <code className="bg-muted px-1 rounded">libcamera-hello --list-cameras</code> and re-seat the ribbon cable; the contacts face the Ethernet port on a Pi 4.</p>
-            <p><strong className="text-foreground">Can't reach Pi remotely:</strong> verify the DuckDNS IP is current and ports 8000/3002 are forwarded. VPNs are not supported for Pi recording.</p>
+            <p><strong className="text-foreground">Can't reach Pi remotely:</strong> verify the DuckDNS IP is current and ports 8000/3002 are forwarded. A VPN on your viewing device is fine; a full-tunnel VPN on the Pi is not — either exclude ports 8000/3002 from the tunnel, or publish the Pi through a Cloudflare Tunnel or Tailscale Funnel HTTPS address.</p>
             <p><strong className="text-foreground">Choppy video:</strong> use a wired Ethernet connection and a quality SD card; lower the resolution in the streamer if needed.</p>
           </CardContent>
         </Card>
