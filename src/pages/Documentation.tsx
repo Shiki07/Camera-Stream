@@ -159,6 +159,7 @@ const Documentation = () => {
                   <li>Webcams (USB cameras connected to your computer)</li>
                   <li>IP Cameras (network cameras with MJPEG or RTSP streams)</li>
                   <li>Raspberry Pi cameras (for advanced users)</li>
+                  <li>Home Assistant camera entities</li>
                 </ul>
               </CardContent>
             </Card>
