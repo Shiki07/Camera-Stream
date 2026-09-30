@@ -245,6 +245,39 @@ const Documentation = () => {
 
             <Card className="mb-4">
               <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="h-5 w-5" />
+                  Home Assistant Camera Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  If you already run Home Assistant, you can bring its camera entities
+                  (including RTSP, ONVIF, and integrated brands like Ring, UniFi, or Tapo)
+                  into your Camera Stream dashboard:
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Open the dashboard settings and find the Home Assistant section</li>
+                  <li>Enter your Home Assistant URL — use HTTPS if possible (e.g., <code className="bg-muted px-1 rounded">https://homeassistant.local:8123</code>)</li>
+                  <li>Paste a Long-Lived Access Token (Profile → Security → Long-Lived Access Tokens → Create Token)</li>
+                  <li>Click "Test Connection", then "Fetch Cameras" to list your HA camera entities</li>
+                  <li>Add the cameras you want via "Add Camera" → Home Assistant tab</li>
+                </ol>
+                <p className="mt-4">
+                  The connection is proxied server-side: your access token is encrypted and
+                  stored on the backend, and the browser never sees it — HA snapshots and
+                  streams are relayed through an authenticated proxy endpoint.
+                </p>
+                <p className="text-sm">
+                  Remote or behind a VPN? Home Assistant Cloud (Nabu Casa) or a
+                  Cloudflare Tunnel both provide a trusted HTTPS address that works with
+                  Camera Stream with no router changes.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
                 <CardTitle>Which Raspberry Pi and camera module should you use?</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground space-y-3">
