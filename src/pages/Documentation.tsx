@@ -6,7 +6,7 @@ import { StructuredData, HowToStructuredData } from "@/components/StructuredData
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   Camera, ArrowLeft, Monitor, Bell, Settings, 
-  HardDrive, Shield, Wifi, Play, Plus, Video, HelpCircle, Wrench
+  HardDrive, Shield, Wifi, Play, Plus, Video, HelpCircle, Wrench, Home
 } from "lucide-react";
 
 const setupSteps = [
@@ -45,6 +45,14 @@ const faqItems = [
   {
     question: "Does Camera Stream work with Home Assistant?",
     answer: "Yes, Camera Stream integrates with Home Assistant. You can connect your Home Assistant instance to view and manage your HA cameras directly within the Camera Stream dashboard."
+  },
+  {
+    question: "Where is my Home Assistant access token stored?",
+    answer: "Your Home Assistant Long-Lived Access Token is encrypted and stored server-side. The browser never sees it — camera streams and snapshots from Home Assistant are relayed through an authenticated proxy endpoint that attaches the token for you."
+  },
+  {
+    question: "How do I send motion events from Camera Stream to Home Assistant?",
+    answer: "In the Home Assistant settings, enter the Webhook ID of a Home Assistant automation that uses the 'Webhook' trigger. When motion is detected, Camera Stream posts the event (type, camera name, motion level, timestamp) to that webhook, so your HA automations can trigger lights, sirens, notifications, or camera recording."
   },
   {
     question: "What browsers are supported?",
@@ -151,6 +159,7 @@ const Documentation = () => {
                   <li>Webcams (USB cameras connected to your computer)</li>
                   <li>IP Cameras (network cameras with MJPEG or RTSP streams)</li>
                   <li>Raspberry Pi cameras (for advanced users)</li>
+                  <li>Home Assistant camera entities</li>
                 </ul>
               </CardContent>
             </Card>
@@ -240,6 +249,39 @@ const Documentation = () => {
                   .
                 </p>
 
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="h-5 w-5" />
+                  Home Assistant Camera Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  If you already run Home Assistant, you can bring its camera entities
+                  (including RTSP, ONVIF, and integrated brands like Ring, UniFi, or Tapo)
+                  into your Camera Stream dashboard:
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Open the dashboard settings and find the Home Assistant section</li>
+                  <li>Enter your Home Assistant URL — use HTTPS if possible (e.g., <code className="bg-muted px-1 rounded">https://homeassistant.local:8123</code>)</li>
+                  <li>Paste a Long-Lived Access Token (Profile → Security → Long-Lived Access Tokens → Create Token)</li>
+                  <li>Click "Test Connection", then "Fetch Cameras" to list your HA camera entities</li>
+                  <li>Add the cameras you want via "Add Camera" → Home Assistant tab</li>
+                </ol>
+                <p className="mt-4">
+                  The connection is proxied server-side: your access token is encrypted and
+                  stored on the backend, and the browser never sees it — HA snapshots and
+                  streams are relayed through an authenticated proxy endpoint.
+                </p>
+                <p className="text-sm">
+                  Remote or behind a VPN? Home Assistant Cloud (Nabu Casa) or a
+                  Cloudflare Tunnel both provide a trusted HTTPS address that works with
+                  Camera Stream with no router changes.
+                </p>
               </CardContent>
             </Card>
 
@@ -595,6 +637,155 @@ const Documentation = () => {
                   the same network or expose it through your own dynamic DNS hostname —
                   Camera Stream never uploads your footage to a cloud service.
                 </p>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Home Assistant Integration */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Home className="h-6 w-6 text-primary" />
+              Home Assistant Integration
+            </h2>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Connect your Home Assistant instance</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  The Home Assistant integration lets you watch HA camera entities in your
+                  Camera Stream dashboard, send motion events to HA automations, and trigger
+                  recording on the HA side.
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>In Home Assistant, create a Long-Lived Access Token: click your profile (bottom-left) → Security tab → Long-Lived Access Tokens → Create Token. Copy it immediately — it is shown only once.</li>
+                  <li>In Camera Stream, open the Home Assistant settings card.</li>
+                  <li>Enter your instance URL. HTTPS is strongly recommended (e.g., <code className="bg-muted px-1 rounded">https://homeassistant.local:8123</code>) to avoid mixed-content browser blocks.</li>
+                  <li>Paste the token and click "Test Connection".</li>
+                  <li>Click "Fetch Cameras" to list every camera entity Home Assistant exposes.</li>
+                  <li>Add the entities you want from the "Add Camera" dialog → Home Assistant tab.</li>
+                </ol>
+                <p className="text-sm mt-4">
+                  <strong>Security note:</strong> the token is encrypted and stored server-side.
+                  Streams and snapshots are relayed through an authenticated proxy, so the token
+                  is never exposed to the browser or embedded in page URLs.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Send motion events to Home Assistant</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  Camera Stream can notify Home Assistant whenever motion is detected, so your
+                  existing HA automations can react — turn on lights, sound a siren, send
+                  notifications, or start recording.
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>In Home Assistant, create an automation with a "Webhook" trigger and pick a Webhook ID (e.g., <code className="bg-muted px-1 rounded">camera_stream_motion</code>).</li>
+                  <li>Add whatever actions you want to the automation.</li>
+                  <li>In Camera Stream's Home Assistant settings, enable the integration and paste the same Webhook ID.</li>
+                  <li>Save — motion events now include the event type, camera name, motion level, and timestamp.</li>
+                </ol>
+                <p className="mt-4">
+                  <strong>Recording on the camera's SD card or HA storage:</strong> Camera Stream
+                  also sends <code className="bg-muted px-1 rounded">start_recording</code> and{" "}
+                  <code className="bg-muted px-1 rounded">stop_recording</code> webhook events with
+                  the camera's <code className="bg-muted px-1 rounded">entity_id</code>. Add a
+                  second automation that calls <code className="bg-muted px-1 rounded">camera.record</code>{" "}
+                  on those events and saves to the camera's SD card, your NAS, or Home
+                  Assistant's <code className="bg-muted px-1 rounded">/media</code> folder — pick
+                  the destination with the "Recording Save Location" setting.
+                </p>
+                <details className="mt-2">
+                  <summary className="text-sm cursor-pointer hover:text-foreground">Example automation YAML</summary>
+                  <pre className="mt-2 text-xs bg-muted p-3 rounded overflow-x-auto">{`alias: Camera Stream motion & recording
+trigger:
+  - trigger: webhook
+    webhook_id: camera_stream_motion
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.type == 'motion' }}"
+        sequence:
+          - action: notify.persistent_notification
+            data:
+              title: "Motion: {{ trigger.json.camera_name }}"
+              message: "Level {{ trigger.json.motion_level }} at {{ trigger.json.timestamp }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.type == 'start_recording' }}"
+        sequence:
+          - action: camera.record
+            target:
+              entity_id: "{{ trigger.json.entity_id }}"
+            data:
+              duration: 30
+              filename: "/media/{{ trigger.json.camera_name }}_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"`}</pre>
+                </details>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Share a Camera Stream camera to Home Assistant</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-2">
+                <p>
+                  The integration also works in the other direction: you can export a webcam
+                  or Pi camera from Camera Stream as a Home Assistant camera entity.
+                </p>
+                <ol className="list-decimal list-inside ml-4 space-y-1">
+                  <li>Open the camera's menu and choose "Share to Home Assistant".</li>
+                  <li>A secure, expiring snapshot URL is generated — the token is not your HA token.</li>
+                  <li>Copy the generated YAML into Home Assistant's <code className="bg-muted px-1 rounded">configuration.yaml</code> and restart HA.</li>
+                  <li>Keep the Camera Stream tab open: the browser pushes fresh snapshots while it runs.</li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Home Assistant troubleshooting</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground space-y-4">
+                <div>
+                  <h3 className="font-semibold text-foreground">401 Unauthorized when testing the connection</h3>
+                  <p>
+                    The token is invalid or was revoked. Create a fresh Long-Lived Access Token in
+                    Home Assistant and paste it again (watch for copied leading spaces). Tokens are
+                    shown only once at creation.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Connection refused or timeout</h3>
+                  <p>
+                    Check the URL includes the port (<code className="bg-muted px-1 rounded">:8123</code>)
+                    and that HA is reachable from the internet at that address. If you are on a
+                    remote network, use Home Assistant Cloud (Nabu Casa) or a Cloudflare Tunnel
+                    instead of port forwarding.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Mixed content / camera shows a blank frame</h3>
+                  <p>
+                    A plain-HTTP Home Assistant URL cannot be called from the HTTPS dashboard.
+                    Switch the instance URL to HTTPS — the built-in proxy handles the rest, and
+                    self-signed certificates are accepted by the server-side proxy.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Webhook events never arrive in HA</h3>
+                  <p>
+                    Confirm the Webhook ID matches exactly, the automation is enabled, and HA is
+                    reachable from the internet. Test the webhook manually with the "Send" button in
+                    the HA automation editor (three-dot menu → Run, then check the trace).
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </section>
