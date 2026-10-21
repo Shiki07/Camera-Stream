@@ -98,7 +98,7 @@ Built with React, Vite, TypeScript, Tailwind CSS and Supabase.
 
 ```bash
 git clone https://github.com/Shiki07/Camera-Stream.git
-cd camera-stream
+cd Camera-Stream
 npm install
 npm run dev
 ```
