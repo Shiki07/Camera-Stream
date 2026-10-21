@@ -97,7 +97,7 @@ More fixes: [documentation → troubleshooting](https://www.camerastream.live/do
 Built with React, Vite, TypeScript, Tailwind CSS and Supabase.
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/Shiki07/Camera-Stream.git
 cd camera-stream
 npm install
 npm run dev
