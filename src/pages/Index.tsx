@@ -97,18 +97,14 @@ const Index = () => {
             </TabsContent>
           </Tabs>
           
-          {/* Support Footer */}
-          <div className="text-center py-6 border-t border-border mt-8">
-            <p className="text-sm text-muted-foreground">
-              For support, visit the{" "}
-              <Link 
-                to="/contact" 
-                className="text-primary hover:text-primary/80 underline"
-              >
-                Support page
-              </Link>
-            </p>
-          </div>
+          {/* Footer Links */}
+          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-6 gap-y-2 py-6 border-t border-border mt-8 text-sm text-muted-foreground">
+              <Link to="/documentation" className="hover:text-foreground transition-colors">Documentation</Link>
+              <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
+              <Link to="/contact" className="hover:text-foreground transition-colors">Support</Link>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+          </nav>
         </div>
       </div>
     </AuthGuard>
