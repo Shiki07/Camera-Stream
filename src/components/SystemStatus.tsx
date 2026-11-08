@@ -5,6 +5,7 @@ import { Activity, HardDrive, Wifi, Camera, Clock, RefreshCw } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useEffect, useState } from "react";
+import { connectedCameraIds, CAMERA_CONNECTION_EVENT } from "@/lib/cameraConnections";
 
 interface SystemStatusProps {
   // Optional connection status override from camera components
@@ -15,19 +16,11 @@ export const SystemStatus = ({ cameraConnected }: SystemStatusProps) => {
   const { status, loading, updateConnectionStatus, refreshStatus } = useSystemStatus();
 
   // Track live connection state reported by every camera feed
-  const [connectedCameras, setConnectedCameras] = useState<Set<string>>(new Set());
+  const [connectedCameras, setConnectedCameras] = useState<Set<string>>(() => new Set(connectedCameraIds));
   useEffect(() => {
-    const handler = (e: Event) => {
-      const { cameraId, connected } = (e as CustomEvent<{ cameraId: string; connected: boolean }>).detail;
-      setConnectedCameras(prev => {
-        if (prev.has(cameraId) === connected) return prev;
-        const next = new Set(prev);
-        if (connected) next.add(cameraId); else next.delete(cameraId);
-        return next;
-      });
-    };
-    window.addEventListener('camera-connection-changed', handler);
-    return () => window.removeEventListener('camera-connection-changed', handler);
+    const handler = () => setConnectedCameras(new Set(connectedCameraIds));
+    window.addEventListener(CAMERA_CONNECTION_EVENT, handler);
+    return () => window.removeEventListener(CAMERA_CONNECTION_EVENT, handler);
   }, []);
   const activeCount = connectedCameras.size;
   const anyConnected = activeCount > 0 || cameraConnected === true;
