@@ -148,7 +148,8 @@ export const useAutoRelay = ({
         return;
       }
       
-      if (response.status === 410) {
+      const data = response.ok ? await response.json() : null;
+      if (response.status === 410 || data?.stale) {
         // Stream stale — don't give up, keep retrying
         staleCountRef.current++;
         console.log(`Stream stale (count: ${staleCountRef.current}/${MAX_STALE_COUNT})`);
@@ -171,9 +172,8 @@ export const useAutoRelay = ({
         return;
       }
 
-      if (!response.ok) return;
+      if (!response.ok || !data) return;
 
-      const data = await response.json();
       if (data.frame) {
         setRemoteFrameUrl(data.frame);
         setRelayError(null);
