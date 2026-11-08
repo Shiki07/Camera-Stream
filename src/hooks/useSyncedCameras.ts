@@ -218,7 +218,12 @@ export function useSyncedCameras() {
   // Check if a webcam belongs to this device
   const isLocalWebcam = useCallback((camera: SyncedCamera): boolean => {
     if (camera.source !== 'webcam') return true; // Network cameras work everywhere
-    return camera.sourceDeviceId === deviceId;
+    if (camera.sourceDeviceId === deviceId) return true;
+    // Preview/dev hosts run on a different domain than the live site, so their
+    // stored device ID differs. Treat webcams as local there and open the
+    // camera directly instead of the low-res relay.
+    const host = window.location.hostname;
+    return host === 'localhost' || host.endsWith('.lovable.app') || host.endsWith('.lovableproject.com');
   }, [deviceId]);
 
   // Initial fetch
