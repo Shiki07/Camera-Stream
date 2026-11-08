@@ -215,15 +215,19 @@ export const useEnhancedMotionDetection = (config: EnhancedMotionDetectionConfig
     previousFrameRef.current = currentFrame;
   }, [config, motionDetected, isWithinSchedule, isInCooldownPeriod, initializeCanvas, calculateMotion, saveMotionEvent, toast]);
 
+  // Always call the latest processFrame so setting changes apply instantly
+  const processFrameRef = useRef(processFrame);
+  processFrameRef.current = processFrame;
+
   const startDetection = useCallback((video: HTMLVideoElement) => {
-    if (!config.enabled || isDetecting) return;
+    if (!config.enabled || detectionIntervalRef.current) return;
     
     setIsDetecting(true);
     
     detectionIntervalRef.current = setInterval(() => {
-      processFrame(video);
+      processFrameRef.current(video);
     }, DETECTION_INTERVAL_MS);
-  }, [config.enabled, isDetecting, processFrame]);
+  }, [config.enabled]);
 
   const stopDetection = useCallback(() => {
     setIsDetecting(false);

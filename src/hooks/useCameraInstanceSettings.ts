@@ -67,7 +67,7 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
       const stored = localStorage.getItem(STORAGE_KEY);
       const allSettings = stored ? JSON.parse(stored) : {};
       
-      const updatedSettings = { ...settings, ...newSettings };
+      const updatedSettings = { ...DEFAULT_CAMERA_SETTINGS, ...(allSettings[cameraId] || {}), ...newSettings };
       allSettings[cameraId] = updatedSettings;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allSettings));
       
@@ -78,10 +78,6 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
         detail: { cameraId, settings: updatedSettings }
       }));
 
-      toast({
-        title: "Settings saved",
-        description: "Camera settings updated successfully.",
-      });
     } catch {
       toast({
         title: "Error",
@@ -91,7 +87,7 @@ export const useCameraInstanceSettings = (cameraId: string | undefined) => {
     } finally {
       setIsSaving(false);
     }
-  }, [cameraId, settings]);
+  }, [cameraId]);
 
   // Individual setting updater
   const updateSetting = useCallback(<K extends keyof CameraSettings>(
