@@ -77,6 +77,11 @@ const RemoteViewer: React.FC = () => {
       }
 
       const data = await response.json();
+      if (data.stale) {
+        // Host paused, might come back
+        setStatus('error');
+        return;
+      }
       if (data.frame) {
         setFrameUrl(data.frame);
         setHostName(data.hostName || '');

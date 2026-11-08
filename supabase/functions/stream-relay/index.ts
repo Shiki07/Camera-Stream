@@ -165,11 +165,12 @@ serve(async (req) => {
       const age = Date.now() - new Date(data.updated_at).getTime();
       if (age > 10000) {
         return new Response(JSON.stringify({ 
-          error: 'Stream stale', 
+          stale: true,
           lastUpdate: data.updated_at,
           age 
         }), {
-          status: 410,
+          // 200 with stale flag: a paused host is a normal state, not an error
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
