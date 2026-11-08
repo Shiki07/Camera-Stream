@@ -72,16 +72,16 @@ const Index = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="[&>*]:h-full"><SystemStatus /></div>
                   <div className="[&>*]:h-full"><DuckDNSSettings /></div>
-                  <div className="lg:row-span-2 self-start">
+                  <div className="lg:row-span-2 [&>*]:h-full">
                     <HomeAssistantSettings />
                   </div>
-                  <div className="self-start">
+                  <div className="[&>*]:h-full">
                   <StorageSettings
                     quality={quality}
                     onQualityChange={setQuality}
                   />
                   </div>
-                  <div className="self-start">
+                  <div className="[&>*]:h-full">
                   <FolderSettings
                     storageType={storageType}
                     dateOrganizedFolders={dateOrganizedFolders}
