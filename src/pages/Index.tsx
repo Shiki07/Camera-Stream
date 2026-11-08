@@ -72,6 +72,7 @@ const Index = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <SystemStatus />
                   <DuckDNSSettings />
+                  <HomeAssistantSettings />
                   <StorageSettings
                     quality={quality}
                     onQualityChange={setQuality}
@@ -85,7 +86,6 @@ const Index = () => {
                     dateOrganizedFoldersPi={dateOrganizedFoldersPi}
                     onDateOrganizedTogglePi={setDateOrganizedFoldersPi}
                   />
-                  <HomeAssistantSettings />
                 </div>
               </div>
             </TabsContent>
