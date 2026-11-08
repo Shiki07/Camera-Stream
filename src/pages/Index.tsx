@@ -69,16 +69,19 @@ const Index = () => {
 
             <TabsContent value="settings">
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-                  <SystemStatus />
-                  <DuckDNSSettings />
-                  <div className="lg:row-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="[&>*]:h-full"><SystemStatus /></div>
+                  <div className="[&>*]:h-full"><DuckDNSSettings /></div>
+                  <div className="lg:row-span-2 self-start">
                     <HomeAssistantSettings />
                   </div>
+                  <div className="self-start">
                   <StorageSettings
                     quality={quality}
                     onQualityChange={setQuality}
                   />
+                  </div>
+                  <div className="self-start">
                   <FolderSettings
                     storageType={storageType}
                     dateOrganizedFolders={dateOrganizedFolders}
@@ -88,6 +91,7 @@ const Index = () => {
                     dateOrganizedFoldersPi={dateOrganizedFoldersPi}
                     onDateOrganizedTogglePi={setDateOrganizedFoldersPi}
                   />
+                  </div>
                 </div>
               </div>
             </TabsContent>
