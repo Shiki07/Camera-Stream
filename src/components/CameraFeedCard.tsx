@@ -91,6 +91,14 @@ export const CameraFeedCard = ({
     return () => clearInterval(timer);
   }, []);
   
+  // Report live connection state to the dashboard status panel
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('camera-connection-changed', { detail: { cameraId, connected: isConnected } }));
+  }, [cameraId, isConnected]);
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent('camera-connection-changed', { detail: { cameraId, connected: false } }));
+  }, [cameraId]);
+
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
   

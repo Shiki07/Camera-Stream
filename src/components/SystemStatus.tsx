@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Activity, HardDrive, Wifi, Camera, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface SystemStatusProps {
   // Optional connection status override from camera components
@@ -14,12 +14,23 @@ interface SystemStatusProps {
 export const SystemStatus = ({ cameraConnected }: SystemStatusProps) => {
   const { status, loading, updateConnectionStatus, refreshStatus } = useSystemStatus();
 
-  // Update connection status based on camera connectivity
+  // Track live connection state reported by every camera feed
+  const [connectedCameras, setConnectedCameras] = useState<Set<string>>(new Set());
   useEffect(() => {
-    if (typeof cameraConnected === 'boolean') {
-      updateConnectionStatus(cameraConnected);
-    }
-  }, [cameraConnected, updateConnectionStatus]);
+    const handler = (e: Event) => {
+      const { cameraId, connected } = (e as CustomEvent<{ cameraId: string; connected: boolean }>).detail;
+      setConnectedCameras(prev => {
+        if (prev.has(cameraId) === connected) return prev;
+        const next = new Set(prev);
+        if (connected) next.add(cameraId); else next.delete(cameraId);
+        return next;
+      });
+    };
+    window.addEventListener('camera-connection-changed', handler);
+    return () => window.removeEventListener('camera-connection-changed', handler);
+  }, []);
+  const activeCount = connectedCameras.size;
+  const anyConnected = activeCount > 0 || cameraConnected === true;
 
   const formatUptime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -81,11 +92,11 @@ export const SystemStatus = ({ cameraConnected }: SystemStatusProps) => {
         {/* Connection Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Wifi className={`w-4 h-4 ${status.isConnected ? 'text-green-400' : 'text-red-400'}`} />
+            <Wifi className={`w-4 h-4 ${anyConnected ? 'text-green-400' : 'text-red-400'}`} />
             <span className="text-gray-300">Connection</span>
           </div>
-          <span className={`text-sm ${status.isConnected ? 'text-green-400' : 'text-red-400'}`}>
-            {status.isConnected ? 'Online' : 'Offline'}
+          <span className={`text-sm ${anyConnected ? 'text-green-400' : 'text-red-400'}`}>
+            {anyConnected ? 'Online' : 'Offline'}
           </span>
         </div>
 
@@ -95,8 +106,8 @@ export const SystemStatus = ({ cameraConnected }: SystemStatusProps) => {
             <Camera className="w-4 h-4 text-blue-400" />
             <span className="text-gray-300">Camera</span>
           </div>
-          <span className={`text-sm ${status.isConnected ? 'text-green-400' : 'text-gray-400'}`}>
-            {status.isConnected ? 'Active' : 'Inactive'}
+          <span className={`text-sm ${anyConnected ? 'text-green-400' : 'text-gray-400'}`}>
+            {anyConnected ? (activeCount > 1 ? `${activeCount} Active` : 'Active') : 'Inactive'}
           </span>
         </div>
 
