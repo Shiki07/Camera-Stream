@@ -34,6 +34,7 @@ import { useHomeAssistant } from '@/hooks/useHomeAssistant';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { reportCameraConnection } from '@/lib/cameraConnections';
 
 interface CameraConfig extends NetworkCameraConfig {
   source: 'webcam' | 'network' | 'homeassistant';
@@ -91,6 +92,14 @@ export const CameraFeedCard = ({
     return () => clearInterval(timer);
   }, []);
   
+  // Report live connection state to the dashboard status panel
+  useEffect(() => {
+    reportCameraConnection(cameraId, isConnected);
+  }, [cameraId, isConnected]);
+  useEffect(() => () => {
+    reportCameraConnection(cameraId, false);
+  }, [cameraId]);
+
   // Use persisted settings from hook
   const { settings, updateSetting, isLoading: settingsLoading } = useCameraInstanceSettings(cameraId);
   
