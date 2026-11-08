@@ -219,14 +219,18 @@ export const useImageMotionDetection = (config: ImageMotionDetectionConfig) => {
     }
   }, [config, motionDetected, isWithinSchedule, isInCooldownPeriod, initializeCanvas, calculateMotion, saveMotionEvent, toast]);
 
+  // Always call the latest processFrame so setting changes apply instantly
+  const processFrameRef = useRef(processFrame);
+  processFrameRef.current = processFrame;
+
   const startDetection = useCallback((imgElement: HTMLImageElement) => {
-    if (!config.enabled || isDetecting) return;
+    if (!config.enabled || detectionIntervalRef.current) return;
     
     setIsDetecting(true);
     imageRef.current = imgElement;
     
     detectionIntervalRef.current = setInterval(() => {
-      processFrame();
+      processFrameRef.current();
     }, DETECTION_INTERVAL_MS);
   }, [config.enabled, isDetecting, processFrame]);
 

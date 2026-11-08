@@ -41,6 +41,14 @@ interface CameraConfig extends NetworkCameraConfig {
   haEntityId?: string;
 }
 
+const getQualityConstraints = (quality: 'high' | 'medium' | 'low') => {
+  switch (quality) {
+    case 'high': return { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+    case 'low': return { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 20 } };
+    default: return { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 25 } };
+  }
+};
+
 interface CameraFeedCardProps {
   cameraId: string;
   config: CameraConfig;
@@ -284,6 +292,20 @@ export const CameraFeedCard = ({
     },
   });
 
+  // Apply quality changes to the live webcam instantly (no refresh needed)
+  const appliedQualityRef = useRef(settings.quality);
+  useEffect(() => {
+    if (appliedQualityRef.current === settings.quality) return;
+    appliedQualityRef.current = settings.quality;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    track.applyConstraints(getQualityConstraints(settings.quality)).catch(() => {
+      // Some cameras reject live changes; restart the stream instead
+      connectToWebcamRef.current?.();
+    });
+  }, [settings.quality]);
+  const connectToWebcamRef = useRef<(() => void) | null>(null);
+
   // Connect to webcam
   const connectToWebcam = useCallback(async () => {
     if (!config.deviceId) return;
@@ -308,9 +330,7 @@ export const CameraFeedCard = ({
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             deviceId: { exact: config.deviceId },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
+            ...getQualityConstraints(settingsRef.current.quality),
           },
           audio: true,
         });
@@ -320,9 +340,7 @@ export const CameraFeedCard = ({
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             deviceId: { ideal: config.deviceId },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
+            ...getQualityConstraints(settingsRef.current.quality),
           },
           audio: true,
         });
@@ -365,6 +383,7 @@ export const CameraFeedCard = ({
       setIsConnecting(false);
     }
   }, [config.deviceId, config.name]);
+  connectToWebcamRef.current = connectToWebcam;
 
   // Connect to MJPEG network stream
   const connectToNetworkStream = useCallback(async () => {
