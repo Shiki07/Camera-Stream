@@ -69,10 +69,12 @@ const Index = () => {
 
             <TabsContent value="settings">
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                   <SystemStatus />
                   <DuckDNSSettings />
-                  <HomeAssistantSettings />
+                  <div className="lg:row-span-2">
+                    <HomeAssistantSettings />
+                  </div>
                   <StorageSettings
                     quality={quality}
                     onQualityChange={setQuality}
